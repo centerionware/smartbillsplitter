@@ -2,9 +2,6 @@
   "name": "smart-bill-splitter-functions",
   "version": "1.0.0",
   "description": "Serverless functions for the Smart Bill Splitter app.",
-  "scripts": {
-    "build": "echo \"Build not required. Functions are automatically built by Netlify.\""
-  },
   "dependencies": {
     "@google/genai": "^1.20.0"
   }
