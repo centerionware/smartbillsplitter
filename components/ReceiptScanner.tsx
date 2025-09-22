@@ -126,7 +126,13 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
     });
   }, [flashMode, isCameraOpen, canControlFlash]);
 
-  const handleOpenCamera = () => setIsCameraOpen(true);
+  const handleOpenCamera = () => {
+    // If an input is focused, blur it to hide the keyboard on mobile devices.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    setIsCameraOpen(true);
+  };
   const handleCloseCamera = () => setIsCameraOpen(false);
   
   const handleCapture = useCallback(() => {
