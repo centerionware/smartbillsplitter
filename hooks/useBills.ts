@@ -1,71 +1,97 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { Bill } from '../types.ts';
-import * as dbService from '../services/dbService.ts';
+
+const STORAGE_KEY = 'smart-bill-splitter-bills';
+
+const initialBills: Omit<Bill, 'status'>[] = [
+  {
+    id: '1',
+    description: 'Team Lunch at The Daily Grill',
+    totalAmount: 145.50,
+    date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    participants: [
+      { id: 'p1', name: 'Alice', amountOwed: 48.50, paid: true },
+      { id: 'p2', name: 'Bob', amountOwed: 48.50, paid: false },
+      { id: 'p3', name: 'Charlie', amountOwed: 48.50, paid: true },
+    ],
+  },
+  {
+    id: '2',
+    description: 'Groceries for the week',
+    totalAmount: 92.75,
+    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    participants: [
+      { id: 'p4', name: 'David', amountOwed: 46.38, paid: false },
+      { id: 'p5', name: 'Eve', amountOwed: 46.37, paid: false },
+    ],
+  },
+];
+
+// Function to safely load bills from localStorage
+const loadBillsFromStorage = (): Bill[] => {
+  try {
+    const storedBills = localStorage.getItem(STORAGE_KEY);
+    if (storedBills) {
+      const parsedBills = JSON.parse(storedBills);
+      // Migration step: ensure all bills have a status for backward compatibility
+      return parsedBills.map((bill: any) => ({
+        ...bill,
+        status: bill.status || 'active',
+      }));
+    }
+  } catch (error) {
+    console.error("Failed to parse bills from localStorage:", error);
+  }
+  // If nothing is in storage or parsing fails, return initial bills
+  // with status and save them to storage for the next time.
+  const billsWithStatus = initialBills.map(b => ({ ...b, status: 'active' as const }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(billsWithStatus));
+  return billsWithStatus;
+};
+
 
 export const useBills = () => {
-  const [bills, setBills] = useState<Bill[]>([]);
-  
-  useEffect(() => {
-    const loadBills = async () => {
-      try {
-        const storedBills = await dbService.getAllBills();
-        setBills(storedBills);
-      } catch (error) {
-        console.error("Failed to load bills from IndexedDB:", error);
-      }
-    };
-    loadBills();
-  }, []);
+  const [bills, setBills] = useState<Bill[]>(loadBillsFromStorage);
 
-  const addBill = useCallback(async (newBillData: Omit<Bill, 'id' | 'status'>) => {
+  // Effect to save bills to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(bills));
+    } catch (error) {
+      console.error("Failed to save bills to localStorage:", error);
+    }
+  }, [bills]);
+
+  const addBill = (newBillData: Omit<Bill, 'id' | 'status'>) => {
     const newBill: Bill = {
       ...newBillData,
       id: new Date().getTime().toString(),
       status: 'active',
     };
-    try {
-      await dbService.addBill(newBill);
-      setBills(prevBills => [newBill, ...prevBills]);
-    } catch (error) {
-      console.error("Failed to add bill:", error);
-    }
-  }, []);
+    setBills(prevBills => [newBill, ...prevBills]);
+  };
 
-  const updateBill = useCallback(async (updatedBill: Bill) => {
-    try {
-      await dbService.updateBill(updatedBill);
-      setBills(prevBills =>
-        prevBills.map(bill => (bill.id === updatedBill.id ? updatedBill : bill))
-      );
-    } catch (error) {
-      console.error("Failed to update bill:", error);
-    }
-  }, []);
+  const updateBill = (updatedBill: Bill) => {
+    setBills(prevBills =>
+      prevBills.map(bill => (bill.id === updatedBill.id ? updatedBill : bill))
+    );
+  };
 
-  const deleteBill = useCallback(async (billId: string) => {
-    try {
-      await dbService.deleteBill(billId);
-      setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
-    } catch (error) {
-      console.error("Failed to delete bill:", error);
-    }
-  }, []);
+  const deleteBill = (billId: string) => {
+    setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
+  };
 
-  const archiveBill = useCallback(async (billId: string) => {
-    const billToUpdate = bills.find(b => b.id === billId);
-    if (billToUpdate) {
-      const updatedBill = { ...billToUpdate, status: 'archived' as const };
-      await updateBill(updatedBill);
-    }
-  }, [bills, updateBill]);
+  const archiveBill = (billId: string) => {
+    setBills(prevBills =>
+      prevBills.map(bill => (bill.id === billId ? { ...bill, status: 'archived' } : bill))
+    );
+  };
 
-  const unarchiveBill = useCallback(async (billId: string) => {
-    const billToUpdate = bills.find(b => b.id === billId);
-    if (billToUpdate) {
-      const updatedBill = { ...billToUpdate, status: 'active' as const };
-      await updateBill(updatedBill);
-    }
-  }, [bills, updateBill]);
+  const unarchiveBill = (billId: string) => {
+    setBills(prevBills =>
+      prevBills.map(bill => (bill.id === billId ? { ...bill, status: 'active' } : bill))
+    );
+  };
 
   return { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill };
 };

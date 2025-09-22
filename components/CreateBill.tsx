@@ -111,10 +111,9 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
 
         setParticipants(prev => [...prev, ...participantsToAdd]);
       }
-    // FIX: The 'ex' variable in a catch block is of type 'unknown'. Check if it's an instance of Error before accessing properties like 'name' to ensure type safety.
-    } catch (ex) {
+    } catch (ex: any) {
       console.error("Error picking contacts:", ex);
-       if (ex instanceof Error && ex.name === 'AbortError') {
+       if (ex.name === 'AbortError') {
          // This is expected when the user cancels the picker.
          // No error message is needed.
          return;
@@ -214,7 +213,7 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
     
     if (splitMode === 'amount') {
       // Use a small tolerance for float comparison
-      // FIX: The `totalAmount` state can be an empty string. It must be converted to a number before being used in an arithmetic operation.
+      // FIX: Explicitly cast totalAmount to a number before using it in an arithmetic operation.
       return { customSplitTotal: total, isCustomSplitValid: Math.abs(total - (Number(totalAmount) || 0)) < 0.01 };
     }
     if (splitMode === 'percentage') {
@@ -232,7 +231,7 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
 
     switch(splitMode) {
         case 'even':
-            // FIX: The `totalAmount` state can be an empty string. It must be converted to a number before being used in an arithmetic operation.
+            // FIX: Explicitly cast totalAmount to a number before using it in an arithmetic operation.
             const amountPerPerson = (Number(totalAmount) || 0) / participants.length;
             finalParticipants = finalParticipants.map(p => ({...p, amountOwed: amountPerPerson}));
             break;
@@ -255,7 +254,7 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
         case 'percentage':
             finalParticipants = finalParticipants.map(p => {
                 const percentage = parseFloat(customSplits[p.id]) || 0;
-                // FIX: The `totalAmount` state can be an empty string. It must be converted to a number before being used in an arithmetic operation.
+                // FIX: Explicitly cast totalAmount to a number before using it in an arithmetic operation.
                 return {...p, amountOwed: ((Number(totalAmount) || 0) * percentage) / 100 };
             });
             break;

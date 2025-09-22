@@ -10,12 +10,9 @@ interface PaywallProps {
 // You must create Stripe Payment Links and configure them correctly.
 // 1. Go to your Stripe Dashboard -> Products.
 // 2. Create a payment link for each product.
-// 3. In the link's "Confirmation page" settings, choose "Redirect to your website".
-// 4. For the monthly plan, set the redirect URL to your app's URL with `?payment=success&duration=monthly` appended.
-//    (e.g., https://your-app-domain.com/?payment=success&duration=monthly)
-// 5. For the yearly plan, set the redirect URL to your app's URL with `?payment=success&duration=yearly` appended.
-//    (e.g., https://your-app-domain.com/?payment=success&duration=yearly)
-// 6. Paste the final generated Payment Link URLs below.
+// 3. In the link's "Advanced options", set the confirmation page to redirect to your app's URL
+//    with `?session_id={CHECKOUT_SESSION_ID}` appended.
+// 4. Paste the final generated URLs below.
 const MONTHLY_PLAN_PAYMENT_LINK = 'https://buy.stripe.com/test_bJe00j34BbdkfAOa9m6sw00';
 const YEARLY_PLAN_PAYMENT_LINK = 'https://buy.stripe.com/test_7sY6oHcFb6X42O2ftG6sw01';
 
@@ -130,7 +127,13 @@ const Paywall: React.FC<PaywallProps> = ({ onLogin, onSelectFreeTier, initialErr
         </div>
         
         <p className="mt-6 text-sm">
-            <span className="text-slate-500 dark:text-slate-400">Subscription status is checked when the app loads. If you've just paid, please refresh the page.</span>
+            <span className="text-slate-500 dark:text-slate-400">Already have a subscription? </span>
+            <button
+              onClick={onLogin}
+              className="font-semibold text-teal-600 dark:text-teal-400 hover:underline"
+            >
+              Sign In
+            </button>
         </p>
 
         <div className="relative my-6">

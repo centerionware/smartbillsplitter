@@ -1,39 +1,61 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { Settings } from '../types.ts';
-import * as dbService from '../services/dbService.ts';
+
+const STORAGE_KEY = 'smart-bill-splitter-settings';
+
+const initialSettings: Settings = {
+  paymentDetails: {
+    venmo: '',
+    paypal: '',
+    cashApp: '',
+    zelle: '',
+    customMessage: '',
+  }
+};
+
+const loadSettingsFromStorage = (): Settings => {
+  try {
+    const storedSettings = localStorage.getItem(STORAGE_KEY);
+    if (storedSettings) {
+      // Merge with initial settings to ensure all keys are present
+      const parsed = JSON.parse(storedSettings);
+      return {
+        ...initialSettings,
+        ...parsed,
+        paymentDetails: {
+            ...initialSettings.paymentDetails,
+            ...(parsed.paymentDetails || {}),
+        }
+      };
+    }
+  } catch (error) {
+    console.error("Failed to parse settings from localStorage:", error);
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(initialSettings));
+  return initialSettings;
+};
 
 export const useSettings = () => {
-  const [settings, setSettings] = useState<Settings>({ paymentDetails: {} });
+  const [settings, setSettings] = useState<Settings>(loadSettingsFromStorage);
 
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const storedSettings = await dbService.getSettings();
-        setSettings(storedSettings);
-      } catch (error) {
-        console.error("Failed to load settings from IndexedDB:", error);
-      }
-    };
-    loadSettings();
-  }, []);
-
-  const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
-    const updatedSettings = {
-      ...settings,
-      ...newSettings,
-      paymentDetails: {
-        ...settings.paymentDetails,
-        ...(newSettings.paymentDetails || {}),
-      }
-    };
-    
     try {
-        await dbService.updateSettings(updatedSettings);
-        setSettings(updatedSettings);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
-        console.error("Failed to save settings to IndexedDB:", error);
+      console.error("Failed to save settings to localStorage:", error);
     }
   }, [settings]);
+
+  const updateSettings = (newSettings: Partial<Settings>) => {
+    setSettings(prevSettings => ({
+      ...prevSettings,
+      ...newSettings,
+      paymentDetails: {
+        ...prevSettings.paymentDetails,
+        ...(newSettings.paymentDetails || {}),
+      }
+    }));
+  };
 
   return { settings, updateSettings };
 };
