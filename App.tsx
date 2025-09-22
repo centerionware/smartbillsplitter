@@ -29,7 +29,7 @@ export type RequestConfirmationFn = (
 ) => void;
 
 const App: React.FC = () => {
-  const { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, isLoading: billsLoading } = useBills();
+  const { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, isLoading: billsLoading, updateMultipleBills } = useBills();
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
   const { theme, setTheme, isLoading: themeLoading } = useTheme();
   const { subscriptionStatus, logout } = useAuth();
@@ -109,10 +109,13 @@ const App: React.FC = () => {
         ) : (
           <Dashboard
             bills={bills}
+            settings={settings}
+            subscriptionStatus={subscriptionStatus}
             onSelectBill={handleSelectBill}
             onArchiveBill={archiveBill}
             onUnarchiveBill={unarchiveBill}
             onDeleteBill={deleteBill}
+            onUpdateMultipleBills={updateMultipleBills}
           />
         );
       case View.Settings:
@@ -131,10 +134,13 @@ const App: React.FC = () => {
         return (
           <Dashboard
             bills={bills}
+            settings={settings}
+            subscriptionStatus={subscriptionStatus}
             onSelectBill={handleSelectBill}
             onArchiveBill={archiveBill}
             onUnarchiveBill={unarchiveBill}
             onDeleteBill={deleteBill}
+            onUpdateMultipleBills={updateMultipleBills}
           />
         );
     }

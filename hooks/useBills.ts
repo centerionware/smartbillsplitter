@@ -85,6 +85,16 @@ export const useBills = () => {
     );
   }, []);
 
+  const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {
+    // A transaction would be more robust, but for simplicity we await all promises.
+    await Promise.all(billsToUpdate.map(bill => updateBillDB(bill)));
+
+    setBills(prevBills => {
+        const updatedBillsMap = new Map(billsToUpdate.map(b => [b.id, b]));
+        return prevBills.map(bill => updatedBillsMap.get(bill.id) || bill);
+    });
+  }, []);
+
   const deleteBill = useCallback(async (billId: string) => {
     await deleteBillDB(billId);
     setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
@@ -112,5 +122,5 @@ export const useBills = () => {
     }
   }, [bills]);
 
-  return { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, isLoading, error };
+  return { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, isLoading, error };
 };

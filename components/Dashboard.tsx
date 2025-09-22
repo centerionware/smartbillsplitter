@@ -1,22 +1,26 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import type { Bill } from '../types.ts';
+import type { Bill, Settings } from '../types.ts';
+import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import SwipeableBillCard from './SwipeableBillCard.tsx';
-import ParticipantCard from './ParticipantCard.tsx';
+import SwipeableParticipantCard from './SwipeableParticipantCard.tsx';
 import AdBillCard from './AdBillCard.tsx';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
 
 interface DashboardProps {
   bills: Bill[];
+  settings: Settings;
+  subscriptionStatus: SubscriptionStatus;
   onSelectBill: (bill: Bill) => void;
   onArchiveBill: (billId: string) => void;
   onUnarchiveBill: (billId: string) => void;
   onDeleteBill: (billId: string) => void;
+  onUpdateMultipleBills: (bills: Bill[]) => void;
 }
 
 const BILLS_PER_PAGE = 15;
 const AD_INTERVAL = 9; // Show an ad after every 9 bills
 
-const Dashboard: React.FC<DashboardProps> = ({ bills, onSelectBill, onArchiveBill, onUnarchiveBill, onDeleteBill }) => {
+const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStatus, onSelectBill, onArchiveBill, onUnarchiveBill, onDeleteBill, onUpdateMultipleBills }) => {
   const [billStatusFilter, setBillStatusFilter] = useState<'active' | 'archived'>('active');
   const [displayMode, setDisplayMode] = useState<'bills' | 'participants'>('bills');
   const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
@@ -92,6 +96,81 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, onSelectBill, onArchiveBil
   
   const { ref: loadMoreRef } = useIntersectionObserver({ onIntersect: loadMore });
 
+  // --- Action Handlers ---
+  const handleShareWithParticipant = async (participantName: string) => {
+    if (!navigator.share) {
+      alert("Sharing is not supported on this browser.");
+      return;
+    }
+    
+    const participantData = participantsWithDebt.find(p => p.name === participantName);
+    if (!participantData) return;
+
+    const participantUnpaidBills = activeBills.filter(b => 
+      b.participants.some(p => p.name === participantName && !p.paid && p.amountOwed > 0)
+    );
+
+    const billList = participantUnpaidBills.map(b => {
+      const pInBill = b.participants.find(p => p.name === participantName);
+      return `- "${b.description}": $${(pInBill?.amountOwed || 0).toFixed(2)}`;
+    }).join('\n');
+
+    const { paymentDetails } = settings;
+    let paymentInfo = '';
+    const paymentMethods = [];
+    if (paymentDetails.venmo) paymentMethods.push(`Venmo: @${paymentDetails.venmo}`);
+    if (paymentDetails.paypal) paymentMethods.push(`PayPal: ${paymentDetails.paypal}`);
+    if (paymentDetails.cashApp) paymentMethods.push(`Cash App: $${paymentDetails.cashApp}`);
+    if (paymentDetails.zelle) paymentMethods.push(`Zelle: ${paymentDetails.zelle}`);
+    
+    if (paymentMethods.length > 0) {
+      paymentInfo = `\n\nYou can pay me via ${paymentMethods.join(' or ')}.`;
+    }
+    if (paymentDetails.customMessage) {
+      paymentInfo += paymentInfo ? `\n\n${paymentDetails.customMessage}` : `\n\n${paymentDetails.customMessage}`;
+    }
+
+    let promoText = '';
+    if (subscriptionStatus === 'free') {
+      let appUrl = 'https://sharedbills.app';
+      try {
+        const constructedUrl = new URL('/', window.location.href).href;
+        appUrl = constructedUrl.endsWith('/') ? constructedUrl.slice(0, -1) : constructedUrl;
+      } catch (e) { console.warn("Could not determine app URL from context."); }
+      promoText = `\n\nCreated with Smart Bill Splitter: ${appUrl}`;
+    }
+    
+    let shareText = settings.shareTemplate
+      .replace('{participantName}', participantName)
+      .replace('{totalOwed}', `$${participantData.totalOwed.toFixed(2)}`)
+      .replace('{billList}', billList)
+      .replace('{paymentInfo}', paymentInfo)
+      .replace('{promoText}', promoText);
+    
+    try {
+      await navigator.share({ title: 'Bill Split Reminder', text: shareText });
+    } catch (err: any) {
+      if (err.name !== 'AbortError') console.error("Error sharing:", err);
+    }
+  };
+
+  const handleMarkParticipantAsPaid = async (participantName: string) => {
+    const billsToUpdate: Bill[] = [];
+    bills.forEach(bill => {
+        if (bill.status === 'active' && bill.participants.some(p => p.name === participantName && !p.paid)) {
+            const updatedParticipants = bill.participants.map(p => 
+                p.name === participantName ? { ...p, paid: true } : p
+            );
+            billsToUpdate.push({ ...bill, participants: updatedParticipants });
+        }
+    });
+
+    if (billsToUpdate.length > 0) {
+        await onUpdateMultipleBills(billsToUpdate);
+    }
+  };
+
+
   // --- Ad Injection Logic ---
   const itemsWithAds = useMemo(() => {
     const billsToShow = filteredBills.slice(0, visibleCount);
@@ -159,11 +238,12 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, onSelectBill, onArchiveBil
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {participantsWithDebt.map(p => (
-              <ParticipantCard
+              <SwipeableParticipantCard
                 key={p.name}
-                name={p.name}
-                totalOwed={p.totalOwed}
+                participant={p}
                 onClick={() => setSelectedParticipant(p.name)}
+                onShare={() => handleShareWithParticipant(p.name)}
+                onPaidInFull={() => handleMarkParticipantAsPaid(p.name)}
               />
             ))}
           </div>
