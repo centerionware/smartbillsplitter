@@ -2,7 +2,6 @@ const CACHE_NAME = 'smart-bill-splitter-cache-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  'https://cdn.tailwindcss.com',
   '/icon.svg'
 ];
 

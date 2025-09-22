@@ -1,15 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Ensure API_KEY is handled by the environment.
-const API_KEY = process.env.API_KEY;
+let ai: GoogleGenAI | null = null;
+let initError: string | null = null;
 
-if (!API_KEY) {
-  // In a real app, you might want to handle this more gracefully.
-  // For this context, we assume the environment variable is set.
-  console.warn("API_KEY environment variable not set. Gemini API calls will fail.");
+// Attempt to initialize the Gemini client when the module is loaded.
+try {
+  const API_KEY = process.env.API_KEY;
+  // The SDK constructor will throw an error if the API_KEY is missing or invalid.
+  ai = new GoogleGenAI({ apiKey: API_KEY! });
+} catch (error: any) {
+  console.error("Failed to initialize Gemini AI Client:", error.message);
+  // Store a user-friendly error message that can be displayed in the UI.
+  initError = "The AI receipt scanner is not available because the API Key is not configured for this deployment. Please contact the administrator.";
 }
-
-const ai = new GoogleGenAI({ apiKey: API_KEY! });
 
 const receiptSchema = {
   type: Type.OBJECT,
@@ -39,6 +42,11 @@ const receiptSchema = {
 
 
 export const parseReceipt = async (base64Image: string, mimeType: string): Promise<{ items: { name: string; price: number }[] }> => {
+  if (initError || !ai) {
+    // If initialization failed, throw the stored error message.
+    throw new Error(initError || "AI client is not available.");
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
