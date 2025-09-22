@@ -149,7 +149,7 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
     setItems(newReceiptItems);
     
     // Prioritize the total from the AI if available, otherwise sum the items.
-    const newTotal = data.total ?? newReceiptItems.reduce((sum, item) => sum + item.price, 0);
+    const newTotal = data.total ?? newReceiptItems.reduce((sum: number, item) => sum + item.price, 0);
     // Round to 2 decimal places to avoid floating point issues
     setTotalAmount(Math.round(newTotal * 100) / 100);
 
@@ -159,7 +159,7 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
   const handleSaveItems = (updatedItems: ReceiptItem[]) => {
     setItems(updatedItems);
     // When items are edited, the total amount should reflect the sum of the new items.
-    const newTotal = updatedItems.reduce((sum, item) => sum + item.price, 0);
+    const newTotal = updatedItems.reduce((sum: number, item) => sum + item.price, 0);
     setTotalAmount(Math.round(newTotal * 100) / 100);
     setIsItemEditorOpen(false);
   };
@@ -209,11 +209,12 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
   };
 
   const { customSplitTotal, isCustomSplitValid } = useMemo(() => {
-    const total = Object.values(customSplits).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+    const total = Object.values(customSplits).reduce((sum: number, v) => sum + (parseFloat(v) || 0), 0);
     
     if (splitMode === 'amount') {
       // Use a small tolerance for float comparison
-      return { customSplitTotal: total, isCustomSplitValid: Math.abs(total - (totalAmount || 0)) < 0.01 };
+      // FIX: Explicitly cast totalAmount to a number before using it in an arithmetic operation.
+      return { customSplitTotal: total, isCustomSplitValid: Math.abs(total - (Number(totalAmount) || 0)) < 0.01 };
     }
     if (splitMode === 'percentage') {
       // Use a small tolerance for float comparison
@@ -230,7 +231,8 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
 
     switch(splitMode) {
         case 'even':
-            const amountPerPerson = (totalAmount || 0) / participants.length;
+            // FIX: Explicitly cast totalAmount to a number before using it in an arithmetic operation.
+            const amountPerPerson = (Number(totalAmount) || 0) / participants.length;
             finalParticipants = finalParticipants.map(p => ({...p, amountOwed: amountPerPerson}));
             break;
         case 'item':
@@ -252,7 +254,8 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
         case 'percentage':
             finalParticipants = finalParticipants.map(p => {
                 const percentage = parseFloat(customSplits[p.id]) || 0;
-                return {...p, amountOwed: ((totalAmount || 0) * percentage) / 100 };
+                // FIX: Explicitly cast totalAmount to a number before using it in an arithmetic operation.
+                return {...p, amountOwed: ((Number(totalAmount) || 0) * percentage) / 100 };
             });
             break;
     }
@@ -265,7 +268,7 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
 
     onSave({
       description,
-      totalAmount: totalAmount || 0,
+      totalAmount: Number(totalAmount) || 0,
       date: new Date().toISOString(),
       participants: processedParticipants,
       items: splitMode === 'item' ? items : undefined,

@@ -75,7 +75,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, onSelectBill, onArchiveBil
   // --- Ad Injection Logic ---
   const itemsWithAds = useMemo(() => {
     const billsToShow = filteredBills.slice(0, visibleCount);
-    const renderedItems: JSX.Element[] = [];
+    const renderedItems: React.ReactElement[] = [];
 
     billsToShow.forEach((bill, index) => {
       renderedItems.push(

@@ -83,7 +83,6 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
         const videoTrack = stream.getVideoTracks()[0];
         // The 'torch' capability indicates if the flash can be controlled.
         const capabilities = videoTrack.getCapabilities();
-        // FIX: Property 'torch' does not exist on type 'MediaTrackCapabilities'. The 'torch' capability is a valid, but non-standard, property for video tracks. Cast to `any` to bypass the TypeScript type check.
         if ((capabilities as any).torch) {
           setCanControlFlash(true);
         }
@@ -119,7 +118,6 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
     // The browser API uses a boolean 'torch' property. 'auto' mode is treated as 'off'.
     const isTorchOn = flashMode === 'on';
 
-    // FIX: 'torch' does not exist in type 'MediaTrackConstraintSet'. The 'torch' constraint is a valid, but non-standard, property. Cast the constraint object to `any` to bypass the TypeScript type check.
     videoTrack.applyConstraints({
       advanced: [{ torch: isTorchOn } as any]
     }).catch(err => {

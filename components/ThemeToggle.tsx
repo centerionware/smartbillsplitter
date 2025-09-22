@@ -6,7 +6,7 @@ interface ThemeToggleProps {
   setTheme: (theme: Theme) => void;
 }
 
-const options: { name: Theme; icon: JSX.Element; title: string }[] = [
+const options: { name: Theme; icon: React.ReactElement; title: string }[] = [
   {
     name: 'light',
     title: 'Light',
