@@ -14,6 +14,13 @@ const FloatingAd: React.FC = () => {
     }
   }, [isVisible]);
 
+  const handleClose = (e: React.MouseEvent) => {
+    // Prevent the click from bubbling up or triggering any other default action.
+    e.preventDefault();
+    e.stopPropagation();
+    setIsVisible(false);
+  };
+
   if (!isVisible) {
     return null;
   }
@@ -26,12 +33,12 @@ const FloatingAd: React.FC = () => {
     >
       <div className="relative p-4">
         <button
-          onClick={() => setIsVisible(false)}
-          className="absolute top-2 right-2 p-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full"
+          onClick={handleClose}
+          className="absolute top-2 right-2 z-10 p-1.5 text-slate-500 dark:text-slate-400 bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm hover:bg-white/90 dark:hover:bg-slate-900/90 rounded-full transition-colors"
           aria-label="Close ad"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
         
