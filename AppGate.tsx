@@ -12,7 +12,10 @@ const AppGate: React.FC = () => {
     const checkUrlForPaymentSuccess = () => {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.has('payment') && urlParams.get('payment') === 'success') {
-        login();
+        const duration = urlParams.get('duration');
+        if (duration === 'monthly' || duration === 'yearly') {
+          login(duration);
+        }
         // Clean up the URL to prevent re-triggering on refresh.
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -35,9 +38,9 @@ const AppGate: React.FC = () => {
     );
   }
 
-  // If status is null, user hasn't made a choice. Show paywall.
+  // If status is null, user hasn't made a choice or subscription expired. Show paywall.
   if (!subscriptionStatus) {
-    return <Paywall onLogin={login} onSelectFreeTier={selectFreeTier} />;
+    return <Paywall onLogin={() => { /* This is now handled by URL check */ }} onSelectFreeTier={selectFreeTier} />;
   }
 
   // If status is 'subscribed' or 'free', show the app.

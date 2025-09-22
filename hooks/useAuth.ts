@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getSubscriptionStatus, saveSubscriptionStatus } from '../services/db.ts';
+import { getSubscriptionStatus, saveSubscriptionStatus, saveSubscriptionDetails, deleteSubscriptionDetails } from '../services/db.ts';
 
 export type SubscriptionStatus = 'subscribed' | 'free' | null;
+export type SubscriptionDuration = 'monthly' | 'yearly';
 
 interface AuthContextType {
   subscriptionStatus: SubscriptionStatus;
   isLoading: boolean;
-  login: () => void;
+  login: (duration: SubscriptionDuration) => void;
   selectFreeTier: () => void;
   logout: () => void;
 }
@@ -21,9 +22,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const loadStatus = async () => {
       try {
         setIsLoading(true);
-        // FIX: The logic for handling legacy subscription status values (like 'true')
-        // has been moved into the `getSubscriptionStatus` service function.
-        // This simplifies the hook and centralizes data access logic.
+        // This function now contains all logic for checking expiration.
         const storedStatus = await getSubscriptionStatus();
         setSubscriptionStatus(storedStatus);
       } catch (error) {
@@ -36,17 +35,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadStatus();
   }, []);
 
-  const login = useCallback(async () => {
+  const login = useCallback(async (duration: SubscriptionDuration) => {
+    const details = {
+        startDate: new Date().toISOString(),
+        duration,
+    };
+    await saveSubscriptionDetails(details);
     await saveSubscriptionStatus('subscribed');
     setSubscriptionStatus('subscribed');
   }, []);
 
   const selectFreeTier = useCallback(async () => {
+    // When selecting the free tier, ensure any paid subscription details are cleared.
+    await deleteSubscriptionDetails();
     await saveSubscriptionStatus('free');
     setSubscriptionStatus('free');
   }, []);
 
   const logout = useCallback(async () => {
+    // On logout, clear both the simple status and the detailed subscription info.
+    await deleteSubscriptionDetails();
     await saveSubscriptionStatus(null);
     setSubscriptionStatus(null);
   }, []);

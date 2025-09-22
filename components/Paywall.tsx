@@ -7,14 +7,11 @@ interface PaywallProps {
 }
 
 // --- IMPORTANT ---
-// You must create Stripe Payment Links and configure them correctly.
-// 1. Go to your Stripe Dashboard -> Products.
-// 2. Create a payment link for each product.
-// 3. In the link's "Advanced options", set the confirmation page to redirect to your app's URL
-//    with `?session_id={CHECKOUT_SESSION_ID}` appended.
-// 4. Paste the final generated URLs below.
-const MONTHLY_PLAN_PAYMENT_LINK = 'https://buy.stripe.com/test_bJe00j34BbdkfAOa9m6sw00';
-const YEARLY_PLAN_PAYMENT_LINK = 'https://buy.stripe.com/test_7sY6oHcFb6X42O2ftG6sw01';
+// These links must be configured in Stripe to redirect to your app's URL
+// with `?payment=success` on successful payment. We add the `duration` parameter here.
+const BASE_URL = window.location.origin + window.location.pathname;
+const MONTHLY_PLAN_PAYMENT_LINK = `https://buy.stripe.com/test_bJe00j34BbdkfAOa9m6sw00?success_url=${encodeURIComponent(BASE_URL + '?payment=success&duration=monthly')}`;
+const YEARLY_PLAN_PAYMENT_LINK = `https://buy.stripe.com/test_7sY6oHcFb6X42O2ftG6sw01?success_url=${encodeURIComponent(BASE_URL + '?payment=success&duration=yearly')}`;
 
 
 const Paywall: React.FC<PaywallProps> = ({ onLogin, onSelectFreeTier, initialError }) => {
@@ -38,16 +35,9 @@ const Paywall: React.FC<PaywallProps> = ({ onLogin, onSelectFreeTier, initialErr
     }
 
     setIsLoading(planIdentifier);
-
-    // Open the checkout page in a new tab. This is crucial for iframe compatibility.
-    window.open(paymentLinkUrl, '_blank');
-
-    // Because we open a new tab, we can't know when the user is done.
-    // We'll remove the loading spinner after a short delay to allow the user to
-    // try the other link if they close the new tab.
-    setTimeout(() => {
-        setIsLoading(null);
-    }, 2000);
+    
+    // Redirect the current window to the checkout page.
+    window.location.href = paymentLinkUrl;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, planIdentifier: string, paymentLinkUrl: string) => {
@@ -69,7 +59,7 @@ const Paywall: React.FC<PaywallProps> = ({ onLogin, onSelectFreeTier, initialErr
 
         <h2 className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-2">Upgrade to Pro</h2>
         <p className="text-slate-500 dark:text-slate-400 mb-8">
-          Select a plan to open the secure checkout page in a new tab.
+          Remove all ads and support future development.
         </p>
 
         {error && (
@@ -126,14 +116,8 @@ const Paywall: React.FC<PaywallProps> = ({ onLogin, onSelectFreeTier, initialErr
           </div>
         </div>
         
-        <p className="mt-6 text-sm">
-            <span className="text-slate-500 dark:text-slate-400">Already have a subscription? </span>
-            <button
-              onClick={onLogin}
-              className="font-semibold text-teal-600 dark:text-teal-400 hover:underline"
-            >
-              Sign In
-            </button>
+        <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
+            Payment processing is handled securely by Stripe.
         </p>
 
         <div className="relative my-6">

@@ -10,12 +10,18 @@ const STORES = {
   SETTINGS: 'settings',
   THEME: 'theme',
   SUBSCRIPTION: 'subscription',
+  SUBSCRIPTION_DETAILS: 'subscription_details',
 };
 
 // Singleton key for settings, theme, subscription stores
 const SINGLE_KEY = 'current';
 
 let db: IDBDatabase;
+
+export interface SubscriptionDetails {
+  startDate: string;
+  duration: 'monthly' | 'yearly';
+}
 
 // --- Promise Wrapper for IDBRequest ---
 function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
@@ -43,6 +49,9 @@ export function initDB(): Promise<void> {
       }
       if (!dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION)) {
         dbInstance.createObjectStore(STORES.SUBSCRIPTION);
+      }
+      if (!dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION_DETAILS)) {
+        dbInstance.createObjectStore(STORES.SUBSCRIPTION_DETAILS);
       }
     };
 
@@ -105,20 +114,57 @@ export const getTheme = () => get<Theme>(STORES.THEME, SINGLE_KEY);
 export const saveTheme = (theme: Theme) => set(STORES.THEME, theme, SINGLE_KEY);
 
 // --- Subscription ---
-// FIX: Encapsulate legacy data handling. Older versions may have stored 'true' as a string.
-// This normalizes the data on read, so the rest of the app doesn't need to know about legacy values,
-// and it resolves the TypeScript error in `useAuth.ts`.
+const getSubscriptionDetails = () => get<SubscriptionDetails>(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
+export const saveSubscriptionDetails = (details: SubscriptionDetails) => set(STORES.SUBSCRIPTION_DETAILS, details, SINGLE_KEY);
+export const deleteSubscriptionDetails = () => del(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
+
 export const getSubscriptionStatus = async (): Promise<SubscriptionStatus> => {
-    const storedValue = await get<any>(STORES.SUBSCRIPTION, SINGLE_KEY);
-    if (storedValue === 'true' || storedValue === 'subscribed') {
-        return 'subscribed';
+    // 1. Check for a paid subscription first and validate its date.
+    const details = await getSubscriptionDetails();
+    if (details && details.startDate && details.duration) {
+        const startDate = new Date(details.startDate);
+        const now = new Date();
+        
+        let expirationDate = new Date(startDate);
+        if (details.duration === 'monthly') {
+            expirationDate.setDate(startDate.getDate() + 31); // Be generous with 31 days for a month
+        } else if (details.duration === 'yearly') {
+            expirationDate.setDate(startDate.getDate() + 366); // Be generous with 366 days for a year
+        }
+
+        if (now < expirationDate) {
+            return 'subscribed'; // Subscription is still active
+        } else {
+            // Subscription has expired. Clean up and revert user to the paywall.
+            await deleteSubscriptionDetails();
+            await saveSubscriptionStatus(null); // This will clear the simple status
+            return null;
+        }
     }
+
+    // 2. If no paid subscription, check for a simple 'free' tier status.
+    const storedValue = await get<any>(STORES.SUBSCRIPTION, SINGLE_KEY);
     if (storedValue === 'free') {
         return 'free';
     }
+    
+    // 3. Handle legacy subscribed status (e.g., from an older version or import)
+    // without expiration details. Treat it as valid.
+    if (storedValue === 'true' || storedValue === 'subscribed') {
+        return 'subscribed';
+    }
+
+    // 4. Default to null (which will show the paywall).
     return null;
 };
-export const saveSubscriptionStatus = (status: SubscriptionStatus) => set(STORES.SUBSCRIPTION, status, SINGLE_KEY);
+
+export const saveSubscriptionStatus = (status: SubscriptionStatus) => {
+    if (status === null) {
+        // A null status means we should clear the entry, not store 'null'.
+        return del(STORES.SUBSCRIPTION, SINGLE_KEY);
+    }
+    return set(STORES.SUBSCRIPTION, status, SINGLE_KEY);
+};
 
 
 // --- Data Management ---
