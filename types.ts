@@ -20,6 +20,7 @@ export interface Bill {
   participants: Participant[];
   items?: ReceiptItem[];
   status: 'active' | 'archived';
+  receiptImage?: string; // base64 data URL of the receipt
 }
 
 export interface PaymentDetails {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Bill, Participant, Settings } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
@@ -11,6 +11,8 @@ interface BillDetailsProps {
 }
 
 const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill, onBack, subscriptionStatus }) => {
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+
   const togglePaidStatus = (participantId: string) => {
     const updatedParticipants = bill.participants.map(p =>
       p.id === participantId ? { ...p, paid: !p.paid } : p
@@ -97,6 +99,20 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
           </div>
         </div>
 
+        {bill.receiptImage && (
+          <div className="my-2">
+            <button
+              onClick={() => setIsReceiptModalOpen(true)}
+              className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+              </svg>
+              View Scanned Receipt
+            </button>
+          </div>
+        )}
+
         {/* Progress Bar */}
         <div className="mt-6 mb-8">
             <div className="flex justify-between mb-1 text-sm font-medium">
@@ -148,6 +164,30 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
           </ul>
         </div>
       </div>
+      
+      {isReceiptModalOpen && bill.receiptImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-80 z-50 flex justify-center items-center p-4"
+          onClick={() => setIsReceiptModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Receipt Image Viewer"
+        >
+          <div className="relative max-w-4xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <img src={bill.receiptImage} alt="Scanned receipt" className="w-full h-full object-contain rounded-lg shadow-2xl" />
+            <button
+              onClick={() => setIsReceiptModalOpen(false)}
+              className="absolute -top-3 -right-3 bg-white text-slate-800 rounded-full p-2 shadow-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-white"
+              aria-label="Close receipt view"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

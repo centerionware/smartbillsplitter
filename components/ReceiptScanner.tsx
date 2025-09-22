@@ -9,6 +9,8 @@ interface ScannedData {
 
 interface ReceiptScannerProps {
   onItemsScanned: (data: ScannedData) => void;
+  onImageSelected: (imageDataUrl: string) => void;
+  onImageCleared: () => void;
 }
 
 // --- Flash Icons ---
@@ -35,7 +37,7 @@ const FlashAutoIcon = () => (
 );
 
 
-const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
+const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImageSelected, onImageCleared }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -126,13 +128,7 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
     });
   }, [flashMode, isCameraOpen, canControlFlash]);
 
-  const handleOpenCamera = () => {
-    // If an input is focused, blur it to hide the keyboard on mobile devices.
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-    setIsCameraOpen(true);
-  };
+  const handleOpenCamera = () => setIsCameraOpen(true);
   const handleCloseCamera = () => setIsCameraOpen(false);
   
   const handleCapture = useCallback(() => {
@@ -145,6 +141,7 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
         context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
         setPreviewUrl(dataUrl);
+        onImageSelected(dataUrl);
         
         // Convert data URL to a File object to keep the rest of the logic consistent
         fetch(dataUrl)
@@ -155,7 +152,7 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
             });
     }
     handleCloseCamera();
-  }, [handleCloseCamera]);
+  }, [onImageSelected]);
 
   const handleFlashToggle = () => {
     const modes: ('auto' | 'on' | 'off')[] = ['auto', 'on', 'off'];
@@ -181,10 +178,23 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
       setError(null);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
+        const dataUrl = reader.result as string;
+        setPreviewUrl(dataUrl);
+        onImageSelected(dataUrl);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleClearImage = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setError(null);
+    const input = document.getElementById('receipt-upload') as HTMLInputElement;
+    if (input) {
+      input.value = '';
+    }
+    onImageCleared();
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -229,6 +239,7 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
           {canControlFlash && (
             <div className="absolute top-4 right-4">
               <button
+                type="button"
                 onClick={handleFlashToggle}
                 className="p-3 bg-black bg-opacity-40 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-white"
                 aria-label={`Set flash to ${flashMode}`}
@@ -239,8 +250,8 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
           )}
 
           <div className="absolute bottom-0 left-0 right-0 p-4 bg-black bg-opacity-50 flex justify-around items-center">
-              <button onClick={handleCloseCamera} className="px-6 py-3 bg-gray-600/70 text-white font-semibold rounded-lg text-lg">Cancel</button>
-              <button onClick={handleCapture} className="w-20 h-20 bg-white rounded-full border-4 border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white ring-offset-black/50"></button>
+              <button type="button" onClick={handleCloseCamera} className="px-6 py-3 bg-gray-600/70 text-white font-semibold rounded-lg text-lg">Cancel</button>
+              <button type="button" onClick={handleCapture} className="w-20 h-20 bg-white rounded-full border-4 border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white ring-offset-black/50"></button>
           </div>
         </div>
       )}
@@ -248,7 +259,8 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
         <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Scan a Receipt (Optional)</h3>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Let AI extract the items and prices for you.</p>
         
-        <div className="flex justify-center gap-4">
+        {!previewUrl && (
+          <div className="flex justify-center gap-4">
             <input
                 type="file"
                 id="receipt-upload"
@@ -271,11 +283,22 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned }) => {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 <span>Use Camera</span>
             </button>
-        </div>
+          </div>
+        )}
 
         {previewUrl && (
-          <div className="mt-4">
+          <div className="mt-4 relative inline-block">
             <img src={previewUrl} alt="Receipt preview" className="max-h-48 mx-auto rounded-md shadow-sm" />
+             <button
+              type="button"
+              onClick={handleClearImage}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-white"
+              aria-label="Clear image"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         )}
 

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import type { Bill, Participant, ReceiptItem } from '../types.ts';
 import type { RequestConfirmationFn } from '../App.tsx';
 import ReceiptScanner from './ReceiptScanner.tsx';
+import ItemEditor from './ItemEditor.tsx';
 
 interface CreateBillProps {
   onSave: (bill: Omit<Bill, 'id' | 'status'>) => void;
@@ -13,6 +14,7 @@ interface ScannedData {
   description: string;
   date?: string;
   items: { name: string; price: number }[];
+  total?: number;
 }
 
 type SplitMode = 'even' | 'item' | 'amount' | 'percentage';
@@ -22,6 +24,7 @@ const getInitialState = () => ({
     totalAmount: '' as const,
     participants: [] as Participant[],
     items: [] as ReceiptItem[],
+    receiptImage: undefined as string | undefined,
 });
 
 const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfirmation }) => {
@@ -31,10 +34,12 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
   const [newParticipantName, setNewParticipantName] = useState('');
   const [participantError, setParticipantError] = useState('');
   const [items, setItems] = useState<ReceiptItem[]>([]);
+  const [receiptImage, setReceiptImage] = useState<string | undefined>();
   const [splitMode, setSplitMode] = useState<SplitMode>('even');
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
   const [contactError, setContactError] = useState('');
   const [initialState] = useState(getInitialState);
+  const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
 
   // Check for Contact Picker availability and context.
   const isContactApiSupported = 'contacts' in navigator && 'select' in (navigator as any).contacts;
@@ -45,9 +50,10 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
       description !== initialState.description ||
       totalAmount !== initialState.totalAmount ||
       participants.length !== initialState.participants.length ||
-      items.length !== initialState.items.length
+      items.length !== initialState.items.length ||
+      receiptImage !== initialState.receiptImage
     );
-  }, [description, totalAmount, participants, items, initialState]);
+  }, [description, totalAmount, participants, items, receiptImage, initialState]);
 
   const handleCancel = () => {
     if (isDirty) {
@@ -142,12 +148,21 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
     }));
     setItems(newReceiptItems);
     
-    const newTotal = newReceiptItems.reduce((sum, item) => sum + item.price, 0);
+    // Prioritize the total from the AI if available, otherwise sum the items.
+    const newTotal = data.total ?? newReceiptItems.reduce((sum, item) => sum + item.price, 0);
     // Round to 2 decimal places to avoid floating point issues
     setTotalAmount(Math.round(newTotal * 100) / 100);
 
     setSplitMode('item');
   }, []);
+
+  const handleSaveItems = (updatedItems: ReceiptItem[]) => {
+    setItems(updatedItems);
+    // When items are edited, the total amount should reflect the sum of the new items.
+    const newTotal = updatedItems.reduce((sum, item) => sum + item.price, 0);
+    setTotalAmount(Math.round(newTotal * 100) / 100);
+    setIsItemEditorOpen(false);
+  };
 
   const toggleItemAssignment = (itemId: string, participantId: string) => {
     setItems(prevItems => prevItems.map(item => {
@@ -248,12 +263,21 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
       date: new Date().toISOString(),
       participants: finalParticipants,
       items: splitMode === 'item' ? items : undefined,
+      receiptImage,
     });
   };
 
   const isFormValid = description && totalAmount && participants.length > 0 && isCustomSplitValid;
 
   return (
+    <>
+    {isItemEditorOpen && (
+        <ItemEditor
+          initialItems={items}
+          onSave={handleSaveItems}
+          onCancel={() => setIsItemEditorOpen(false)}
+        />
+      )}
     <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
       <h2 className="text-3xl font-bold mb-6 text-slate-700 dark:text-slate-200">Create New Bill</h2>
       
@@ -271,7 +295,11 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
           />
         </div>
 
-        <ReceiptScanner onItemsScanned={handleItemsScanned} />
+        <ReceiptScanner
+          onItemsScanned={handleItemsScanned}
+          onImageSelected={setReceiptImage}
+          onImageCleared={() => setReceiptImage(undefined)}
+        />
 
         <div className="mb-6">
             <label htmlFor="totalAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Total Amount</label>
@@ -286,6 +314,20 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
                 disabled={items.length > 0 && splitMode === 'item'}
             />
              { (splitMode === 'amount' || splitMode === 'percentage') && !totalAmount && <p className="text-sm text-amber-600 mt-1">Please enter a total amount before splitting.</p> }
+        </div>
+
+        <div className="mb-6 -mt-2">
+          <button
+            type="button"
+            onClick={() => setIsItemEditorOpen(true)}
+            className="w-full text-center bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+              <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+            </svg>
+            <span>{items.length > 0 ? `Edit Itemization (${items.length} items)` : 'Add/Edit Itemization'}</span>
+          </button>
         </div>
 
         <div className="mb-6">
@@ -461,6 +503,7 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
         </div>
       </form>
     </div>
+    </>
   );
 };
 
