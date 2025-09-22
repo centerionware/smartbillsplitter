@@ -1,0 +1,454 @@
+import React, { useState, useCallback, useMemo } from 'react';
+import type { Bill, Participant, ReceiptItem } from '../types';
+import type { RequestConfirmationFn } from '../App';
+import ReceiptScanner from './ReceiptScanner';
+
+interface CreateBillProps {
+  onSave: (bill: Omit<Bill, 'id' | 'status'>) => void;
+  onCancel: () => void;
+  requestConfirmation: RequestConfirmationFn;
+}
+
+type SplitMode = 'even' | 'item' | 'amount' | 'percentage';
+
+const getInitialState = () => ({
+    description: '',
+    totalAmount: '' as const,
+    participants: [] as Participant[],
+    items: [] as ReceiptItem[],
+});
+
+const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfirmation }) => {
+  const [description, setDescription] = useState('');
+  const [totalAmount, setTotalAmount] = useState<number | ''>('');
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [newParticipantName, setNewParticipantName] = useState('');
+  const [participantError, setParticipantError] = useState('');
+  const [items, setItems] = useState<ReceiptItem[]>([]);
+  const [splitMode, setSplitMode] = useState<SplitMode>('even');
+  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+  const [contactError, setContactError] = useState('');
+  const [initialState] = useState(getInitialState);
+
+  // Check for Contact Picker availability and context.
+  const isContactApiSupported = 'contacts' in navigator && 'select' in (navigator as any).contacts;
+  const isInIframe = window.self !== window.top;
+
+  const isDirty = useMemo(() => {
+    return (
+      description !== initialState.description ||
+      totalAmount !== initialState.totalAmount ||
+      participants.length !== initialState.participants.length ||
+      items.length !== initialState.items.length
+    );
+  }, [description, totalAmount, participants, items, initialState]);
+
+  const handleCancel = () => {
+    if (isDirty) {
+      requestConfirmation(
+        'Discard Changes?',
+        'You have unsaved changes. Are you sure you want to discard them?',
+        onCancel,
+        { confirmText: 'Discard', confirmVariant: 'danger' }
+      );
+    } else {
+      onCancel();
+    }
+  };
+
+  const handleAddParticipant = () => {
+    const trimmedName = newParticipantName.trim();
+    if (trimmedName && !participants.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
+        const newParticipant: Participant = {
+            id: `p-${new Date().getTime()}-${trimmedName}`,
+            name: trimmedName,
+            amountOwed: 0,
+            paid: false,
+        };
+        setParticipants(prev => [...prev, newParticipant]);
+        setNewParticipantName('');
+        setParticipantError('');
+    } else if (trimmedName) {
+        setParticipantError('This participant has already been added.');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        handleAddParticipant();
+    }
+  };
+
+  const handleSelectContacts = async () => {
+    setContactError(''); // Clear previous errors
+    try {
+      const contacts = await (navigator as any).contacts.select(['name'], { multiple: true });
+      if (contacts.length > 0) {
+        const newParticipants: Participant[] = contacts.map((contact: any) => ({
+          id: `p-${new Date().getTime()}-${contact.name[0]}`,
+          name: contact.name[0],
+          amountOwed: 0,
+          paid: false,
+        }));
+        
+        // Filter out participants that already exist
+        const participantsToAdd = newParticipants.filter(
+            np => !participants.some(p => p.name === np.name)
+        );
+
+        setParticipants(prev => [...prev, ...participantsToAdd]);
+      }
+    } catch (ex: any) {
+      console.error("Error picking contacts:", ex);
+       if (ex.name === 'AbortError') {
+         // This is expected when the user cancels the picker.
+         // No error message is needed.
+         return;
+       }
+       setContactError("Could not retrieve contacts. This feature requires a supported browser (like Chrome on Android) and a secure (HTTPS) connection.");
+    }
+  };
+
+  const removeParticipant = (id: string) => {
+    setParticipants(participants.filter(p => p.id !== id));
+    // Also remove from custom splits
+    setCustomSplits(prev => {
+        const next = {...prev};
+        delete next[id];
+        return next;
+    });
+    // Also unassign from items
+    setItems(prevItems => prevItems.map(item => ({
+        ...item,
+        assignedTo: item.assignedTo.filter(pId => pId !== id)
+    })));
+  };
+  
+  const handleItemsScanned = useCallback((scannedItems: { name: string; price: number }[]) => {
+    const newReceiptItems = scannedItems.map((item, index) => ({
+      ...item,
+      id: `item-${new Date().getTime()}-${index}`,
+      assignedTo: [],
+    }));
+    setItems(newReceiptItems);
+    setTotalAmount(newReceiptItems.reduce((sum, item) => sum + item.price, 0));
+    setSplitMode('item');
+  }, []);
+
+  const toggleItemAssignment = (itemId: string, participantId: string) => {
+    setItems(prevItems => prevItems.map(item => {
+        if (item.id === itemId) {
+            const assigned = item.assignedTo.includes(participantId);
+            return {
+                ...item,
+                assignedTo: assigned
+                    ? item.assignedTo.filter(pId => pId !== participantId)
+                    : [...item.assignedTo, participantId]
+            };
+        }
+        return item;
+    }));
+  };
+
+  const handleCustomSplitChange = (participantId: string, value: string) => {
+    // Allow only numbers and a single decimal point
+    if (/^\d*\.?\d*$/.test(value)) {
+        setCustomSplits(prev => ({...prev, [participantId]: value}));
+    }
+  };
+  
+  const handleEvenPercentageSplit = () => {
+    const numParticipants = participants.length;
+    if (numParticipants === 0) return;
+
+    const newSplits: Record<string, string> = {};
+    const basePercentage = 100 / numParticipants;
+    let accumulatedPercentage = 0;
+
+    participants.forEach((p, index) => {
+      if (index === numParticipants - 1) {
+        // Assign the remainder to the last participant to ensure the total is exactly 100
+        newSplits[p.id] = (100 - accumulatedPercentage).toFixed(2);
+      } else {
+        const roundedPercentage = parseFloat(basePercentage.toFixed(2));
+        newSplits[p.id] = roundedPercentage.toString();
+        accumulatedPercentage += roundedPercentage;
+      }
+    });
+
+    setCustomSplits(newSplits);
+  };
+
+  const { customSplitTotal, isCustomSplitValid } = useMemo(() => {
+    const total = Object.values(customSplits).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+    
+    if (splitMode === 'amount') {
+      // Use a small tolerance for float comparison
+      return { customSplitTotal: total, isCustomSplitValid: Math.abs(total - (totalAmount || 0)) < 0.01 };
+    }
+    if (splitMode === 'percentage') {
+      // Use a small tolerance for float comparison
+      return { customSplitTotal: total, isCustomSplitValid: Math.abs(total - 100) < 0.01 };
+    }
+    return { customSplitTotal: 0, isCustomSplitValid: true };
+  }, [customSplits, splitMode, totalAmount]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFormValid) return;
+
+    let finalParticipants = participants.map(p => ({...p, amountOwed: 0}));
+
+    switch(splitMode) {
+        case 'even':
+            const amountPerPerson = (totalAmount || 0) / participants.length;
+            finalParticipants = finalParticipants.map(p => ({...p, amountOwed: amountPerPerson}));
+            break;
+        case 'item':
+            items.forEach(item => {
+                if(item.assignedTo.length > 0) {
+                    const pricePerPerson = item.price / item.assignedTo.length;
+                    item.assignedTo.forEach(pId => {
+                        const participant = finalParticipants.find(p => p.id === pId);
+                        if (participant) {
+                            participant.amountOwed += pricePerPerson;
+                        }
+                    });
+                }
+            });
+            break;
+        case 'amount':
+            finalParticipants = finalParticipants.map(p => ({...p, amountOwed: parseFloat(customSplits[p.id]) || 0}));
+            break;
+        case 'percentage':
+            finalParticipants = finalParticipants.map(p => {
+                const percentage = parseFloat(customSplits[p.id]) || 0;
+                return {...p, amountOwed: ((totalAmount || 0) * percentage) / 100 };
+            });
+            break;
+    }
+
+    onSave({
+      description,
+      totalAmount: totalAmount || 0,
+      date: new Date().toISOString(),
+      participants: finalParticipants,
+      items: splitMode === 'item' ? items : undefined,
+    });
+  };
+
+  const isFormValid = description && totalAmount && participants.length > 0 && isCustomSplitValid;
+
+  return (
+    <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
+      <h2 className="text-3xl font-bold mb-6 text-slate-700 dark:text-slate-200">Create New Bill</h2>
+      
+      <form onSubmit={handleSubmit}>
+        <div className="mb-6">
+          <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Description</label>
+          <input
+            id="description"
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            placeholder="e.g., Dinner with friends"
+            required
+          />
+        </div>
+
+        <ReceiptScanner onItemsScanned={handleItemsScanned} />
+
+        <div className="mb-6">
+            <label htmlFor="totalAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Total Amount</label>
+            <input
+                id="totalAmount"
+                type="number"
+                value={totalAmount}
+                onChange={(e) => setTotalAmount(parseFloat(e.target.value) || '')}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                placeholder="0.00"
+                required
+                disabled={items.length > 0 && splitMode === 'item'}
+            />
+             { (splitMode === 'amount' || splitMode === 'percentage') && !totalAmount && <p className="text-sm text-amber-600 mt-1">Please enter a total amount before splitting.</p> }
+        </div>
+
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Participants</h3>
+          <div className="mb-4">
+            <div className="flex gap-2">
+                <input
+                    type="text"
+                    value={newParticipantName}
+                    onChange={(e) => {
+                        setNewParticipantName(e.target.value);
+                        if (participantError) setParticipantError('');
+                    }}
+                    onKeyDown={handleKeyDown}
+                    className="flex-grow px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    placeholder="Enter participant's name"
+                    aria-label="New participant name"
+                />
+                <button
+                    type="button"
+                    onClick={handleAddParticipant}
+                    className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!newParticipantName.trim()}
+                >
+                    Add
+                </button>
+            </div>
+            {participantError && <p className="text-sm text-red-600 mt-1">{participantError}</p>}
+          </div>
+
+          {isContactApiSupported && (
+            <>
+              {!isInIframe ? (
+                <>
+                  <div className="flex items-center my-4">
+                      <div className="flex-grow border-t border-slate-300 dark:border-slate-600"></div>
+                      <span className="flex-shrink mx-4 text-slate-500 dark:text-slate-400 text-sm">OR</span>
+                      <div className="flex-grow border-t border-slate-300 dark:border-slate-600"></div>
+                  </div>
+                  <button type="button" onClick={handleSelectContacts} className="w-full flex items-center justify-center gap-2 bg-teal-500 text-white font-semibold px-4 py-3 rounded-lg hover:bg-teal-600 transition-colors text-base mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                      <span>Add from Contacts</span>
+                  </button>
+                  {contactError && <p className="text-sm text-red-600 dark:text-red-400 mt-2 text-center">{contactError}</p>}
+                </>
+              ) : (
+                <p className="text-center p-3 my-4 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm">
+                  To use "Add from Contacts," please open the app in fullscreen mode using the banner at the top.
+                </p>
+              )}
+            </>
+          )}
+
+          <ul className="space-y-2">
+            {participants.map(p => (
+              <li key={p.id} className="flex items-center justify-between bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
+                <span className="text-slate-800 dark:text-slate-100">{p.name}</span>
+                <button type="button" onClick={() => removeParticipant(p.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold text-xl leading-none px-2 py-1">&times;</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+        
+        {participants.length > 0 && Number(totalAmount) > 0 && (
+          <>
+            <div className="mb-6">
+                 <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Split Method</h3>
+                 <div className="flex flex-wrap gap-2">
+                     <button type="button" onClick={() => setSplitMode('even')} className={`px-4 py-2 rounded-lg font-semibold ${splitMode === 'even' ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200'}`}>Split Evenly</button>
+                     <button type="button" onClick={() => setSplitMode('item')} className={`px-4 py-2 rounded-lg font-semibold ${splitMode === 'item' ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200'}`} disabled={!items.length}>By Item</button>
+                     <button type="button" onClick={() => setSplitMode('amount')} className={`px-4 py-2 rounded-lg font-semibold ${splitMode === 'amount' ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200'}`} disabled={!totalAmount}>By Amount</button>
+                     <button type="button" onClick={() => setSplitMode('percentage')} className={`px-4 py-2 rounded-lg font-semibold ${splitMode === 'percentage' ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200'}`} disabled={!totalAmount}>By %</button>
+                 </div>
+            </div>
+        
+            {splitMode === 'amount' && (
+                <div className="mb-6">
+                     <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Enter Amounts</h3>
+                     <ul className="space-y-2">
+                        {participants.map(p => (
+                            <li key={p.id} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-md">
+                                <label htmlFor={`split-${p.id}`} className="flex-1 text-slate-800 dark:text-slate-200">{p.name}</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
+                                    <input
+                                        id={`split-${p.id}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={customSplits[p.id] || ''}
+                                        onChange={(e) => handleCustomSplitChange(p.id, e.target.value)}
+                                        className="w-32 py-1 rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-teal-500 focus:border-teal-500 pl-6 pr-2"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </li>
+                        ))}
+                     </ul>
+                     { !isCustomSplitValid && <p className="text-sm text-red-600 mt-2 text-right">Total must equal ${totalAmount}. Currently: ${customSplitTotal.toFixed(2)}</p> }
+                </div>
+            )}
+            {splitMode === 'item' && items.length > 0 && (
+                <div className="mb-6">
+                     <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Assign Items</h3>
+                     <ul className="space-y-4">
+                        {items.map(item => (
+                            <li key={item.id} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-md">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="font-medium text-slate-800 dark:text-slate-200">{item.name}</span>
+                                    <span className="font-semibold text-slate-600 dark:text-slate-300">${item.price.toFixed(2)}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {participants.map(p => (
+                                        <button
+                                            type="button"
+                                            key={p.id}
+                                            onClick={() => toggleItemAssignment(item.id, p.id)}
+                                            className={`px-3 py-1 text-sm rounded-full ${item.assignedTo.includes(p.id) ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200'}`}
+                                        >
+                                            {p.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </li>
+                        ))}
+                     </ul>
+                </div>
+            )}
+            {splitMode === 'percentage' && (
+                <div className="mb-6">
+                     <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Enter Percentages</h3>
+                     <div className="flex justify-end mb-2">
+                         <button type="button" onClick={handleEvenPercentageSplit} className="text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline">Distribute evenly</button>
+                     </div>
+                     <ul className="space-y-2">
+                        {participants.map(p => (
+                            <li key={p.id} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-md">
+                                <label htmlFor={`split-${p.id}`} className="flex-1 text-slate-800 dark:text-slate-200">{p.name}</label>
+                                <div className="relative">
+                                    <input
+                                        id={`split-${p.id}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={customSplits[p.id] || ''}
+                                        onChange={(e) => handleCustomSplitChange(p.id, e.target.value)}
+                                        className="w-32 py-1 rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-teal-500 focus:border-teal-500 pr-6 pl-2 text-right"
+                                        placeholder="0.00"
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">%</span>
+                                </div>
+                            </li>
+                        ))}
+                     </ul>
+                     { !isCustomSplitValid && <p className="text-sm text-red-600 mt-2 text-right">Percentages must add up to 100%. Currently: {customSplitTotal.toFixed(2)}%</p> }
+                </div>
+            )}
+          </>
+        )}
+        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-4">
+            <button
+                type="button"
+                onClick={handleCancel}
+                className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors"
+            >
+                Cancel
+            </button>
+            <button
+                type="submit"
+                disabled={!isFormValid}
+                className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed"
+            >
+                Create Bill
+            </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default CreateBill;

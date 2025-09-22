@@ -1,0 +1,7 @@
+{
+  "name": "Smart Bill Splitter",
+  "description": "An intelligent bill splitting application that uses AI to scan receipts, making it easy to divide expenses among friends. Create bills, add participants, and split costs evenly or by item.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
