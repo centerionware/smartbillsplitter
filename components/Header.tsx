@@ -1,6 +1,6 @@
 import React from 'react';
-import type { Theme } from '../types';
-import ThemeToggle from './ThemeToggle';
+import type { Theme } from '../types.ts';
+import ThemeToggle from './ThemeToggle.tsx';
 
 interface HeaderProps {
   onCreateNewBill: () => void;

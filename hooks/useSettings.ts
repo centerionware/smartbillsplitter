@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Settings } from '../types';
+import type { Settings } from '../types.ts';
 
 const STORAGE_KEY = 'smart-bill-splitter-settings';
 

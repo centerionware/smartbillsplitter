@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Bill } from '../types';
+import type { Bill } from '../types.ts';
 
 interface BillCardProps {
   bill: Bill;

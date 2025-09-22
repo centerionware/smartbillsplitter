@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import type { Bill, Participant, ReceiptItem } from '../types';
-import type { RequestConfirmationFn } from '../App';
-import ReceiptScanner from './ReceiptScanner';
+import type { Bill, Participant, ReceiptItem } from '../types.ts';
+import type { RequestConfirmationFn } from '../App.tsx';
+import ReceiptScanner from './ReceiptScanner.tsx';
 
 interface CreateBillProps {
   onSave: (bill: Omit<Bill, 'id' | 'status'>) => void;

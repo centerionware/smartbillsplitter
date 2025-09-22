@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import type { Settings, PaymentDetails } from '../types';
-import type { SubscriptionStatus } from '../hooks/useAuth';
-import type { RequestConfirmationFn } from '../App';
-import { useAppControl } from '../contexts/AppControlContext';
+import type { Settings, PaymentDetails } from '../types.ts';
+import type { SubscriptionStatus } from '../hooks/useAuth.ts';
+import type { RequestConfirmationFn } from '../App.tsx';
+import { useAppControl } from '../contexts/AppControlContext.tsx';
 
 interface SettingsProps {
   settings: Settings;

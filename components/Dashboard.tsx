@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import type { Bill } from '../types';
-import SwipeableBillCard from './SwipeableBillCard';
+import type { Bill } from '../types.ts';
+import SwipeableBillCard from './SwipeableBillCard.tsx';
 
 interface DashboardProps {
   bills: Bill[];

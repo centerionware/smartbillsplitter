@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { parseReceipt } from '../services/geminiService';
+import { parseReceipt } from '../services/geminiService.ts';
 
 interface ReceiptScannerProps {
   onItemsScanned: (items: { name: string; price: number }[]) => void;

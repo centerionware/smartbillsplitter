@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import AppGate from './AppGate';
-import { AuthProvider } from './hooks/useAuth';
-import { AppControlContext } from './contexts/AppControlContext';
+import AppGate from './AppGate.tsx';
+import { AuthProvider } from './hooks/useAuth.ts';
+import { AppControlContext } from './contexts/AppControlContext.tsx';
 
 const Root: React.FC = () => {
   const [appKey, setAppKey] = useState(0);

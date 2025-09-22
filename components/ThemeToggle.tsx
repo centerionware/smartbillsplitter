@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Theme } from '../types';
+import type { Theme } from '../types.ts';
 
 interface ThemeToggleProps {
   theme: Theme;

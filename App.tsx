@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import type { Bill, Settings } from './types';
-import { View } from './types';
-import { useBills } from './hooks/useBills';
-import { useSettings } from './hooks/useSettings';
-import { useTheme } from './hooks/useTheme';
-import { useAuth } from './hooks/useAuth';
-import Header from './components/Header';
-import Dashboard from './components/Dashboard';
-import CreateBill from './components/CreateBill';
-import BillDetails from './components/BillDetails';
-import SettingsComponent from './components/Settings';
-import PwaInstallBanner from './components/PwaInstallBanner';
-import FloatingAd from './components/FloatingAd';
-import ConfirmationDialog from './components/ConfirmationDialog';
-import Disclaimer from './components/Disclaimer';
+import type { Bill, Settings } from './types.ts';
+import { View } from './types.ts';
+import { useBills } from './hooks/useBills.ts';
+import { useSettings } from './hooks/useSettings.ts';
+import { useTheme } from './hooks/useTheme.ts';
+import { useAuth } from './hooks/useAuth.ts';
+import Header from './components/Header.tsx';
+import Dashboard from './components/Dashboard.tsx';
+import CreateBill from './components/CreateBill.tsx';
+import BillDetails from './components/BillDetails.tsx';
+import SettingsComponent from './components/Settings.tsx';
+import PwaInstallBanner from './components/PwaInstallBanner.tsx';
+import FloatingAd from './components/FloatingAd.tsx';
+import ConfirmationDialog from './components/ConfirmationDialog.tsx';
+import Disclaimer from './components/Disclaimer.tsx';
 
 export type RequestConfirmationOptions = {
   confirmText?: string;

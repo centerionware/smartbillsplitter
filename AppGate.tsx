@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from './hooks/useAuth';
-import App from './App';
-import Paywall from './components/Paywall';
+import { useAuth } from './hooks/useAuth.ts';
+import App from './App.tsx';
+import Paywall from './components/Paywall.tsx';
 
 const AppGate: React.FC = () => {
   const { subscriptionStatus, login, selectFreeTier } = useAuth();

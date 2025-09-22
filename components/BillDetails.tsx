@@ -1,6 +1,6 @@
 import React from 'react';
-import type { Bill, Participant, Settings } from '../types';
-import type { SubscriptionStatus } from '../hooks/useAuth';
+import type { Bill, Participant, Settings } from '../types.ts';
+import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 interface BillDetailsProps {
   bill: Bill;
