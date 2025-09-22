@@ -9,7 +9,9 @@ const initialSettings: Settings = {
     cashApp: '',
     zelle: '',
     customMessage: '',
-  }
+  },
+  myDisplayName: 'Myself',
+  shareTemplate: 'Hi {participantName}, this is a reminder for your outstanding bill(s). You owe a total of {totalOwed}.\n\nBreakdown:\n{billList}{paymentInfo}{promoText}',
 };
 
 export const useSettings = () => {
@@ -24,6 +26,9 @@ export const useSettings = () => {
           // If no settings in DB, save and use initial settings.
           await saveSettings(initialSettings);
           dbSettings = initialSettings;
+        } else {
+          // Merge saved settings with defaults to handle new fields
+          dbSettings = { ...initialSettings, ...dbSettings, paymentDetails: {...initialSettings.paymentDetails, ...dbSettings.paymentDetails} };
         }
         setSettings(dbSettings);
       } catch (error) {

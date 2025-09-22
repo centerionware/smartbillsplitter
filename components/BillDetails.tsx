@@ -4,13 +4,14 @@ import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 interface BillDetailsProps {
   bill: Bill;
+  bills: Bill[]; // All bills for context
   settings: Settings;
   onUpdateBill: (bill: Bill) => void;
   onBack: () => void;
   subscriptionStatus: SubscriptionStatus;
 }
 
-const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill, onBack, subscriptionStatus }) => {
+const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpdateBill, onBack, subscriptionStatus }) => {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   const togglePaidStatus = (participantId: string) => {
@@ -27,6 +28,29 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
     }
 
     try {
+      // 1. Find all active bills this participant is in and hasn't paid
+      const activeBills = bills.filter(b => b.status === 'active');
+      const participantUnpaidBills = activeBills.filter(b => 
+        b.participants.some(p => p.name === participant.name && !p.paid && p.amountOwed > 0)
+      );
+
+      if (participantUnpaidBills.length === 0) {
+        alert(`${participant.name} is all paid up!`);
+        return;
+      }
+
+      // 2. Calculate total owed and create a list of bills
+      const totalOwed = participantUnpaidBills.reduce((total, currentBill) => {
+        const pInBill = currentBill.participants.find(p => p.name === participant.name);
+        return total + (pInBill?.amountOwed || 0);
+      }, 0);
+
+      const billList = participantUnpaidBills.map(b => {
+        const pInBill = b.participants.find(p => p.name === participant.name);
+        return `- "${b.description}": $${(pInBill?.amountOwed || 0).toFixed(2)}`;
+      }).join('\n');
+
+      // 3. Build payment info string from settings
       const { paymentDetails } = settings;
       let paymentInfo = '';
       const paymentMethods = [];
@@ -34,38 +58,43 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
       if (paymentDetails.paypal) paymentMethods.push(`PayPal: ${paymentDetails.paypal}`);
       if (paymentDetails.cashApp) paymentMethods.push(`Cash App: $${paymentDetails.cashApp}`);
       if (paymentDetails.zelle) paymentMethods.push(`Zelle: ${paymentDetails.zelle}`);
-
+      
       if (paymentMethods.length > 0) {
         paymentInfo = `\n\nYou can pay me via ${paymentMethods.join(' or ')}.`;
       }
-      
       if (paymentDetails.customMessage) {
-        // If there's already payment info, add a new line. Otherwise, start the section.
         paymentInfo += paymentInfo ? `\n\n${paymentDetails.customMessage}` : `\n\n${paymentDetails.customMessage}`;
       }
 
+      // 4. Build promo text if on free tier
       let promoText = '';
       if (subscriptionStatus === 'free') {
         let appUrl = 'https://sharedbills.app'; // Default URL
         try {
           const constructedUrl = new URL('/', window.location.href).href;
-          // Clean up trailing slash if present.
           appUrl = constructedUrl.endsWith('/') ? constructedUrl.slice(0, -1) : constructedUrl;
         } catch (e) {
-          console.warn("Could not determine app URL from context due to sandboxing, defaulting to sharedbills.app", e);
-          // appUrl is already set to the default, so no action is needed here.
+          console.warn("Could not determine app URL from context, defaulting.", e);
         }
         promoText = `\n\nCreated with Smart Bill Splitter: ${appUrl}`;
       }
 
+      // 5. Use the share template from settings
+      let shareText = settings.shareTemplate
+        .replace('{participantName}', participant.name)
+        .replace('{totalOwed}', `$${totalOwed.toFixed(2)}`)
+        .replace('{billList}', billList)
+        .replace('{paymentInfo}', paymentInfo)
+        .replace('{promoText}', promoText);
+      
       const shareData = {
         title: 'Bill Split Reminder',
-        text: `Hi ${participant.name}, this is a reminder that you owe $${participant.amountOwed.toFixed(2)} for "${bill.description}".${paymentInfo}${promoText}`,
+        text: shareText,
       };
+
       await navigator.share(shareData);
+
     } catch (err: any) {
-      // The user canceling the share dialog is expected behavior, not an error.
-      // We'll ignore the AbortError that's thrown in that case.
       if (err.name !== 'AbortError') {
         console.error("Error sharing:", err);
       }
@@ -136,7 +165,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
                   <p className="text-sm text-slate-600 dark:text-slate-300">${p.amountOwed.toFixed(2)}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                   {!p.paid && typeof navigator.share !== 'undefined' && (
+                   {!p.paid && p.amountOwed > 0 && typeof navigator.share !== 'undefined' && (
                     <button
                       onClick={() => handleShare(p)}
                       title="Share reminder"

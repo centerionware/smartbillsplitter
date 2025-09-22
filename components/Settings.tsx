@@ -15,24 +15,15 @@ interface SettingsProps {
 }
 
 const SettingsComponent: React.FC<SettingsProps> = ({ settings, onUpdateSettings, onBack, subscriptionStatus, onLogout, requestConfirmation }) => {
-  const [formData, setFormData] = useState<PaymentDetails>(settings.paymentDetails);
+  const [formData, setFormData] = useState<Settings>(settings);
   const { reloadApp } = useAppControl();
 
   const isDirty = useMemo(() => {
-    const initialDetails = settings.paymentDetails;
-    return (
-      formData.venmo !== initialDetails.venmo ||
-      formData.paypal !== initialDetails.paypal ||
-      formData.cashApp !== initialDetails.cashApp ||
-      formData.zelle !== initialDetails.zelle ||
-      formData.customMessage !== initialDetails.customMessage
-    );
-  }, [formData, settings.paymentDetails]);
+    return JSON.stringify(formData) !== JSON.stringify(settings);
+  }, [formData, settings]);
 
   const handleSave = () => {
-    onUpdateSettings({
-        paymentDetails: formData
-    });
+    onUpdateSettings(formData);
     onBack();
   };
 
@@ -49,7 +40,17 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, onUpdateSettings
     }
   };
   
-  const handleInputChange = (field: keyof PaymentDetails, value: string) => {
+  const handlePaymentInputChange = (field: keyof PaymentDetails, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      paymentDetails: {
+        ...prev.paymentDetails,
+        [field]: value,
+      }
+    }));
+  };
+
+  const handleInputChange = (field: keyof Omit<Settings, 'paymentDetails'>, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -144,8 +145,33 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, onUpdateSettings
       </button>
 
       <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
-        <h2 className="text-3xl font-bold mb-6 text-slate-700 dark:text-slate-200">Settings</h2>
+        <div className="flex justify-between items-start mb-6">
+          <h2 className="text-3xl font-bold text-slate-700 dark:text-slate-200">Settings</h2>
+          <button onClick={handleSave} disabled={!isDirty} className="px-6 py-2 bg-teal-500 text-white font-semibold rounded-lg hover:bg-teal-600 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors flex-shrink-0">
+            Save
+          </button>
+        </div>
         
+        {/* Personalization Section */}
+        <div className="space-y-6">
+          <div>
+              <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Personalization</h3>
+          </div>
+          <div>
+            <label htmlFor="myDisplayName" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">My Display Name</label>
+            <input id="myDisplayName" type="text" value={formData.myDisplayName || ''} onChange={(e) => handleInputChange('myDisplayName', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="Myself" />
+          </div>
+          <div>
+            <label htmlFor="shareTemplate" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Share Message Template</label>
+            <textarea id="shareTemplate" rows={5} value={formData.shareTemplate || ''} onChange={(e) => handleInputChange('shareTemplate', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+              Use placeholders: <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{participantName}`}</code>, <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{totalOwed}`}</code>, <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{billList}`}</code>, <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{paymentInfo}`}</code>, <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{promoText}`}</code>.
+            </p>
+          </div>
+        </div>
+
+        <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
+
         <div className="space-y-6">
             <div>
                 <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Payment Details</h3>
@@ -156,39 +182,32 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, onUpdateSettings
                 <label htmlFor="venmo" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Venmo Username</label>
                 <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">@</span>
-                    <input id="venmo" type="text" value={formData.venmo || ''} onChange={(e) => handleInputChange('venmo', e.target.value)} className="w-full pl-7 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="your-username" />
+                    <input id="venmo" type="text" value={formData.paymentDetails.venmo || ''} onChange={(e) => handlePaymentInputChange('venmo', e.target.value)} className="w-full pl-7 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="your-username" />
                 </div>
             </div>
 
              <div>
                 <label htmlFor="paypal" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">PayPal.Me Link or Email</label>
-                 <input id="paypal" type="text" value={formData.paypal || ''} onChange={(e) => handleInputChange('paypal', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="paypal.me/username or email@example.com" />
+                 <input id="paypal" type="text" value={formData.paymentDetails.paypal || ''} onChange={(e) => handlePaymentInputChange('paypal', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="paypal.me/username or email@example.com" />
             </div>
 
              <div>
                 <label htmlFor="cashApp" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cash App $Cashtag</label>
                  <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
-                    <input id="cashApp" type="text" value={formData.cashApp || ''} onChange={(e) => handleInputChange('cashApp', e.target.value)} className="w-full pl-6 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="YourCashtag" />
+                    <input id="cashApp" type="text" value={formData.paymentDetails.cashApp || ''} onChange={(e) => handlePaymentInputChange('cashApp', e.target.value)} className="w-full pl-6 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="YourCashtag" />
                 </div>
             </div>
             
             <div>
                 <label htmlFor="zelle" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Zelle (Email or Phone)</label>
-                <input id="zelle" type="text" value={formData.zelle || ''} onChange={(e) => handleInputChange('zelle', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="user@example.com or 555-123-4567" />
+                <input id="zelle" type="text" value={formData.paymentDetails.zelle || ''} onChange={(e) => handlePaymentInputChange('zelle', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="user@example.com or 555-123-4567" />
             </div>
 
             <div>
-                <label htmlFor="customMessage" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Custom Message</label>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Add a note to your payment reminders (e.g., "Cash is fine too!").</p>
-                <textarea id="customMessage" rows={3} value={formData.customMessage || ''} onChange={(e) => handleInputChange('customMessage', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="Enter any other payment instructions here." />
+                <label htmlFor="customMessage" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Custom Payment Note</label>
+                <textarea id="customMessage" rows={3} value={formData.paymentDetails.customMessage || ''} onChange={(e) => handlePaymentInputChange('customMessage', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="e.g., Cash is fine too!" />
             </div>
-        </div>
-
-        <div className="flex justify-end mt-8">
-          <button onClick={handleSave} disabled={!isDirty} className="px-6 py-2 bg-teal-500 text-white font-semibold rounded-lg hover:bg-teal-600 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
-            Save Changes
-          </button>
         </div>
 
         <div className="my-8 border-t border-slate-200 dark:border-slate-700" />

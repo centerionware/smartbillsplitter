@@ -95,11 +95,12 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (currentView) {
       case View.CreateBill:
-        return <CreateBill onSave={handleSaveBill} onCancel={handleBackToDashboard} requestConfirmation={requestConfirmation} />;
+        return <CreateBill onSave={handleSaveBill} onCancel={handleBackToDashboard} requestConfirmation={requestConfirmation} settings={settings} />;
       case View.BillDetails:
         return selectedBill ? (
           <BillDetails
             bill={selectedBill}
+            bills={bills}
             settings={settings}
             onUpdateBill={handleUpdateBill}
             onBack={handleBackToDashboard}

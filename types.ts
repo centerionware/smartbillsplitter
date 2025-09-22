@@ -33,6 +33,8 @@ export interface PaymentDetails {
 
 export interface Settings {
     paymentDetails: PaymentDetails;
+    myDisplayName: string;
+    shareTemplate: string;
 }
 
 export type Theme = 'light' | 'dark' | 'system';

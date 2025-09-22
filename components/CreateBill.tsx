@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import type { Bill, Participant, ReceiptItem } from '../types.ts';
+import type { Bill, Participant, ReceiptItem, Settings } from '../types.ts';
 import type { RequestConfirmationFn } from '../App.tsx';
 import ReceiptScanner from './ReceiptScanner.tsx';
 import ItemEditor from './ItemEditor.tsx';
@@ -8,6 +8,7 @@ interface CreateBillProps {
   onSave: (bill: Omit<Bill, 'id' | 'status'>) => void;
   onCancel: () => void;
   requestConfirmation: RequestConfirmationFn;
+  settings: Settings;
 }
 
 interface ScannedData {
@@ -27,7 +28,7 @@ const getInitialState = () => ({
     receiptImage: undefined as string | undefined,
 });
 
-const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfirmation }) => {
+const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfirmation, settings }) => {
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState<number | ''>('');
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -68,9 +69,9 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
     }
   };
 
-  const handleAddParticipant = () => {
-    const trimmedName = newParticipantName.trim();
-    if (trimmedName && !participants.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
+  const addParticipant = (name: string) => {
+    const trimmedName = name.trim();
+     if (trimmedName && !participants.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
         const newParticipant: Participant = {
             id: `p-${new Date().getTime()}-${trimmedName}`,
             name: trimmedName,
@@ -78,12 +79,24 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
             paid: false,
         };
         setParticipants(prev => [...prev, newParticipant]);
+        return true;
+    } else if (trimmedName) {
+        setParticipantError(`'${trimmedName}' has already been added.`);
+        return false;
+    }
+    return false;
+  }
+
+  const handleAddParticipant = () => {
+    if (addParticipant(newParticipantName)) {
         setNewParticipantName('');
         setParticipantError('');
-    } else if (trimmedName) {
-        setParticipantError('This participant has already been added.');
     }
   };
+
+  const handleAddMyself = () => {
+    addParticipant(settings.myDisplayName || 'Myself');
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -263,7 +276,7 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
     const processedParticipants = finalParticipants.map(p => ({
         ...p,
         // Automatically mark as paid if the amount owed is zero.
-        paid: p.amountOwed === 0,
+        paid: p.amountOwed <= 0.005, // Use tolerance for float comparison
     }));
 
     onSave({
@@ -341,56 +354,58 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
 
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Participants</h3>
-          <div className="mb-4">
-            <div className="flex gap-2">
-                <input
-                    type="text"
-                    value={newParticipantName}
-                    onChange={(e) => {
-                        setNewParticipantName(e.target.value);
-                        if (participantError) setParticipantError('');
-                    }}
-                    onKeyDown={handleKeyDown}
-                    className="flex-grow px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                    placeholder="Enter participant's name"
-                    aria-label="New participant name"
-                />
-                <button
-                    type="button"
-                    onClick={handleAddParticipant}
-                    className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!newParticipantName.trim()}
-                >
-                    Add
-                </button>
-            </div>
-            {participantError && <p className="text-sm text-red-600 mt-1">{participantError}</p>}
-          </div>
-
-          {isContactApiSupported && (
-            <>
-              {!isInIframe ? (
-                <>
-                  <div className="flex items-center my-4">
-                      <div className="flex-grow border-t border-slate-300 dark:border-slate-600"></div>
-                      <span className="flex-shrink mx-4 text-slate-500 dark:text-slate-400 text-sm">OR</span>
-                      <div className="flex-grow border-t border-slate-300 dark:border-slate-600"></div>
-                  </div>
-                  <button type="button" onClick={handleSelectContacts} className="w-full flex items-center justify-center gap-2 bg-teal-500 text-white font-semibold px-4 py-3 rounded-lg hover:bg-teal-600 transition-colors text-base mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                      <span>Add from Contacts</span>
+          
+          {/* On mobile-first devices with Contact API, hide manual input to encourage better data */}
+          {!isContactApiSupported && (
+            <div className="mb-4">
+              <div className="flex gap-2">
+                  <input
+                      type="text"
+                      value={newParticipantName}
+                      onChange={(e) => {
+                          setNewParticipantName(e.target.value);
+                          if (participantError) setParticipantError('');
+                      }}
+                      onKeyDown={handleKeyDown}
+                      className="flex-grow px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                      placeholder="Enter participant's name"
+                      aria-label="New participant name"
+                  />
+                  <button
+                      type="button"
+                      onClick={handleAddParticipant}
+                      className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!newParticipantName.trim()}
+                  >
+                      Add
                   </button>
-                  {contactError && <p className="text-sm text-red-600 dark:text-red-400 mt-2 text-center">{contactError}</p>}
-                </>
-              ) : (
-                <p className="text-center p-3 my-4 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm">
-                  To use "Add from Contacts," please open the app in fullscreen mode using the banner at the top.
-                </p>
-              )}
-            </>
+              </div>
+            </div>
+          )}
+          {participantError && <p className="text-sm text-red-600 mt-1 mb-2">{participantError}</p>}
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+             <button type="button" onClick={handleAddMyself} className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-semibold px-4 py-3 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+                <span>Add {settings.myDisplayName || 'Myself'}</span>
+              </button>
+            {isContactApiSupported && !isInIframe && (
+                <button type="button" onClick={handleSelectContacts} className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-teal-500 text-white font-semibold px-4 py-3 rounded-lg hover:bg-teal-600 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1v-1z" /></svg>
+                    <span>Add from Contacts</span>
+                </button>
+            )}
+          </div>
+          {contactError && <p className="text-sm text-red-600 dark:text-red-400 mt-2 text-center">{contactError}</p>}
+          {isContactApiSupported && isInIframe && (
+              <p className="text-center p-3 my-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm">
+                  To use "Add from Contacts," please open the app in fullscreen mode.
+              </p>
           )}
 
-          <ul className="space-y-2">
+          <ul className="space-y-2 mt-4">
             {participants.map(p => (
               <li key={p.id} className="flex items-center justify-between bg-slate-100 dark:bg-slate-700 p-2 rounded-md">
                 <span className="text-slate-800 dark:text-slate-100">{p.name}</span>
