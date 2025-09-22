@@ -11,10 +11,16 @@ const AppGate: React.FC = () => {
   useEffect(() => {
     const checkUrlForPaymentSuccess = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.has('payment') && urlParams.get('payment') === 'success') {
-        login();
+      const paymentStatus = urlParams.get('payment');
+      const duration = urlParams.get('duration');
+
+      if (paymentStatus === 'success' && (duration === 'monthly' || duration === 'yearly')) {
+        login(duration);
         // Clean up the URL to prevent re-triggering on refresh.
-        window.history.replaceState({}, document.title, window.location.pathname);
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('payment');
+        newUrl.searchParams.delete('duration');
+        window.history.replaceState({}, document.title, newUrl.toString());
       }
       setIsCheckingUrl(false);
     };
@@ -37,7 +43,7 @@ const AppGate: React.FC = () => {
 
   // If status is null, user hasn't made a choice. Show paywall.
   if (!subscriptionStatus) {
-    return <Paywall onLogin={login} onSelectFreeTier={selectFreeTier} />;
+    return <Paywall onLogin={() => login('yearly')} onSelectFreeTier={selectFreeTier} />;
   }
 
   // If status is 'subscribed' or 'free', show the app.

@@ -32,7 +32,7 @@ const App: React.FC = () => {
   const { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill } = useBills();
   const { settings, updateSettings } = useSettings();
   const { theme, setTheme } = useTheme();
-  const { subscriptionStatus, logout } = useAuth();
+  const { subscriptionStatus, logout, expirationDate } = useAuth();
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [confirmation, setConfirmation] = useState<{
@@ -120,6 +120,7 @@ const App: React.FC = () => {
           onUpdateSettings={updateSettings} 
           onBack={handleBackToDashboard} 
           subscriptionStatus={subscriptionStatus}
+          expirationDate={expirationDate}
           onLogout={logout}
           requestConfirmation={requestConfirmation}
         />;
