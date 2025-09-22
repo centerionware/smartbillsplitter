@@ -34,14 +34,12 @@ const FloatingAd: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <p className="text-xs text-slate-400 dark:text-slate-500 text-center mb-2 font-semibold uppercase">Advertisement</p>
         
         {/* Google AdSense Ad Unit */}
-        {/* IMPORTANT: Replace 'YOUR_AD_SLOT_ID' with your actual Ad Slot ID from your AdSense account. */}
         <ins className="adsbygoogle"
              style={{ display: 'block', minHeight: '100px' }}
              data-ad-client="ca-pub-7626920066448337"
-             data-ad-slot="YOUR_AD_SLOT_ID"
+             data-ad-slot="8267308457"
              data-ad-format="auto"
              data-full-width-responsive="true"></ins>
 

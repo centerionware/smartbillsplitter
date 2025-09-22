@@ -80,7 +80,7 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-lg">
+    <div className="relative w-full overflow-hidden rounded-lg h-full">
       {/* Action Buttons Container */}
       <div className="absolute top-0 right-0 h-full flex items-center z-0">
         <button
@@ -108,7 +108,7 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
       {/* The Draggable Card Content */}
       <div
         ref={cardRef}
-        className="relative z-10"
+        className="relative z-10 h-full"
         style={{ transform: `translateX(${translateX}px)` }}
         onTouchStart={e => handleDragStart(e.touches[0].clientX)}
         onTouchMove={e => handleDragMove(e.touches[0].clientX)}

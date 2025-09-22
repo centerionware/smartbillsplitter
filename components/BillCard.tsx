@@ -19,13 +19,13 @@ const BillCard: React.FC<BillCardProps> = ({ bill, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl dark:hover:shadow-teal-900/40 transition-shadow duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1"
+      className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl dark:hover:shadow-teal-900/40 transition-shadow duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1 h-full flex flex-col"
     >
-      <div className="p-5">
+      <div className="p-5 flex-grow">
         <div className="flex justify-between items-start">
           <p className="text-lg font-bold text-slate-800 dark:text-slate-100 break-words">{bill.description}</p>
           <span
-            className={`px-3 py-1 text-xs font-semibold rounded-full ${
+            className={`px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 ml-2 ${
               isFullyPaid
                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
                 : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
