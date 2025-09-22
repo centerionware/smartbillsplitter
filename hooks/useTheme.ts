@@ -1,13 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Theme } from '../types.ts';
+import { getTheme, saveTheme } from '../services/db.ts';
 
 export const useTheme = () => {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === 'undefined') {
-      return 'system';
-    }
-    return (localStorage.getItem('theme') as Theme) || 'system';
-  });
+  const [theme, setThemeState] = useState<Theme>('system');
+  const [isLoading, setIsLoading] = useState(true);
 
   const applyTheme = useCallback((themeToApply: Theme) => {
     if (typeof window === 'undefined') return;
@@ -21,17 +18,25 @@ export const useTheme = () => {
     root.classList.toggle('dark', isDark);
   }, []);
 
+  // Effect to load initial theme from DB
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme, applyTheme]);
+    const loadTheme = async () => {
+      setIsLoading(true);
+      const dbTheme = await getTheme() || 'system';
+      setThemeState(dbTheme);
+      applyTheme(dbTheme);
+      setIsLoading(false);
+    };
+    loadTheme();
+  }, [applyTheme]);
 
+  // Effect to listen for system theme changes
   useEffect(() => {
-    // This effect runs only once to set up the system theme listener.
     const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-    const handleSystemThemeChange = () => {
-      // The listener checks localStorage directly to decide if it should act.
-      if ((localStorage.getItem('theme') || 'system') === 'system') {
+    const handleSystemThemeChange = async () => {
+      const currentTheme = await getTheme();
+      if (currentTheme === 'system') {
         applyTheme('system');
       }
     };
@@ -41,12 +46,13 @@ export const useTheme = () => {
     return () => {
       systemThemeQuery.removeEventListener('change', handleSystemThemeChange);
     };
-  }, [applyTheme]); // Depends on applyTheme, which is stable.
+  }, [applyTheme]);
 
-  const setTheme = (newTheme: Theme) => {
-    localStorage.setItem('theme', newTheme);
+  const setTheme = async (newTheme: Theme) => {
+    await saveTheme(newTheme);
     setThemeState(newTheme);
+    applyTheme(newTheme);
   };
 
-  return { theme, setTheme };
+  return { theme, setTheme, isLoading };
 };

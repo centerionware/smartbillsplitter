@@ -4,7 +4,7 @@ import App from './App.tsx';
 import Paywall from './components/Paywall.tsx';
 
 const AppGate: React.FC = () => {
-  const { subscriptionStatus, login, selectFreeTier } = useAuth();
+  const { subscriptionStatus, login, selectFreeTier, isLoading: isAuthLoading } = useAuth();
   // We use a loading state to prevent a flicker while we check the URL.
   const [isCheckingUrl, setIsCheckingUrl] = useState(true);
 
@@ -22,8 +22,8 @@ const AppGate: React.FC = () => {
     checkUrlForPaymentSuccess();
   }, [login]);
 
-  // While checking the URL, show a simple loading state.
-  if (isCheckingUrl) {
+  // While checking the URL or auth status, show a loading state.
+  if (isCheckingUrl || isAuthLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center text-center p-4">
         <svg className="animate-spin h-10 w-10 text-teal-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

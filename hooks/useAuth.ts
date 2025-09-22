@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-
-const STORAGE_KEY = 'smart-bill-splitter-subscription-status';
+import { getSubscriptionStatus, saveSubscriptionStatus } from '../services/db.ts';
 
 export type SubscriptionStatus = 'subscribed' | 'free' | null;
 
 interface AuthContextType {
   subscriptionStatus: SubscriptionStatus;
+  isLoading: boolean;
   login: () => void;
   selectFreeTier: () => void;
   logout: () => void;
@@ -13,68 +13,46 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const getStatusFromStorage = (): SubscriptionStatus => {
-    try {
-      const storedStatus = localStorage.getItem(STORAGE_KEY);
-      // Handle legacy 'true' value for subscribed users
-      if (storedStatus === 'true' || storedStatus === 'subscribed') {
-        return 'subscribed';
-      }
-      if (storedStatus === 'free') {
-        return 'free';
-      }
-      return null;
-    } catch {
-      return null;
-    }
-};
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>(getStatusFromStorage);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // This listener handles changes from other tabs.
   useEffect(() => {
-    const handleStorageChange = () => {
-        setSubscriptionStatus(getStatusFromStorage());
+    const loadStatus = async () => {
+      try {
+        setIsLoading(true);
+        // FIX: The logic for handling legacy subscription status values (like 'true')
+        // has been moved into the `getSubscriptionStatus` service function.
+        // This simplifies the hook and centralizes data access logic.
+        const storedStatus = await getSubscriptionStatus();
+        setSubscriptionStatus(storedStatus);
+      } catch (error) {
+        console.error("Failed to load subscription status from DB:", error);
+        setSubscriptionStatus(null); // Default to null on error
+      } finally {
+        setIsLoading(false);
+      }
     };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    loadStatus();
   }, []);
 
-  const login = useCallback(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, 'subscribed');
-      setSubscriptionStatus('subscribed');
-    } catch (error) {
-      console.error("Failed to update subscription status in localStorage:", error);
-    }
+  const login = useCallback(async () => {
+    await saveSubscriptionStatus('subscribed');
+    setSubscriptionStatus('subscribed');
   }, []);
 
-  const selectFreeTier = useCallback(() => {
-     try {
-      localStorage.setItem(STORAGE_KEY, 'free');
-      setSubscriptionStatus('free');
-    } catch (error) {
-      console.error("Failed to update subscription status in localStorage:", error);
-    }
+  const selectFreeTier = useCallback(async () => {
+    await saveSubscriptionStatus('free');
+    setSubscriptionStatus('free');
   }, []);
 
-  const logout = useCallback(() => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      setSubscriptionStatus(null);
-    } catch (error) {
-      console.error("Failed to clear subscription status in localStorage:", error);
-    }
+  const logout = useCallback(async () => {
+    await saveSubscriptionStatus(null);
+    setSubscriptionStatus(null);
   }, []);
 
-  const value = { subscriptionStatus, login, selectFreeTier, logout };
+  const value = { subscriptionStatus, isLoading, login, selectFreeTier, logout };
 
-  // FIX: Replaced JSX with React.createElement to be compatible with .ts file extension.
-  // The original JSX was causing a TypeScript parsing error.
   return React.createElement(AuthContext.Provider, { value: value }, children);
 };
 

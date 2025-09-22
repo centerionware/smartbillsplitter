@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Settings } from '../types.ts';
-
-const STORAGE_KEY = 'smart-bill-splitter-settings';
+import { getSettings, saveSettings } from '../services/db.ts';
 
 const initialSettings: Settings = {
   paymentDetails: {
@@ -13,49 +12,43 @@ const initialSettings: Settings = {
   }
 };
 
-const loadSettingsFromStorage = (): Settings => {
-  try {
-    const storedSettings = localStorage.getItem(STORAGE_KEY);
-    if (storedSettings) {
-      // Merge with initial settings to ensure all keys are present
-      const parsed = JSON.parse(storedSettings);
-      return {
-        ...initialSettings,
-        ...parsed,
-        paymentDetails: {
-            ...initialSettings.paymentDetails,
-            ...(parsed.paymentDetails || {}),
-        }
-      };
-    }
-  } catch (error) {
-    console.error("Failed to parse settings from localStorage:", error);
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(initialSettings));
-  return initialSettings;
-};
-
 export const useSettings = () => {
-  const [settings, setSettings] = useState<Settings>(loadSettingsFromStorage);
+  const [settings, setSettings] = useState<Settings>(initialSettings);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch (error) {
-      console.error("Failed to save settings to localStorage:", error);
-    }
-  }, [settings]);
+    const loadSettings = async () => {
+      try {
+        let dbSettings = await getSettings();
+        if (!dbSettings) {
+          // If no settings in DB, save and use initial settings.
+          await saveSettings(initialSettings);
+          dbSettings = initialSettings;
+        }
+        setSettings(dbSettings);
+      } catch (error) {
+        console.error("Failed to load settings from IndexedDB:", error);
+        // Fallback to initial settings on error
+        setSettings(initialSettings);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadSettings();
+  }, []);
 
-  const updateSettings = (newSettings: Partial<Settings>) => {
-    setSettings(prevSettings => ({
-      ...prevSettings,
+  const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
+    const updatedSettings: Settings = {
+      ...settings,
       ...newSettings,
       paymentDetails: {
-        ...prevSettings.paymentDetails,
+        ...settings.paymentDetails,
         ...(newSettings.paymentDetails || {}),
       }
-    }));
-  };
+    };
+    await saveSettings(updatedSettings);
+    setSettings(updatedSettings);
+  }, [settings]);
 
-  return { settings, updateSettings };
+  return { settings, updateSettings, isLoading };
 };

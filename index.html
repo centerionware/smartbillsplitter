@@ -17,21 +17,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" href="icon.svg" />
     
-    <script>
-      // This script runs instantly to apply the theme from localStorage before the page renders,
-      // preventing a flash of the incorrect theme.
-      (function() {
-        try {
-          const theme = localStorage.getItem('theme') || 'system';
-          if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
-        } catch (_) {}
-      })();
-    </script>
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       // Configure Tailwind CSS to use the 'class' strategy for dark mode.
@@ -53,6 +38,7 @@
 </script>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7626920066448337"
      crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
     <div id="root"></div>
@@ -68,5 +54,6 @@
         });
       }
     </script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>

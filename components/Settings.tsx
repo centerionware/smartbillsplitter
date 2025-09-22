@@ -3,6 +3,7 @@ import type { Settings, PaymentDetails } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import type { RequestConfirmationFn } from '../App.tsx';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
+import { exportData, importData } from '../services/db.ts';
 
 interface SettingsProps {
   settings: Settings;
@@ -52,33 +53,10 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, onUpdateSettings
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
-      const dataToExport: Record<string, string | null> = {
-        'smart-bill-splitter-bills': localStorage.getItem('smart-bill-splitter-bills'),
-        'smart-bill-splitter-settings': localStorage.getItem('smart-bill-splitter-settings'),
-        'theme': localStorage.getItem('theme'),
-        'smart-bill-splitter-subscription-status': localStorage.getItem('smart-bill-splitter-subscription-status'),
-      };
-
-      const filteredData = Object.fromEntries(
-        Object.entries(dataToExport).filter(([, value]) => value !== null)
-      );
-
-      // Attempt to parse and re-stringify to catch corrupted JSON and prettify it
-      const prettyJson = JSON.stringify(
-        Object.keys(filteredData).reduce((acc, key) => {
-            try {
-                acc[key] = JSON.parse(filteredData[key]!);
-            } catch {
-                // If it's not JSON (like the 'theme' string), keep it as is.
-                acc[key] = filteredData[key]!;
-            }
-            return acc;
-        }, {} as Record<string, any>), 
-        null, 
-        2
-      );
+      const data = await exportData();
+      const prettyJson = JSON.stringify(data, null, 2);
       
       const blob = new Blob([prettyJson], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -109,7 +87,7 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, onUpdateSettings
         const data = JSON.parse(text);
         
         // Basic validation: check for at least one expected key
-        const expectedKeys = ['smart-bill-splitter-bills', 'smart-bill-splitter-settings', 'theme', 'smart-bill-splitter-subscription-status'];
+        const expectedKeys = ['bills', 'settings', 'theme', 'subscription'];
         const hasData = expectedKeys.some(key => key in data);
 
         if (!hasData || typeof data !== 'object') {
@@ -120,18 +98,15 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, onUpdateSettings
         requestConfirmation(
           'Overwrite All Existing Data?',
           'Importing a backup will permanently replace all your current bills and settings. This action cannot be undone. Are you sure you want to continue?',
-          () => {
-            // Clear existing keys to handle cases where the backup is missing a key
-            expectedKeys.forEach(key => localStorage.removeItem(key));
-            
-            // Set new data
-            Object.keys(data).forEach(key => {
-                const value = typeof data[key] === 'string' ? data[key] : JSON.stringify(data[key]);
-                localStorage.setItem(key, value);
-            });
-            
-            // Reload the application to apply changes without a page refresh.
-            reloadApp();
+          async () => {
+            try {
+              await importData(data);
+              // Reload the application to apply changes from DB.
+              reloadApp();
+            } catch(importError) {
+              console.error("Failed during import transaction:", importError);
+              alert('An error occurred during the import process. Your data may be in an inconsistent state.');
+            }
           },
           { confirmText: 'Overwrite & Import', confirmVariant: 'danger' }
         );
@@ -148,13 +123,12 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, onUpdateSettings
   const handleResetApp = () => {
     requestConfirmation(
       'Reset All Data?',
-      'This will permanently delete all your bills and reset your settings to their original state. Your subscription status will not be affected. This action cannot be undone.',
+      'This will permanently delete all your bills and reset your settings to their original state. This action cannot be undone.',
       () => {
-        localStorage.removeItem('smart-bill-splitter-bills');
-        localStorage.removeItem('smart-bill-splitter-settings');
-        localStorage.removeItem('theme');
-        // Reload the application to apply changes without a page refresh.
-        reloadApp();
+        // We can just import an empty object to clear all stores.
+        importData({}).then(() => {
+            reloadApp();
+        });
       },
       { confirmText: 'Reset Everything', confirmVariant: 'danger' }
     );
