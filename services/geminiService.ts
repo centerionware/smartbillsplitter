@@ -17,9 +17,17 @@ try {
 const receiptSchema = {
   type: Type.OBJECT,
   properties: {
+    description: {
+      type: Type.STRING,
+      description: "A short description of the bill, typically the merchant's name.",
+    },
+    date: {
+      type: Type.STRING,
+      description: "The date of the transaction from the receipt, formatted as YYYY-MM-DD. Omit if not found.",
+    },
     items: {
       type: Type.ARRAY,
-      description: "A list of all items found on the receipt.",
+      description: "A list of all items, including products, taxes, fees, and tips found on the receipt.",
       items: {
         type: Type.OBJECT,
         description: "A single item from the receipt.",
@@ -37,11 +45,11 @@ const receiptSchema = {
       },
     },
   },
-  required: ["items"],
+  required: ["description", "items"],
 };
 
 
-export const parseReceipt = async (base64Image: string, mimeType: string): Promise<{ items: { name: string; price: number }[] }> => {
+export const parseReceipt = async (base64Image: string, mimeType: string): Promise<{ description: string; date?: string; items: { name: string; price: number }[] }> => {
   if (initError || !ai) {
     // If initialization failed, throw the stored error message.
     throw new Error(initError || "AI client is not available.");
@@ -59,7 +67,12 @@ export const parseReceipt = async (base64Image: string, mimeType: string): Promi
             },
           },
           {
-            text: "You are an expert receipt OCR and data extraction tool. Analyze the provided image of a receipt. Extract each line item with its corresponding price. Ignore taxes, tips, and totals. Return the data as a JSON object that adheres to the provided schema. If an item has no price, ignore it.",
+            text: `You are an expert receipt OCR and data extraction tool. Analyze the provided image of a receipt.
+            1.  Extract the merchant's name to be used as the bill description.
+            2.  Extract the date of the transaction. Format it as YYYY-MM-DD.
+            3.  Extract each individual line item with its corresponding price.
+            4.  Explicitly extract any Tax, Tip, Delivery Fees, or Service Charges as their own separate items in the list.
+            5.  Return the data as a single JSON object that adheres to the provided schema. If an item has no price, ignore it. If the date is not found, omit the date field from the JSON object.`,
           },
         ],
       },
@@ -73,7 +86,7 @@ export const parseReceipt = async (base64Image: string, mimeType: string): Promi
     const parsedJson = JSON.parse(jsonText);
 
     // Basic validation to ensure the response structure matches expectations
-    if (parsedJson && Array.isArray(parsedJson.items)) {
+    if (parsedJson && parsedJson.description && Array.isArray(parsedJson.items)) {
       return parsedJson;
     } else {
       throw new Error("Invalid JSON structure received from API.");

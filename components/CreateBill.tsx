@@ -9,6 +9,12 @@ interface CreateBillProps {
   requestConfirmation: RequestConfirmationFn;
 }
 
+interface ScannedData {
+  description: string;
+  date?: string;
+  items: { name: string; price: number }[];
+}
+
 type SplitMode = 'even' | 'item' | 'amount' | 'percentage';
 
 const getInitialState = () => ({
@@ -125,14 +131,21 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
     })));
   };
   
-  const handleItemsScanned = useCallback((scannedItems: { name: string; price: number }[]) => {
-    const newReceiptItems = scannedItems.map((item, index) => ({
+  const handleItemsScanned = useCallback((data: ScannedData) => {
+    const newDescription = data.date ? `${data.description} (${data.date})` : data.description;
+    setDescription(newDescription);
+
+    const newReceiptItems = data.items.map((item, index) => ({
       ...item,
       id: `item-${new Date().getTime()}-${index}`,
       assignedTo: [],
     }));
     setItems(newReceiptItems);
-    setTotalAmount(newReceiptItems.reduce((sum, item) => sum + item.price, 0));
+    
+    const newTotal = newReceiptItems.reduce((sum, item) => sum + item.price, 0);
+    // Round to 2 decimal places to avoid floating point issues
+    setTotalAmount(Math.round(newTotal * 100) / 100);
+
     setSplitMode('item');
   }, []);
 

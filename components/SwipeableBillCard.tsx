@@ -10,12 +10,12 @@ interface SwipeableBillCardProps {
   onDelete: () => void;
 }
 
-const SWIPE_THRESHOLD = -80; // How far to swipe to trigger a snap
 const ACTION_BUTTON_WIDTH = 70; // Width of each action button
 
 const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete }) => {
   const [translateX, setTranslateX] = useState(0);
   const dragStartX = useRef(0);
+  const dragInitialTranslateX = useRef(0); // Store where the card was when drag started
   const cardRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStartTime = useRef(0);
@@ -26,6 +26,7 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
   const handleDragStart = (clientX: number) => {
     isDragging.current = true;
     dragStartX.current = clientX;
+    dragInitialTranslateX.current = translateX; // Capture current position
     dragStartTime.current = Date.now();
     if (cardRef.current) {
       cardRef.current.style.transition = 'none';
@@ -35,9 +36,12 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
   const handleDragMove = (clientX: number) => {
     if (!isDragging.current) return;
     const deltaX = clientX - dragStartX.current;
-    // Allow swiping only from right to left, and cap the swipe distance
-    const newTranslateX = Math.min(0, Math.max(maxTranslateX - 20, deltaX));
-    setTranslateX(newTranslateX);
+    const newTranslateX = dragInitialTranslateX.current + deltaX;
+
+    // Cap the movement but allow some "give" for a physical feel
+    const newClampedTranslateX = Math.min(20, Math.max(maxTranslateX - 20, newTranslateX));
+    
+    setTranslateX(newClampedTranslateX);
   };
 
   const handleDragEnd = () => {
@@ -45,31 +49,35 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
     isDragging.current = false;
     
     if (cardRef.current) {
-      cardRef.current.style.transition = 'transform 0.3s ease';
+      cardRef.current.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
     }
 
     const dragDuration = Date.now() - dragStartTime.current;
+    const dragDistance = translateX - dragInitialTranslateX.current;
     
-    // Distinguish between a click and a swipe
-    if (dragDuration < 250 && Math.abs(translateX) < 10) {
-        onClick();
+    // Check for a click: a short drag with minimal distance.
+    if (dragDuration < 250 && Math.abs(dragDistance) < 10) {
+      // If it was a click when the card was open, close it. Otherwise, perform the main onClick.
+      if (dragInitialTranslateX.current !== 0) {
         setTranslateX(0);
-        return;
+      } else {
+        onClick();
+      }
+      return;
     }
-
-    if (translateX < SWIPE_THRESHOLD) {
-      // Snap open to show actions
+    
+    // If the card is more than half-way open, snap it fully open. Otherwise, snap closed.
+    if (translateX < maxTranslateX / 2) {
       setTranslateX(maxTranslateX);
     } else {
-      // Snap back closed
       setTranslateX(0);
     }
   };
   
   const executeAction = (action: () => void) => {
-      action();
-      setTranslateX(0);
-  }
+    action();
+    setTranslateX(0);
+  };
 
   return (
     <div className="relative w-full overflow-hidden rounded-lg">
@@ -110,7 +118,7 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
         onMouseUp={handleDragEnd}
         onMouseLeave={handleDragEnd}
       >
-        <BillCard bill={bill} onClick={() => { /* Click is handled in dragEnd */ }} />
+        <BillCard bill={bill} onClick={() => { /* Click is now handled in dragEnd */ }} />
       </div>
     </div>
   );
