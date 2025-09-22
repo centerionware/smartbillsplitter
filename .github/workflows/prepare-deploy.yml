@@ -10,6 +10,10 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # This is the key change: Grant write permissions to the GITHUB_TOKEN for this job.
+    # This allows the job to push the generated files to the 'production' branch.
+    permissions:
+      contents: write
     steps:
       # Step 1: Check out the code from the 'main' branch
       - name: Checkout repository
@@ -137,9 +141,12 @@ jobs:
       # Step 4: Commit the generated files and push them to the 'production' branch
       - name: Commit and Push to Production Branch
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add netlify.toml functions/scan-receipt.mjs
-          # The '|| true' part prevents the workflow from failing if there are no changes to commit.
-          git commit -m "CI: Add/Update Netlify config and serverless function" || true
-          git push origin HEAD:production --force
+          # Check if there are changes to commit to avoid empty commits
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "CI: Add/Update Netlify config and serverless function"
+          fi
+          # Authenticate the push using the GITHUB_TOKEN provided by the workflow runner
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:production --force
