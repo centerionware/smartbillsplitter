@@ -27,6 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'description' | 'participant'>('description');
   const [visibleCount, setVisibleCount] = useState(BILLS_PER_PAGE);
+  const [copiedParticipantName, setCopiedParticipantName] = useState<string | null>(null);
 
   // --- Calculations for Summary & Participant View ---
   const activeBills = useMemo(() => bills.filter(b => b.status === 'active'), [bills]);
@@ -98,11 +99,6 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
 
   // --- Action Handlers ---
   const handleShareWithParticipant = async (participantName: string) => {
-    if (!navigator.share) {
-      alert("Sharing is not supported on this browser.");
-      return;
-    }
-    
     const participantData = participantsWithDebt.find(p => p.name === participantName);
     if (!participantData) return;
 
@@ -148,9 +144,20 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
       .replace('{promoText}', promoText);
     
     try {
-      await navigator.share({ title: 'Bill Split Reminder', text: shareText });
+      if (navigator.share) {
+        await navigator.share({ title: 'Bill Split Reminder', text: shareText });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareText);
+        setCopiedParticipantName(participantName);
+        setTimeout(() => setCopiedParticipantName(null), 2000);
+      } else {
+        alert("Sharing not supported on this browser. Message copied to clipboard as a fallback.");
+      }
     } catch (err: any) {
-      if (err.name !== 'AbortError') console.error("Error sharing:", err);
+      if (err.name !== 'AbortError') {
+        console.error("Error sharing or copying:", err);
+        alert("An error occurred while trying to share. Please try again.");
+      }
     }
   };
 
@@ -244,6 +251,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
                 onClick={() => setSelectedParticipant(p.name)}
                 onShare={() => handleShareWithParticipant(p.name)}
                 onPaidInFull={() => handleMarkParticipantAsPaid(p.name)}
+                isCopied={copiedParticipantName === p.name}
               />
             ))}
           </div>

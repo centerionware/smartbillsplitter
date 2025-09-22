@@ -13,6 +13,7 @@ interface BillDetailsProps {
 
 const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpdateBill, onBack, subscriptionStatus }) => {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [copiedParticipantId, setCopiedParticipantId] = useState<string | null>(null);
 
   const togglePaidStatus = (participantId: string) => {
     const updatedParticipants = bill.participants.map(p =>
@@ -22,15 +23,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpda
   };
 
   const handleShare = async (participant: Participant) => {
-    if (!navigator.share) {
-      alert("Sharing is not supported on this browser.");
-      return;
-    }
-
     try {
       // 1. Find all active bills this participant is in and hasn't paid
       const activeBills = bills.filter(b => b.status === 'active');
-      const participantUnpaidBills = activeBills.filter(b => 
+      const participantUnpaidBills = activeBills.filter(b =>
         b.participants.some(p => p.name === participant.name && !p.paid && p.amountOwed > 0)
       );
 
@@ -58,7 +54,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpda
       if (paymentDetails.paypal) paymentMethods.push(`PayPal: ${paymentDetails.paypal}`);
       if (paymentDetails.cashApp) paymentMethods.push(`Cash App: $${paymentDetails.cashApp}`);
       if (paymentDetails.zelle) paymentMethods.push(`Zelle: ${paymentDetails.zelle}`);
-      
+
       if (paymentMethods.length > 0) {
         paymentInfo = `\n\nYou can pay me via ${paymentMethods.join(' or ')}.`;
       }
@@ -86,17 +82,26 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpda
         .replace('{billList}', billList)
         .replace('{paymentInfo}', paymentInfo)
         .replace('{promoText}', promoText);
-      
-      const shareData = {
-        title: 'Bill Split Reminder',
-        text: shareText,
-      };
 
-      await navigator.share(shareData);
+      // 6. Share or Copy
+      if (navigator.share) {
+        const shareData = {
+          title: 'Bill Split Reminder',
+          text: shareText,
+        };
+        await navigator.share(shareData);
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareText);
+        setCopiedParticipantId(participant.id);
+        setTimeout(() => setCopiedParticipantId(null), 2000);
+      } else {
+         alert("Sharing not supported on this browser. Message copied to clipboard as a fallback.");
+      }
 
     } catch (err: any) {
       if (err.name !== 'AbortError') {
-        console.error("Error sharing:", err);
+        console.error("Error sharing or copying:", err);
+        alert("An error occurred while trying to share. Please try again.");
       }
     }
   };
@@ -165,16 +170,22 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpda
                   <p className="text-sm text-slate-600 dark:text-slate-300">${p.amountOwed.toFixed(2)}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                   {!p.paid && p.amountOwed > 0 && typeof navigator.share !== 'undefined' && (
+                   {!p.paid && p.amountOwed > 0 && (
                     <button
                       onClick={() => handleShare(p)}
-                      title="Share reminder"
+                      title={copiedParticipantId === p.id ? "Copied!" : "Share reminder"}
                       className="p-2 rounded-full font-semibold text-sm transition-colors bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-100 dark:hover:bg-slate-500"
                       aria-label={`Share with ${p.name}`}
                     >
-                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor">
-                        <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                      </svg>
+                       {copiedParticipantId === p.id ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor">
+                            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                          </svg>
+                       )}
                     </button>
                   )}
                   <button

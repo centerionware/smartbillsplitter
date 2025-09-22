@@ -6,11 +6,12 @@ interface SwipeableParticipantCardProps {
   onClick: () => void;
   onShare: () => void;
   onPaidInFull: () => void;
+  isCopied: boolean;
 }
 
 const ACTION_BUTTON_WIDTH = 90; // Width for the "Paid in Full" button
 
-const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ participant, onClick, onShare, onPaidInFull }) => {
+const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ participant, onClick, onShare, onPaidInFull, isCopied }) => {
   const [translateX, setTranslateX] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
   const dragStartX = useRef(0);
@@ -104,8 +105,9 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
         <ParticipantCard
           name={participant.name}
           totalOwed={participant.totalOwed}
-          onClick={() => { /* Click is handled in dragEnd */ }}
+          onClick={() => { /* Click is now handled in dragEnd */ }}
           onShare={onShare}
+          isCopied={isCopied}
         />
       </div>
     </div>
