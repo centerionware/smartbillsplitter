@@ -1,7 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const FloatingAd: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    if (isVisible) {
+      try {
+        // @ts-ignore
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.error("AdSense push error: ", e);
+      }
+    }
+  }, [isVisible]);
 
   if (!isVisible) {
     return null;
@@ -23,12 +34,19 @@ const FloatingAd: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <div className="flex flex-col items-center justify-center h-48 bg-slate-100 dark:bg-slate-700 rounded-md">
-          <p className="text-slate-500 dark:text-slate-400 font-semibold">ADVERTISEMENT</p>
-          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Upgrade to Pro to remove ads!</p>
-        </div>
+        <p className="text-xs text-slate-400 dark:text-slate-500 text-center mb-2 font-semibold uppercase">Advertisement</p>
+        
+        {/* Google AdSense Ad Unit */}
+        {/* IMPORTANT: Replace 'YOUR_AD_SLOT_ID' with your actual Ad Slot ID from your AdSense account. */}
+        <ins className="adsbygoogle"
+             style={{ display: 'block', minHeight: '100px' }}
+             data-ad-client="ca-pub-7626920066448337"
+             data-ad-slot="YOUR_AD_SLOT_ID"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-2">
-            This is a placeholder ad frame.
+            Upgrade to Pro to remove ads!
         </p>
       </div>
     </aside>
