@@ -256,12 +256,18 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
             });
             break;
     }
+    
+    const processedParticipants = finalParticipants.map(p => ({
+        ...p,
+        // Automatically mark as paid if the amount owed is zero.
+        paid: p.amountOwed === 0,
+    }));
 
     onSave({
       description,
       totalAmount: totalAmount || 0,
       date: new Date().toISOString(),
-      participants: finalParticipants,
+      participants: processedParticipants,
       items: splitMode === 'item' ? items : undefined,
       receiptImage,
     });
