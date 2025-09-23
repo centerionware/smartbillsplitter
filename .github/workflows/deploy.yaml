@@ -80,7 +80,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           package-name: ${{ env.FRONTEND_IMAGE_NAME }}
           min-versions-to-keep: 1
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
           
       - name: Prune old backend image versions
         uses: actions/delete-package-versions@v5
@@ -88,7 +88,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           package-name: ${{ env.BACKEND_IMAGE_NAME }}
           min-versions-to-keep: 1
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
   update-helm-chart:
     name: Update Helm Chart and Push to Production Branch
