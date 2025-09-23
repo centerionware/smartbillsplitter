@@ -32,6 +32,21 @@ spec:
                 secretKeyRef:
                   name: {{ include "bill-splitter.fullname" . }}-secret
                   key: API_KEY
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bill-splitter.fullname" . }}-secret
+                  key: STRIPE_SECRET_KEY
+            - name: STRIPE_PRICE_ID_MONTHLY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bill-splitter.fullname" . }}-secret
+                  key: STRIPE_PRICE_ID_MONTHLY
+            - name: STRIPE_PRICE_ID_YEARLY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bill-splitter.fullname" . }}-secret
+                  key: STRIPE_PRICE_ID_YEARLY
           livenessProbe:
             httpGet:
               path: /health

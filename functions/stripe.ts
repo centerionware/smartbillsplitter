@@ -1,6 +1,6 @@
 // FIX: Changed from 'import type' to a direct import to ensure Express types are resolved correctly, avoiding conflicts with global DOM types.
 // FIX: Import the full express module to use express.Request and express.Response, avoiding type conflicts with global DOM types.
-import { Request, Response } from 'express';
+import express from 'express';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
@@ -15,7 +15,7 @@ if (!STRIPE_SECRET_KEY || !STRIPE_PRICE_ID_MONTHLY || !STRIPE_PRICE_ID_YEARLY) {
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
 // Helper function to check for Stripe configuration at runtime.
-const checkStripeConfig = (res: Response): boolean => {
+const checkStripeConfig = (res: express.Response): boolean => {
     if (!stripe || !STRIPE_PRICE_ID_MONTHLY || !STRIPE_PRICE_ID_YEARLY) {
         res.status(500).json({ error: "Stripe integration is not configured on the server." });
         return false;
@@ -23,7 +23,7 @@ const checkStripeConfig = (res: Response): boolean => {
     return true;
 }
 
-export const createCheckoutSessionHandler = async (req: Request, res: Response) => {
+export const createCheckoutSessionHandler = async (req: express.Request, res: express.Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { plan, origin } = req.body;
@@ -55,40 +55,67 @@ export const createCheckoutSessionHandler = async (req: Request, res: Response) 
     }
 };
 
-export const verifySessionHandler = async (req: Request, res: Response) => {
+export const verifySessionHandler = async (req: express.Request, res: express.Response) => {
     if (!checkStripeConfig(res)) return;
 
-    const sessionId = req.query.session_id as string;
+    const { sessionId } = req.body;
     if (!sessionId) {
-        return res.status(400).json({ error: "Missing 'session_id' query parameter." });
+        return res.status(400).json({ error: "Missing 'sessionId' in request body." });
     }
 
     try {
         // Retrieve the session from Stripe to verify its status
         const session = await stripe!.checkout.sessions.retrieve(sessionId, {
-            expand: ['line_items']
+            expand: ['subscription', 'line_items']
         });
 
-        if (session.payment_status === 'paid') {
+        if (session.payment_status === 'paid' && session.subscription && session.customer) {
+            const subscription = session.subscription as Stripe.Subscription;
+            
             const priceId = session.line_items?.data[0]?.price?.id;
             let duration: 'monthly' | 'yearly' | null = null;
             
-            if (priceId === STRIPE_PRICE_ID_MONTHLY) {
-                duration = 'monthly';
-            } else if (priceId === STRIPE_PRICE_ID_YEARLY) {
-                duration = 'yearly';
-            }
+            if (priceId === STRIPE_PRICE_ID_MONTHLY) duration = 'monthly';
+            else if (priceId === STRIPE_PRICE_ID_YEARLY) duration = 'yearly';
+            
 
             if (duration) {
-                return res.status(200).json({ status: 'success', duration });
+                return res.status(200).json({ 
+                    status: 'success', 
+                    duration,
+                    subscriptionId: subscription.id,
+                    customerId: session.customer,
+                 });
             } else {
                  return res.status(400).json({ error: 'Could not determine subscription duration from checkout session.' });
             }
         } else {
-            return res.status(402).json({ error: 'Payment not completed successfully.' });
+            return res.status(402).json({ error: 'Payment not completed successfully or subscription not found.' });
         }
     } catch (error: any) {
         console.error("Stripe session verification failed:", error);
         return res.status(500).json({ error: 'Failed to verify checkout session.', details: error.message });
+    }
+};
+
+export const createCustomerPortalSessionHandler = async (req: express.Request, res: express.Response) => {
+    if (!checkStripeConfig(res)) return;
+
+    const { customerId, origin } = req.body;
+    if (!customerId) {
+        return res.status(400).json({ error: "Missing 'customerId' in request body." });
+    }
+
+    try {
+        const portalSession = await stripe!.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: origin,
+        });
+
+        return res.status(200).json({ url: portalSession.url });
+
+    } catch (error: any) {
+        console.error("Stripe customer portal session creation failed:", error);
+        return res.status(500).json({ error: "Failed to create customer portal session.", details: error.message });
     }
 };

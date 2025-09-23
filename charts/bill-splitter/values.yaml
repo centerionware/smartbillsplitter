@@ -23,6 +23,15 @@ secret:
   
   # The Gemini API Key. MUST be provided if secret.create is true.
   API_KEY: ""
+  
+  # --- Stripe Configuration ---
+  # The Stripe Secret Key (e.g., sk_test_...).
+  STRIPE_SECRET_KEY: ""
+  # The Price ID for the monthly subscription plan.
+  STRIPE_PRICE_ID_MONTHLY: ""
+  # The Price ID for the yearly subscription plan.
+  STRIPE_PRICE_ID_YEARLY: ""
+
 
 ingress:
   enabled: true

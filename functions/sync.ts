@@ -1,6 +1,6 @@
 // FIX: Changed from 'import type' to a direct import to ensure Express types are resolved correctly, avoiding conflicts with global DOM types.
 // FIX: Import the full express module to use express.Request and express.Response, avoiding type conflicts with global DOM types.
-import { Request, Response } from 'express';
+import express from 'express';
 
 // In-memory store for sync sessions. This is suitable for the ephemeral nature
 // of serverless functions for short-lived data.
@@ -27,7 +27,7 @@ setInterval(() => {
   }
 }, 60 * 1000); // Run cleanup every minute
 
-export const syncHandler = async (req: Request, res: Response) => {
+export const syncHandler = async (req: express.Request, res: express.Response) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");

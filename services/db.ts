@@ -19,7 +19,8 @@ const SINGLE_KEY = 'current';
 let db: IDBDatabase;
 
 export interface SubscriptionDetails {
-  clientReferenceId: string;
+  customerId: string;
+  subscriptionId: string;
   startDate: string;
   duration: 'monthly' | 'yearly';
 }
@@ -115,7 +116,7 @@ export const getTheme = () => get<Theme>(STORES.THEME, SINGLE_KEY);
 export const saveTheme = (theme: Theme) => set(STORES.THEME, theme, SINGLE_KEY);
 
 // --- Subscription ---
-const getSubscriptionDetails = () => get<SubscriptionDetails>(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
+export const getSubscriptionDetails = () => get<SubscriptionDetails>(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
 export const saveSubscriptionDetails = (details: SubscriptionDetails) => set(STORES.SUBSCRIPTION_DETAILS, details, SINGLE_KEY);
 export const deleteSubscriptionDetails = () => del(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
 

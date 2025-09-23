@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getSubscriptionStatus, saveSubscriptionStatus, saveSubscriptionDetails, deleteSubscriptionDetails, SubscriptionDetails } from '../services/db.ts';
+import { getSubscriptionStatus, getSubscriptionDetails, saveSubscriptionStatus, saveSubscriptionDetails, deleteSubscriptionDetails, SubscriptionDetails } from '../services/db.ts';
 
 export type SubscriptionStatus = 'subscribed' | 'free' | null;
 export type SubscriptionDuration = 'monthly' | 'yearly';
 
 interface AuthContextType {
   subscriptionStatus: SubscriptionStatus;
+  subscriptionDetails: SubscriptionDetails | null;
   isLoading: boolean;
-  login: (duration: SubscriptionDuration, clientReferenceId: string) => void;
+  login: (details: Omit<SubscriptionDetails, 'startDate'>) => void;
   selectFreeTier: () => void;
   logout: () => void;
 }
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>(null);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +27,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // This function now contains all logic for checking expiration.
         const storedStatus = await getSubscriptionStatus();
         setSubscriptionStatus(storedStatus);
+        if (storedStatus === 'subscribed') {
+          const details = await getSubscriptionDetails();
+          setSubscriptionDetails(details || null);
+        }
       } catch (error) {
         console.error("Failed to load subscription status from DB:", error);
         setSubscriptionStatus(null); // Default to null on error
@@ -35,14 +41,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadStatus();
   }, []);
 
-  const login = useCallback(async (duration: SubscriptionDuration, clientReferenceId: string) => {
-    const details: SubscriptionDetails = {
-        clientReferenceId,
+  const login = useCallback(async (details: Omit<SubscriptionDetails, 'startDate'>) => {
+    const fullDetails: SubscriptionDetails = {
+        ...details,
         startDate: new Date().toISOString(),
-        duration,
     };
-    await saveSubscriptionDetails(details);
+    await saveSubscriptionDetails(fullDetails);
     await saveSubscriptionStatus('subscribed');
+    setSubscriptionDetails(fullDetails);
     setSubscriptionStatus('subscribed');
   }, []);
 
@@ -50,6 +56,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // When selecting the free tier, ensure any paid subscription details are cleared.
     await deleteSubscriptionDetails();
     await saveSubscriptionStatus('free');
+    setSubscriptionDetails(null);
     setSubscriptionStatus('free');
   }, []);
 
@@ -57,10 +64,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // On logout, clear both the simple status and the detailed subscription info.
     await deleteSubscriptionDetails();
     await saveSubscriptionStatus(null);
+    setSubscriptionDetails(null);
     setSubscriptionStatus(null);
   }, []);
 
-  const value = { subscriptionStatus, isLoading, login, selectFreeTier, logout };
+  const value = { subscriptionStatus, subscriptionDetails, isLoading, login, selectFreeTier, logout };
 
   return React.createElement(AuthContext.Provider, { value: value }, children);
 };

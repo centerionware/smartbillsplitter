@@ -1,71 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 interface PaywallProps {
   onSelectFreeTier: () => void;
   initialError?: string;
 }
 
-// Add a global declaration for the Stripe object from the script tag.
-declare const Stripe: any;
-
-const STRIPE_PUBLISHABLE_KEY = 'pk_test_51SA6UQHQAboiqUmtMpUwZGQHxMzVJx8I1mFuLqnELrtg0rpabNbe4NpiKq3tDY6c8nXUyt1EtnfijSem1KAq9iK300tzTnkXL7';
-const MONTHLY_PRICE_ID = 'price_1SA6ZeHQAboiqUmtWoNH736o';
-const YEARLY_PRICE_ID = 'price_1SA6agHQAboiqUmtjz5UCjub';
-
 const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(initialError || null);
-  const [stripe, setStripe] = useState<any>(null);
-
-  // Initialize the Stripe.js instance once the component mounts.
-  useEffect(() => {
-    // FIX: Use type assertion to access Stripe from the window object, as it's loaded from a script.
-    if ((window as any).Stripe) {
-      setStripe(Stripe(STRIPE_PUBLISHABLE_KEY));
-    } else {
-      console.error("Stripe.js has not loaded. Please check your internet connection and script tag.");
-      setError("Payment provider could not be loaded. Please refresh the page.");
-    }
-  }, []);
 
   const handleCheckout = async (plan: 'monthly' | 'yearly') => {
-    if (!stripe) {
-      setError("Stripe is not ready yet. Please wait a moment and try again.");
-      return;
-    }
-
     setError(null);
     setIsLoading(plan);
 
-    const priceId = plan === 'monthly' ? MONTHLY_PRICE_ID : YEARLY_PRICE_ID;
-    const origin = window.location.origin + window.location.pathname.replace(/\/$/, ""); // Ensure no trailing slash
-
     try {
-      // 1. Generate a unique ID for this user session.
-      const clientReferenceId = crypto.randomUUID();
-      // 2. Store it temporarily so we can retrieve it on the success page.
-      sessionStorage.setItem('pendingClientReferenceId', clientReferenceId);
+        const origin = window.location.origin + window.location.pathname.replace(/\/$/, "");
 
-      const { error } = await stripe.redirectToCheckout({
-        lineItems: [{ price: priceId, quantity: 1 }],
-        mode: 'subscription',
-        successUrl: `${origin}?payment_success=true&plan=${plan}`,
-        cancelUrl: origin,
-        // 3. Pass the ID to Stripe. It will be associated with the checkout session.
-        clientReferenceId: clientReferenceId,
-      });
+        const response = await fetch('/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan, origin }),
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to create a checkout session.');
+        }
 
-      if (error) {
-        console.error('Stripe redirectToCheckout error:', error);
-        setError(error.message);
-        setIsLoading(null);
-        sessionStorage.removeItem('pendingClientReferenceId'); // Clean up on error
-      }
-      // If successful, the user is redirected and this component will unmount.
+        if (data.url) {
+            // Redirect the user to the Stripe-hosted checkout page.
+            window.location.href = data.url;
+        } else {
+            throw new Error('No checkout URL returned from the server.');
+        }
+
     } catch (err: any) {
-      setError(err.message || 'An unknown error occurred. Please try again.');
-      setIsLoading(null);
-      sessionStorage.removeItem('pendingClientReferenceId'); // Clean up on error
+        console.error('Checkout error:', err);
+        setError(err.message || 'An unknown error occurred. Please try again.');
+        setIsLoading(null);
     }
   };
 
