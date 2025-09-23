@@ -67,12 +67,19 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             const { c: code, k: keyJwk } = parsed;
 
             // 1. Fetch encrypted data from server
-            const response = await fetch(`/.netlify/functions/sync?code=${code}`);
-            const result = await response.json();
-
+            const response = await fetch(`/api/sync?code=${code}`);
+            const resultText = await response.text();
+            
             if (!response.ok) {
-                throw new Error(result.error || "Failed to retrieve data. The code may have expired.");
+                try {
+                  const errorResult = JSON.parse(resultText);
+                  throw new Error(errorResult.error || "Failed to retrieve data. The code may have expired.");
+                } catch(e) {
+                  throw new Error("Failed to retrieve data. The code may have expired or the server is unavailable.");
+                }
             }
+            
+            const result = JSON.parse(resultText);
 
             // 2. Decrypt data
             setReceiveStatus('decrypting');
@@ -127,7 +134,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             const dataToExport = await exportData();
             const encryptedData = await cryptoService.encrypt(JSON.stringify(dataToExport), key);
 
-            const response = await fetch('/.netlify/functions/sync', {
+            const response = await fetch('/api/sync', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ encryptedData }),

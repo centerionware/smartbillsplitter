@@ -8,9 +8,9 @@ interface ScannedReceiptData {
 
 export const parseReceipt = async (base64Image: string, mimeType: string): Promise<ScannedReceiptData> => {
   try {
-    // The path to the serverless function.
-    // In Netlify, this will be automatically routed to `netlify/functions/scan-receipt.mjs`.
-    const response = await fetch('/.netlify/functions/scan-receipt', {
+    // The path to our new self-hosted backend endpoint.
+    // The Ingress will route this to the backend service.
+    const response = await fetch('/api/scan-receipt', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
