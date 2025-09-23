@@ -80,6 +80,8 @@ jobs:
           owner: ${{ github.repository_owner }}
           package-name: ${{ env.FRONTEND_IMAGE_NAME }}
           min-versions-to-keep: 1
+          package-type: container
+          num-old-versions-to-delete: 3
           token: ${{ secrets.GH_PAT }}
           
       - name: Prune old backend image versions
@@ -88,6 +90,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           package-name: ${{ env.BACKEND_IMAGE_NAME }}
           min-versions-to-keep: 1
+          num-old-versions-to-delete: 3
           token: ${{ secrets.GH_PAT }}
 
   update-helm-chart:
