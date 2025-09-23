@@ -15,7 +15,7 @@ env:
 jobs:
   build-and-push-images:
     name: Build and Push Docker Images
-    if: !contains(github.event.head_commit.message, '[ci skip]')
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -69,7 +69,7 @@ jobs:
   update-helm-chart:
     name: Update Helm Chart and Push to Production Branch
     needs: build-and-push-images
-    if: !contains(github.event.head_commit.message, '[ci skip]')
+    if: success() && !contains(github.event.head_commit.message, '[ci skip]')
     runs-on: ubuntu-latest
     permissions:
       contents: write
