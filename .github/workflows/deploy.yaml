@@ -25,7 +25,7 @@ jobs:
         with:
           owner: ${{ github.repository_owner }}
           package-name: ${{ env.FRONTEND_IMAGE_NAME }}
-          min-versions-to-keep:a 0
+          min-versions-to-keep: 0
           package-type: container
           token: ${{ secrets.GH_PAT }}
           
