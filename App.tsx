@@ -39,8 +39,13 @@ const App: React.FC = () => {
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
   const { theme, setTheme, isLoading: themeLoading } = useTheme();
   const { subscriptionStatus, logout } = useAuth();
+  
+  // Navigation & View State
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [dashboardView, setDashboardView] = useState<'bills' | 'participants'>('bills');
+  const [dashboardParticipant, setDashboardParticipant] = useState<string | null>(null);
+
   const [billCreationTemplate, setBillCreationTemplate] = useState<RecurringBill | { forEditing: RecurringBill } | null>(null);
   const [confirmation, setConfirmation] = useState<{
     isOpen: boolean;
@@ -52,58 +57,78 @@ const App: React.FC = () => {
   const initRef = useRef(false);
 
   // --- Navigation ---
-  useEffect(() => {
-    const handleNavigation = () => {
-      const hash = window.location.hash || '#/';
-      const [path, queryString] = hash.split('?');
-      const params = new URLSearchParams(queryString || '');
+  const handleNavigation = useCallback(() => {
+    if (billsLoading || recurringBillsLoading) return;
 
-      // Reset states before setting the new view
-      setSelectedBill(null);
-      setBillCreationTemplate(null);
+    const hash = window.location.hash || '#/';
+    const [path, queryString] = hash.split('?');
+    const params = new URLSearchParams(queryString || '');
 
-      if (path.startsWith('#/bill/')) {
-        const billId = path.substring(7);
-        const bill = bills.find(b => b.id === billId);
-        if (bill) {
-          setSelectedBill(bill);
-          setCurrentView(View.BillDetails);
-        } else {
-          window.location.hash = '#/';
-        }
-      } else if (path === '#/create') {
-        const fromTemplateId = params.get('fromTemplate');
-        const editTemplateId = params.get('editTemplate');
-        if (fromTemplateId) {
-          const template = recurringBills.find(rb => rb.id === fromTemplateId);
-          setBillCreationTemplate(template || null);
-        } else if (editTemplateId) {
-          const template = recurringBills.find(rb => rb.id === editTemplateId);
-          setBillCreationTemplate(template ? { forEditing: template } : null);
-        } else {
-          setBillCreationTemplate(null);
-        }
-        setCurrentView(View.CreateBill);
-      } else if (path === '#/settings') {
-        setCurrentView(View.Settings);
-      } else if (path === '#/sync') {
-        setCurrentView(View.Sync);
-      } else if (path === '#/disclaimer') {
-        setCurrentView(View.Disclaimer);
-      } else if (path === '#/recurring') {
-        setCurrentView(View.RecurringBills);
-      } else { // Default to Dashboard
-        setCurrentView(View.Dashboard);
+    // Reset view-specific states before setting the new one
+    setSelectedBill(null);
+    setBillCreationTemplate(null);
+    setDashboardParticipant(null);
+
+    if (path.startsWith('#/bill/')) {
+      const billId = path.substring(7);
+      const bill = bills.find(b => b.id === billId);
+      if (bill) {
+        setSelectedBill(bill);
+        setCurrentView(View.BillDetails);
+      } else {
+        window.history.replaceState(null, '', '#/'); // Bill not found, go home
       }
-    };
-
-    if (!billsLoading && !recurringBillsLoading) {
-      handleNavigation();
+    } else if (path === '#/create') {
+      const fromTemplateId = params.get('fromTemplate');
+      const editTemplateId = params.get('editTemplate');
+      if (fromTemplateId) {
+        const template = recurringBills.find(rb => rb.id === fromTemplateId);
+        setBillCreationTemplate(template || null);
+      } else if (editTemplateId) {
+        const template = recurringBills.find(rb => rb.id === editTemplateId);
+        setBillCreationTemplate(template ? { forEditing: template } : null);
+      } else {
+        setBillCreationTemplate(null);
+      }
+      setCurrentView(View.CreateBill);
+    } else if (path === '#/settings') {
+      setCurrentView(View.Settings);
+    } else if (path === '#/sync') {
+      setCurrentView(View.Sync);
+    } else if (path === '#/disclaimer') {
+      setCurrentView(View.Disclaimer);
+    } else if (path === '#/recurring') {
+      setCurrentView(View.RecurringBills);
+    } else if (path.startsWith('#/participants/')) {
+        const participantName = decodeURIComponent(path.substring(15));
+        setDashboardParticipant(participantName);
+        setDashboardView('participants');
+        setCurrentView(View.Dashboard);
+    } else if (path === '#/participants') {
+        setDashboardView('participants');
+        setCurrentView(View.Dashboard);
+    } else { // Default to Dashboard bills view
+      setDashboardView('bills');
+      setCurrentView(View.Dashboard);
     }
-
-    window.addEventListener('hashchange', handleNavigation);
-    return () => window.removeEventListener('hashchange', handleNavigation);
   }, [bills, recurringBills, billsLoading, recurringBillsLoading]);
+
+  // Effect to set up navigation listeners
+  useEffect(() => {
+    // Call handler on initial load
+    handleNavigation(); 
+    // Listen for back/forward browser actions
+    window.addEventListener('popstate', handleNavigation);
+    return () => window.removeEventListener('popstate', handleNavigation);
+  }, [handleNavigation]);
+
+
+  const navigate = (hash: string) => {
+    if (window.location.hash !== hash) {
+      window.history.pushState(null, '', hash);
+      handleNavigation(); // Manually trigger navigation logic since pushState doesn't fire an event
+    }
+  };
 
   useEffect(() => {
     if (subscriptionStatus === 'free') {
@@ -233,20 +258,33 @@ const App: React.FC = () => {
     setConfirmation(null);
   };
 
-  const handleCreateNewBill = () => {
-    window.location.hash = '#/create';
+  const handleBack = () => {
+    window.history.back();
   };
 
-  const handleSelectBill = (bill: Bill) => {
-    window.location.hash = `#/bill/${bill.id}`;
+  const handleCreateNewBill = () => navigate('#/create');
+  const handleSelectBill = (bill: Bill) => navigate(`#/bill/${bill.id}`);
+  const handleGoToSettings = () => navigate('#/settings');
+  const handleGoToSync = () => navigate('#/sync');
+  const handleGoToDisclaimer = () => navigate('#/disclaimer');
+  const handleGoToRecurringBills = () => navigate('#/recurring');
+  const handleCreateFromTemplate = (template: RecurringBill) => navigate(`#/create?fromTemplate=${template.id}`);
+  const handleEditTemplate = (template: RecurringBill) => navigate(`#/create?editTemplate=${template.id}`);
+  
+  const handleSetDashboardView = (view: 'bills' | 'participants') => {
+    if (view === 'bills') navigate('#/');
+    else navigate('#/participants');
   };
+
+  const handleSelectDashboardParticipant = (name: string) => navigate(`#/participants/${encodeURIComponent(name)}`);
+  const handleClearDashboardParticipant = () => navigate('#/participants');
 
   const handleSaveBill = (bill: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => {
     addBill(bill);
     if (fromTemplateId) {
         updateRecurringBillDueDate(fromTemplateId);
     }
-    window.location.hash = '#/';
+    navigate('#/');
   };
 
   const handleSaveRecurringBill = async (bill: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => {
@@ -254,7 +292,7 @@ const App: React.FC = () => {
     if(settings.notificationsEnabled) {
       await notificationService.scheduleNotification(newBill, settings.notificationDays);
     }
-    window.location.hash = '#/recurring';
+    navigate('#/recurring');
   };
 
   const handleUpdateRecurringBill = async (bill: RecurringBill) => {
@@ -264,7 +302,7 @@ const App: React.FC = () => {
     } else {
       await notificationService.cancelNotification(bill.id);
     }
-    window.location.hash = '#/recurring';
+    navigate('#/recurring');
   }
 
   const handleDeleteRecurringBill = async (billId: string) => {
@@ -275,34 +313,6 @@ const App: React.FC = () => {
   const handleUpdateBill = (bill: Bill) => {
     updateBill(bill);
     setSelectedBill(bill);
-  };
-
-  const handleBack = () => {
-    window.history.back();
-  };
-  
-  const handleGoToSettings = () => {
-    window.location.hash = '#/settings';
-  };
-
-  const handleGoToSync = () => {
-    window.location.hash = '#/sync';
-  };
-
-  const handleGoToDisclaimer = () => {
-    window.location.hash = '#/disclaimer';
-  };
-
-  const handleGoToRecurringBills = () => {
-    window.location.hash = '#/recurring';
-  };
-  
-  const handleCreateFromTemplate = (template: RecurringBill) => {
-    window.location.hash = `#/create?fromTemplate=${template.id}`;
-  };
-
-  const handleEditTemplate = (template: RecurringBill) => {
-    window.location.hash = `#/create?editTemplate=${template.id}`;
   };
 
   const renderContent = () => {
@@ -337,6 +347,11 @@ const App: React.FC = () => {
             onUnarchiveBill={unarchiveBill}
             onDeleteBill={deleteBill}
             onUpdateMultipleBills={updateMultipleBills}
+            dashboardView={dashboardView}
+            selectedParticipant={dashboardParticipant}
+            onSetDashboardView={handleSetDashboardView}
+            onSelectParticipant={handleSelectDashboardParticipant}
+            onClearParticipant={handleClearDashboardParticipant}
           />
         );
       case View.RecurringBills:
@@ -379,6 +394,11 @@ const App: React.FC = () => {
             onUnarchiveBill={unarchiveBill}
             onDeleteBill={deleteBill}
             onUpdateMultipleBills={updateMultipleBills}
+            dashboardView={dashboardView}
+            selectedParticipant={dashboardParticipant}
+            onSetDashboardView={handleSetDashboardView}
+            onSelectParticipant={handleSelectDashboardParticipant}
+            onClearParticipant={handleClearDashboardParticipant}
           />
         );
     }

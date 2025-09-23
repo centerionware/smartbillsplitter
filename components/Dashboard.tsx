@@ -15,15 +15,23 @@ interface DashboardProps {
   onUnarchiveBill: (billId: string) => void;
   onDeleteBill: (billId: string) => void;
   onUpdateMultipleBills: (bills: Bill[]) => void;
+  // Navigation State & Handlers
+  dashboardView: 'bills' | 'participants';
+  selectedParticipant: string | null;
+  onSetDashboardView: (view: 'bills' | 'participants') => void;
+  onSelectParticipant: (name: string) => void;
+  onClearParticipant: () => void;
 }
 
 const BILLS_PER_PAGE = 15;
 const AD_INTERVAL = 9; // Show an ad after every 9 bills
 
-const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStatus, onSelectBill, onArchiveBill, onUnarchiveBill, onDeleteBill, onUpdateMultipleBills }) => {
+const Dashboard: React.FC<DashboardProps> = ({ 
+  bills, settings, subscriptionStatus, 
+  onSelectBill, onArchiveBill, onUnarchiveBill, onDeleteBill, onUpdateMultipleBills,
+  dashboardView, selectedParticipant, onSetDashboardView, onSelectParticipant, onClearParticipant
+}) => {
   const [billStatusFilter, setBillStatusFilter] = useState<'active' | 'archived'>('active');
-  const [displayMode, setDisplayMode] = useState<'bills' | 'participants'>('bills');
-  const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'description' | 'participant'>('description');
   const [visibleCount, setVisibleCount] = useState(BILLS_PER_PAGE);
@@ -95,7 +103,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
   // --- Infinite Scroll Logic ---
   useEffect(() => {
     setVisibleCount(BILLS_PER_PAGE);
-  }, [billStatusFilter, searchQuery, searchMode, displayMode, selectedParticipant]);
+  }, [billStatusFilter, searchQuery, searchMode, dashboardView, selectedParticipant]);
   
   const hasMore = visibleCount < filteredBills.length;
 
@@ -219,7 +227,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
             message: "This person has settled all their bills in this category.",
         };
     }
-     if (displayMode === 'participants') {
+     if (dashboardView === 'participants') {
         return {
             title: "No outstanding debts",
             message: "Everyone is all paid up!",
@@ -250,7 +258,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
   }
   
   const renderContent = () => {
-    if (displayMode === 'participants' && !selectedParticipant) {
+    if (dashboardView === 'participants' && !selectedParticipant) {
       if (participantsWithDebt.length > 0) {
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -258,7 +266,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
               <SwipeableParticipantCard
                 key={p.name}
                 participant={p}
-                onClick={() => setSelectedParticipant(p.name)}
+                onClick={() => onSelectParticipant(p.name)}
                 onShare={() => handleShareWithParticipant(p.name)}
                 onPaidInFull={() => handleMarkParticipantAsPaid(p.name)}
                 isCopied={copiedParticipantName === p.name}
@@ -327,7 +335,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
                 <div>
                   {selectedParticipant ? (
                     <div className="flex items-center gap-2">
-                      <button onClick={() => setSelectedParticipant(null)} className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full">
+                      <button onClick={onClearParticipant} className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full">
                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                          </svg>
@@ -343,8 +351,8 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
                 <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg self-start sm:self-center">
                     {!selectedParticipant && (
                         <>
-                            <button onClick={() => setDisplayMode('bills')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${displayMode === 'bills' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>By Bill</button>
-                            <button onClick={() => setDisplayMode('participants')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${displayMode === 'participants' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>By Participant</button>
+                            <button onClick={() => onSetDashboardView('bills')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${dashboardView === 'bills' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>By Bill</button>
+                            <button onClick={() => onSetDashboardView('participants')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${dashboardView === 'participants' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>By Participant</button>
                             <div className="h-4 w-px bg-slate-300 dark:bg-slate-600 mx-1"></div>
                         </>
                     )}
@@ -353,7 +361,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
                 </div>
             </div>
 
-            {(displayMode === 'bills' || selectedParticipant) && (
+            {(dashboardView === 'bills' || selectedParticipant) && (
                 <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
