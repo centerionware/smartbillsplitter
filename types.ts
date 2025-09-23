@@ -45,4 +45,5 @@ export enum View {
   BillDetails = 'BILL_DETAILS',
   Settings = 'SETTINGS',
   Disclaimer = 'DISCLAIMER',
+  Sync = 'SYNC',
 }

@@ -226,7 +226,6 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
     
     if (splitMode === 'amount') {
       // Use a small tolerance for float comparison
-      // FIX: Explicitly cast totalAmount to a number before using it in an arithmetic operation.
       return { customSplitTotal: total, isCustomSplitValid: Math.abs(total - (Number(totalAmount) || 0)) < 0.01 };
     }
     if (splitMode === 'percentage') {
@@ -244,7 +243,6 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
 
     switch(splitMode) {
         case 'even':
-            // FIX: Explicitly cast totalAmount to a number before using it in an arithmetic operation.
             const amountPerPerson = (Number(totalAmount) || 0) / participants.length;
             finalParticipants = finalParticipants.map(p => ({...p, amountOwed: amountPerPerson}));
             break;
@@ -267,7 +265,6 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
         case 'percentage':
             finalParticipants = finalParticipants.map(p => {
                 const percentage = parseFloat(customSplits[p.id]) || 0;
-                // FIX: Explicitly cast totalAmount to a number before using it in an arithmetic operation.
                 return {...p, amountOwed: ((Number(totalAmount) || 0) * percentage) / 100 };
             });
             break;

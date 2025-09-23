@@ -10,6 +10,7 @@ import Dashboard from './components/Dashboard.tsx';
 import CreateBill from './components/CreateBill.tsx';
 import BillDetails from './components/BillDetails.tsx';
 import SettingsComponent from './components/Settings.tsx';
+import SyncComponent from './components/Sync.tsx';
 import PwaInstallBanner from './components/PwaInstallBanner.tsx';
 import FloatingAd from './components/FloatingAd.tsx';
 import ConfirmationDialog from './components/ConfirmationDialog.tsx';
@@ -87,6 +88,11 @@ const App: React.FC = () => {
     setSelectedBill(null);
   };
 
+  const handleGoToSync = () => {
+    setCurrentView(View.Sync);
+    setSelectedBill(null);
+  };
+
   const handleGoToDisclaimer = () => {
     setCurrentView(View.Disclaimer);
     setSelectedBill(null);
@@ -122,9 +128,15 @@ const App: React.FC = () => {
         return <SettingsComponent 
           settings={settings} 
           onUpdateSettings={updateSettings} 
-          onBack={handleBackToDashboard} 
+          onBack={handleBackToDashboard}
+          onGoToSync={handleGoToSync}
           subscriptionStatus={subscriptionStatus}
           onLogout={logout}
+          requestConfirmation={requestConfirmation}
+        />;
+      case View.Sync:
+        return <SyncComponent
+          onBack={handleBackToDashboard}
           requestConfirmation={requestConfirmation}
         />;
       case View.Disclaimer:
