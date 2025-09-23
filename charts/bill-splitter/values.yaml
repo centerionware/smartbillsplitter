@@ -1,0 +1,28 @@
+# Default values for bill-splitter chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  owner: PLACEHOLDER_OWNER
+  tag: placeholder-tag
+
+frontend:
+  replicaCount: 2
+  service:
+    port: 80
+
+backend:
+  replicaCount: 1
+  service:
+    port: 3000
+  env:
+    secretName: gemini-api-key-secret
+    secretKey: API_KEY
+
+ingress:
+  enabled: true
+  host: YOUR_DOMAIN_HERE # <-- IMPORTANT: Replace with your domain
+  # tls:
+  #   - secretName: sharedbills-tls-secret
+  #     hosts:
+  #       - YOUR_DOMAIN_HERE

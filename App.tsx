@@ -16,7 +16,7 @@ import PwaInstallBanner from './components/PwaInstallBanner.tsx';
 import FloatingAd from './components/FloatingAd.tsx';
 import ConfirmationDialog from './components/ConfirmationDialog.tsx';
 import Disclaimer from './components/Disclaimer.tsx';
-
+ 
 export type RequestConfirmationOptions = {
   confirmText?: string;
   cancelText?: string;
