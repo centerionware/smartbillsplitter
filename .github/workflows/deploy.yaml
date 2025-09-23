@@ -78,14 +78,18 @@ jobs:
         uses: actions/delete-package-versions@v5
         with:
           package-name: ${{ env.FRONTEND_IMAGE_NAME }}
-          min-versions-to-keep: 1
+          min-versions-to-keep: 0 # We are ignoring the one to keep, so the minimum to keep via sorting is 0.
+          num-old-versions-to-delete: 0 # A value of 0 deletes all versions not kept by other logic.
+          ignore-versions: '^${{ needs.build-and-push-images.outputs.image_tag }}$' # Use regex to ignore the specific tag we just pushed.
           token: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Prune old backend image versions
         uses: actions/delete-package-versions@v5
         with:
           package-name: ${{ env.BACKEND_IMAGE_NAME }}
-          min-versions-to-keep: 1
+          min-versions-to-keep: 0
+          num-old-versions-to-delete: 0
+          ignore-versions: '^${{ needs.build-and-push-images.outputs.image_tag }}$'
           token: ${{ secrets.GITHUB_TOKEN }}
 
   update-manifest:
