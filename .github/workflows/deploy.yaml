@@ -15,7 +15,6 @@ env:
 jobs:
   prune-old-images:
     name: Prune Old Image Versions
-    needs: build-and-push-images
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
     permissions:
@@ -41,6 +40,7 @@ jobs:
   
   build-and-push-images:
     name: Build and Push Docker Images
+    needs: prune-old-images
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
     permissions:
