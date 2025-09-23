@@ -1,4 +1,5 @@
-import type { Context } from "@netlify/functions";
+// FIX: Changed type-only import to a regular import to ensure Express types are correctly resolved.
+import { Request, Response } from 'express';
 
 // In-memory store for sync sessions. This is suitable for the ephemeral nature
 // of serverless functions for short-lived data.
@@ -25,31 +26,25 @@ setInterval(() => {
   }
 }, 60 * 1000); // Run cleanup every minute
 
-export default async (request: Request, context: Context) => {
-  // Standard headers for CORS and JSON responses.
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Content-Type": "application/json",
-  };
-  
-  // Handle CORS preflight requests.
-  if (request.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        ...headers,
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-      },
-    });
+export const syncHandler = async (req: Request, res: Response) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    return res.status(204).send();
   }
 
+  // Set standard headers for actual requests
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Content-Type", "application/json");
+
   // --- UPLOAD DATA (POST) ---
-  if (request.method === "POST") {
+  if (req.method === "POST") {
     try {
-      const { encryptedData } = await request.json();
+      const { encryptedData } = req.body;
       if (!encryptedData || typeof encryptedData !== 'string') {
-        return new Response(JSON.stringify({ error: "Invalid payload. 'encryptedData' string is required." }), { status: 400, headers });
+        return res.status(400).json({ error: "Invalid payload. 'encryptedData' string is required." });
       }
 
       const code = generateCode();
@@ -59,35 +54,35 @@ export default async (request: Request, context: Context) => {
       });
 
       console.log(`Created session ${code}. Total sessions: ${sessions.size}`);
-      return new Response(JSON.stringify({ code }), { status: 201, headers });
+      return res.status(201).json({ code });
 
     } catch (e) {
-      return new Response(JSON.stringify({ error: "Invalid JSON body." }), { status: 400, headers });
+      return res.status(400).json({ error: "Invalid JSON body." });
     }
   }
 
   // --- DOWNLOAD DATA (GET) ---
-  if (request.method === "GET") {
-    const url = new URL(request.url);
-    const code = url.searchParams.get("code");
+  if (req.method === "GET") {
+    const code = req.query.code as string;
     if (!code) {
-      return new Response(JSON.stringify({ error: "Missing 'code' query parameter." }), { status: 400, headers });
+      return res.status(400).json({ error: "Missing 'code' query parameter." });
     }
 
     const session = sessions.get(code);
 
     if (!session || Date.now() > session.expires) {
       if (session) sessions.delete(code); // Clean up expired session on access
-      return new Response(JSON.stringify({ error: "Invalid or expired code." }), { status: 404, headers });
+      return res.status(404).json({ error: "Invalid or expired code." });
     }
 
     // Critical security step: data is for one-time use only.
     sessions.delete(code);
     console.log(`Session ${code} retrieved and deleted. Total sessions: ${sessions.size}`);
     
-    return new Response(JSON.stringify({ encryptedData: session.data }), { status: 200, headers });
+    return res.status(200).json({ encryptedData: session.data });
   }
 
   // --- Fallback for other HTTP methods ---
-  return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers });
+  res.setHeader('Allow', 'GET, POST, OPTIONS');
+  return res.status(405).json({ error: "Method Not Allowed" });
 };

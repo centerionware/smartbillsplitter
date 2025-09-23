@@ -1,16 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-
-// Basic types for a Netlify Function event and response
-interface HandlerEvent {
-  httpMethod: string;
-  body: string | null;
-}
-
-interface HandlerResponse {
-  statusCode: number;
-  headers?: { [key: string]: string };
-  body: string;
-}
+// FIX: Changed type-only import to a regular import to ensure Express types are correctly resolved.
+import { Request, Response } from 'express';
 
 // Defines the expected JSON structure from the Gemini API for consistent data handling.
 const responseSchema = {
@@ -52,32 +42,17 @@ const responseSchema = {
   required: ["description", "items"],
 };
 
-// The main handler for the Netlify serverless function.
-export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
-  }
-
-  let body;
-  try {
-    if (!event.body) {
-      throw new Error("Request body is empty.");
-    }
-    body = JSON.parse(event.body);
-  } catch (error) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON in request body.' }) };
-  }
-  
-  const { base64Image, mimeType } = body;
+// The main handler, now an Express RequestHandler.
+export const scanReceiptHandler = async (req: Request, res: Response) => {
+  const { base64Image, mimeType } = req.body;
   if (!base64Image || !mimeType) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Missing required parameters: base64Image and mimeType.' }) };
+    return res.status(400).json({ error: 'Missing required parameters: base64Image and mimeType.' });
   }
 
-  // Securely access the API_KEY from Netlify's environment variables.
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     console.error("API_KEY environment variable not set.");
-    return { statusCode: 500, body: JSON.stringify({ error: 'Server configuration error: API key is not set.' }) };
+    return res.status(500).json({ error: 'Server configuration error: API key is not set.' });
   }
 
   try {
@@ -95,18 +70,12 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
       },
     });
     
-    // The response.text is a stringified JSON, which we can pass through directly.
-    // We'll parse it first to ensure it's valid JSON before sending.
     const parsedData = JSON.parse(response.text);
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(parsedData),
-    };
+    return res.status(200).json(parsedData);
 
   } catch (error: any) {
     console.error("Error calling Gemini API:", error);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to communicate with the AI service.', details: error.message }) };
+    return res.status(500).json({ error: 'Failed to communicate with the AI service.', details: error.message });
   }
 };
