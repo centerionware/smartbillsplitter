@@ -90,31 +90,37 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
         ws.onopen = () => console.log('Sender WebSocket connected, waiting for session...');
 
         ws.onmessage = async (event) => {
-            const message = JSON.parse(event.data);
-            console.log("Sender received:", message.type);
-            switch (message.type) {
-                case 'session_created':
-                    setSyncCode(message.code);
-                    setStatus('waiting');
-                    break;
-                case 'peer_joined':
-                    setStatus('connected');
-                    await startDataTransfer();
-                    break;
-                case 'sync_complete':
-                    setStatus('complete');
-                    setTimeout(() => {
-                       handleBackClick();
-                    }, 2000);
-                    break;
-                case 'error':
-                    setErrorMessage(message.message || 'An error occurred on the other device.');
-                    setStatus('error');
-                    break;
-                case 'peer_disconnected':
-                    setErrorMessage('The other device disconnected.');
-                    setStatus('error');
-                    break;
+            try {
+                const message = JSON.parse(event.data);
+                console.log("Sender received:", message.type);
+                switch (message.type) {
+                    case 'session_created':
+                        setSyncCode(message.code);
+                        setStatus('waiting');
+                        break;
+                    case 'peer_joined':
+                        setStatus('connected');
+                        await startDataTransfer();
+                        break;
+                    case 'sync_complete':
+                        setStatus('complete');
+                        setTimeout(() => {
+                           handleBackClick();
+                        }, 2000);
+                        break;
+                    case 'error':
+                        setErrorMessage(message.message || 'An error occurred on the other device.');
+                        setStatus('error');
+                        break;
+                    case 'peer_disconnected':
+                        setErrorMessage('The other device disconnected.');
+                        setStatus('error');
+                        break;
+                }
+            } catch (e) {
+                console.error("Failed to parse WebSocket message:", e);
+                setErrorMessage("Received an invalid message from the other device.");
+                setStatus('error');
             }
         };
         ws.onclose = () => {
@@ -146,51 +152,57 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
         wsRef.current = ws;
 
         ws.onmessage = async (event) => {
-             const message = JSON.parse(event.data);
-             console.log("Receiver received:", message.type);
-             switch (message.type) {
-                case 'key':
-                    encryptionKeyRef.current = await cryptoService.importKey(message.key);
-                    break;
-                case 'data':
-                    if (!encryptionKeyRef.current) {
-                        setErrorMessage("Data received before encryption key. Sync failed.");
-                        setStatus('error');
-                        return;
-                    }
-                    setStatus('receiving');
-                    const decryptedData = await cryptoService.decrypt(message.payload, encryptionKeyRef.current);
-                    const parsedData = JSON.parse(decryptedData);
-                    
-                    setStatus('confirming');
-                    requestConfirmation(
-                        'Confirm Data Import',
-                        'Data has been received. This will overwrite all current bills and settings.',
-                        async () => {
-                            await importData(parsedData);
-                            ws.send(JSON.stringify({ type: 'sync_complete' }));
-                            setStatus('complete');
-                            setTimeout(() => reloadApp(), 2000);
-                        },
-                        { 
-                            confirmText: 'Overwrite & Import', 
-                            confirmVariant: 'danger', 
-                            onCancel: () => {
-                                ws.send(JSON.stringify({ type: 'error', message: 'User cancelled import.' }));
-                                resetState();
-                            }
+            try {
+                const message = JSON.parse(event.data);
+                console.log("Receiver received:", message.type);
+                switch (message.type) {
+                    case 'key':
+                        encryptionKeyRef.current = await cryptoService.importKey(message.key);
+                        break;
+                    case 'data':
+                        if (!encryptionKeyRef.current) {
+                            setErrorMessage("Data received before encryption key. Sync failed.");
+                            setStatus('error');
+                            return;
                         }
-                    );
-                    break;
-                 case 'error':
-                    setErrorMessage(message.message || 'An error occurred.');
-                    setStatus('error');
-                    break;
-                case 'peer_disconnected':
-                    setErrorMessage('The other device disconnected.');
-                    setStatus('error');
-                    break;
-             }
+                        setStatus('receiving');
+                        const decryptedData = await cryptoService.decrypt(message.payload, encryptionKeyRef.current);
+                        const parsedData = JSON.parse(decryptedData);
+                        
+                        setStatus('confirming');
+                        requestConfirmation(
+                            'Confirm Data Import',
+                            'Data has been received. This will overwrite all current bills and settings.',
+                            async () => {
+                                await importData(parsedData);
+                                ws.send(JSON.stringify({ type: 'sync_complete' }));
+                                setStatus('complete');
+                                setTimeout(() => reloadApp(), 2000);
+                            },
+                            { 
+                                confirmText: 'Overwrite & Import', 
+                                confirmVariant: 'danger', 
+                                onCancel: () => {
+                                    ws.send(JSON.stringify({ type: 'error', message: 'User cancelled import.' }));
+                                    resetState();
+                                }
+                            }
+                        );
+                        break;
+                     case 'error':
+                        setErrorMessage(message.message || 'An error occurred.');
+                        setStatus('error');
+                        break;
+                    case 'peer_disconnected':
+                        setErrorMessage('The other device disconnected.');
+                        setStatus('error');
+                        break;
+                }
+            } catch (e) {
+                console.error("Failed to parse WebSocket message:", e);
+                setErrorMessage("Received an invalid message from the other device.");
+                setStatus('error');
+            }
         };
         ws.onopen = () => {
             console.log('Receiver connected.');

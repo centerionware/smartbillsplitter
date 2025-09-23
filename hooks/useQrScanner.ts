@@ -16,7 +16,10 @@ export const useQrScanner = (onScan: (data: string) => void): QrScannerHook => {
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const animationFrameRef = useRef<number>();
+  // FIX: Initialize useRef with null to provide an initial value.
+  // The error "Expected 1 arguments, but got 0" suggests that the environment's
+  // TypeScript or linter configuration requires an argument for `useRef`.
+  const animationFrameRef = useRef<number | null>(null);
 
   const scan = useCallback(() => {
     if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {

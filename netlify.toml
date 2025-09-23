@@ -1,6 +1,0 @@
-# This rule directs any requests to the /sync endpoint (e.g., wss://your-site.netlify.app/sync)
-# to the 'sync' edge function located in netlify/edge-functions/sync.mjs.
-
-[[edge_functions]]
-  path = "/sync"
-  function = "sync"

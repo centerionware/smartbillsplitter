@@ -30,6 +30,11 @@ function safeSend(ws: WebSocket, message: object) {
 }
 
 export default async (request: Request, context: Context) => {
+  // Ensure this is a WebSocket upgrade request.
+  if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+    return new Response("This endpoint requires a WebSocket connection.", { status: 426 });
+  }
+  
   const { searchParams } = new URL(request.url);
   const codeFromUrl = searchParams.get('code');
 
