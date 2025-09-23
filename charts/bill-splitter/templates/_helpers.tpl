@@ -8,18 +8,13 @@ Expand the name of the chart.
 {{/*
 Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
+This has been simplified to use the release name as the base to avoid overly long names.
 */}}
 {{- define "bill-splitter.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- if contains $name .Release.Name }}
 {{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
 {{- end }}
 {{- end }}
 
@@ -31,15 +26,21 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
-Create the full image path for the frontend container.
+Common labels
 */}}
-{{- define "bill-splitter.frontendImage" -}}
-{{- printf "ghcr.io/%s/bill-splitter-frontend:%s" .Values.image.owner .Values.image.tag }}
-{{- end -}}
+{{- define "bill-splitter.labels" -}}
+helm.sh/chart: {{ include "bill-splitter.chart" . }}
+{{ include "bill-splitter.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
 
 {{/*
-Create the full image path for the backend container.
+Selector labels
 */}}
-{{- define "bill-splitter.backendImage" -}}
-{{- printf "ghcr.io/%s/bill-splitter-backend:%s" .Values.image.owner .Values.image.tag }}
-{{- end -}}
+{{- define "bill-splitter.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "bill-splitter.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

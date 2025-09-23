@@ -1,4 +1,3 @@
-
 {{- if .Values.ingress.enabled -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -23,7 +22,14 @@ spec:
     - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
-          - path: /api
+          - path: /api/scan-receipt
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "bill-splitter.fullname" . }}-backend
+                port:
+                  number: {{ .Values.backend.service.port }}
+          - path: /api/sync
             pathType: Prefix
             backend:
               service:
