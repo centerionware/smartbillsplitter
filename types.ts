@@ -42,6 +42,7 @@ export interface RecurringBill {
   recurrenceRule: RecurrenceRule;
   nextDueDate: string; // ISO string, calculated for sorting
   splitMode: SplitMode;
+  totalAmount?: number;
 }
 
 export interface PaymentDetails {

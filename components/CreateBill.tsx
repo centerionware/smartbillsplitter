@@ -34,7 +34,11 @@ const CreateBill: React.FC<CreateBillProps> = ({
 
   // --- State Initialization ---
   const [description, setDescription] = useState(initialData?.description || '');
-  const [totalAmount, setTotalAmount] = useState<string>('');
+  const [totalAmount, setTotalAmount] = useState<string>(
+    (mode === 'edit-recurring' && initialData?.totalAmount) 
+      ? initialData.totalAmount.toString() 
+      : ''
+  );
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [participants, setParticipants] = useState<Participant[]>(
       initialData?.participants || [{ id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: true, splitValue: 0 }]
@@ -44,7 +48,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
   const [splitMode, setSplitMode] = useState<SplitMode>(initialData?.splitMode || 'equally');
 
-  const [isRecurring, setIsRecurring] = useState(mode === 'edit-recurring' || mode === 'create-from-recurring');
+  const [isRecurring, setIsRecurring] = useState(mode === 'edit-recurring');
   const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>(initialData?.recurrenceRule || {
     frequency: 'monthly', interval: 1, dayOfMonth: new Date().getDate(),
   });
@@ -61,6 +65,12 @@ const CreateBill: React.FC<CreateBillProps> = ({
       setItems(initialData.items.map(i => ({...i, id: `i-${Date.now()}-${Math.random()}`, price: 0})));
       setSplitMode(initialData.splitMode || (initialData.items.length > 0 ? 'item' : 'equally'));
       setIsRecurring(false); // We are creating a regular bill, not a template.
+       if (initialData.totalAmount) {
+        setTotalAmount(initialData.totalAmount.toString());
+      }
+      if (initialData.nextDueDate) {
+        setDate(initialData.nextDueDate.split('T')[0]);
+      }
     }
     if (mode === 'edit-recurring') {
       setIsRecurring(true);
@@ -253,6 +263,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
             items: finalItems,
             recurrenceRule,
             splitMode,
+            totalAmount: totalAmount ? parseFloat(totalAmount) : undefined,
         };
         if (mode === 'edit-recurring' && initialData) {
             onUpdateRecurring({ ...recurringBillData, id: initialData.id, status: initialData.status, nextDueDate: initialData.nextDueDate });
@@ -304,23 +315,36 @@ const CreateBill: React.FC<CreateBillProps> = ({
             <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="e.g., Monthly Rent" />
           </div>
 
-          {!isRecurring && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="totalAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Total Amount</label>
-                <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
-                  <input id="totalAmount" type="number" step="0.01" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} onBlur={handleTotalAmountBlur} disabled={hasPricedItems} required={!isRecurring} className="w-full pl-7 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 disabled:bg-slate-100 dark:disabled:bg-slate-700/50" placeholder="0.00" />
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label htmlFor="totalAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+                {isRecurring ? 'Default Total (Optional)' : 'Total Amount'}
+              </label>
+              <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
+                <input 
+                  id="totalAmount" 
+                  type="number" 
+                  step="0.01" 
+                  value={totalAmount} 
+                  onChange={(e) => setTotalAmount(e.target.value)} 
+                  onBlur={handleTotalAmountBlur} 
+                  disabled={!isRecurring && hasPricedItems} 
+                  required={!isRecurring}
+                  className="w-full pl-7 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 disabled:bg-slate-100 dark:disabled:bg-slate-700/50" 
+                  placeholder="0.00" 
+                />
               </div>
+            </div>
+            {!isRecurring && (
               <div>
                 <label htmlFor="date" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label>
                 <input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
               </div>
-            </div>
-          )}
+            )}
+          </div>
           
           <button type="button" onClick={() => setIsItemEditorOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM5 11a1 1 0 100 2h8a1 1 0 100-2H5z" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM5 11a1 1 0 100 2h8a1 1 0 100-2H5z" /></svg>
               <span>{items.length > 0 ? `Edit ${items.length} Item${items.length > 1 ? 's' : ''}` : (isRecurring ? 'Add Default Items' : 'Itemize Bill')}</span>
           </button>
 
@@ -356,7 +380,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
                   <div className="flex-grow relative">
                     <label htmlFor={`p-name-${p.id}`} className="sr-only">Participant Name</label>
                     <input id={`p-name-${p.id}`} type="text" value={p.name} onChange={(e) => handleParticipantChange(p.id, 'name', e.target.value)} required className={`w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 ${isContactPickerSupported ? 'pr-10' : ''}`} placeholder="Participant Name" />
-                    {isContactPickerSupported && <button type="button" onClick={() => handleSelectContact(p.id)} className="absolute right-0 top-0 h-full px-3 flex items-center text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-400" aria-label="Select from contacts" title="Select from contacts"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2-2H6a2 2 0 01-2-2V4zm2 2a1 1 0 00-1 1v2a1 1 0 001 1h8a1 1 0 001-1V7a1 1 0 00-1-1H6zm1 6a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg></button>}
+                    {isContactPickerSupported && <button type="button" onClick={() => handleSelectContact(p.id)} className="absolute right-0 top-0 h-full px-3 flex items-center text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-400" aria-label="Select from contacts" title="Select from contacts"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2-2H6a2 2 0 01-2-2V4zm2 2a1 1 0 00-1 1v2a1 1 0 001 1h8a1 1 0 001-1V7a1 1 0 00-1-1H6zm1 6a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg></button>}
                   </div>
                    {(splitMode === 'amount' || splitMode === 'percentage') && (
                        <div className="w-28 relative">
@@ -369,7 +393,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
                            ${p.amountOwed.toFixed(2)}
                         </div>
                    )}
-                  <button type="button" onClick={() => handleRemoveParticipant(p.id)} disabled={participants.length <= 1} className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 disabled:text-slate-400 disabled:cursor-not-allowed bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" /></svg></button>
+                  <button type="button" onClick={() => handleRemoveParticipant(p.id)} disabled={participants.length <= 1} className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 disabled:text-slate-400 disabled:cursor-not-allowed bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" /></svg></button>
                 </li>
               ))}
             </ul>
@@ -383,11 +407,11 @@ const CreateBill: React.FC<CreateBillProps> = ({
             
             <div className="mt-4 flex flex-col sm:flex-row gap-4">
               <button type="button" onClick={handleAddMyself} disabled={isMyselfInList} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
                 <span>Add Myself</span>
               </button>
               <button type="button" onClick={handleAddParticipant} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
                 <span>Add Participant</span>
               </button>
             </div>

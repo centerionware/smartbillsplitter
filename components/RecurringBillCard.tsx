@@ -9,12 +9,13 @@ interface RecurringBillCardProps {
 const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) => {
 
   const getFrequencyText = () => {
-    const { frequency, dayOfMonth, dayOfWeek } = bill.recurrenceRule;
+    const { frequency, dayOfMonth, dayOfWeek, interval } = bill.recurrenceRule;
+    const intervalText = interval > 1 ? `every ${interval}` : '';
     switch (frequency) {
-        case 'daily': return 'Repeats Daily';
+        case 'daily': return `Repeats ${interval > 1 ? `every ${interval} days` : 'Daily'}`;
         case 'weekly':
             const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date(2023, 0, (dayOfWeek ?? 0) + 1));
-            return `Repeats Weekly on ${dayName}`;
+            return `Repeats ${interval > 1 ? `every ${interval} weeks` : 'Weekly'} on ${dayName}`;
         case 'monthly':
             const suffix = (d: number) => {
                 if (d > 3 && d < 21) return 'th';
@@ -25,8 +26,8 @@ const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) 
                     default: return "th";
                 }
             };
-            return `Repeats Monthly on the ${dayOfMonth}${suffix(dayOfMonth ?? 1)}`;
-        case 'yearly': return 'Repeats Yearly';
+            return `Repeats ${interval > 1 ? `every ${interval} months` : 'Monthly'} on the ${dayOfMonth}${suffix(dayOfMonth ?? 1)}`;
+        case 'yearly': return `Repeats ${interval > 1 ? `every ${interval} years` : 'Yearly'}`;
     }
   }
 
@@ -45,13 +46,21 @@ const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) 
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           {getFrequencyText()}
         </p>
-        <div className="mt-4">
-          <p className="text-sm font-semibold text-teal-600 dark:text-teal-400">
-            Next bill due:
-          </p>
-           <p className="text-xl font-bold text-slate-900 dark:text-slate-50">
-             {new Date(bill.nextDueDate).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric'})}
-           </p>
+        <div className="mt-4 flex justify-between items-end">
+           <div>
+              <p className="text-sm font-semibold text-teal-600 dark:text-teal-400">
+                Next bill due:
+              </p>
+               <p className="text-xl font-bold text-slate-900 dark:text-slate-50">
+                 {new Date(bill.nextDueDate).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric'})}
+               </p>
+           </div>
+           {bill.totalAmount && bill.totalAmount > 0 && (
+            <div className="text-right">
+                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Default Total</p>
+                <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">${bill.totalAmount.toFixed(2)}</p>
+            </div>
+           )}
         </div>
       </div>
       <div className="bg-slate-50 dark:bg-slate-700/50 px-5 py-3">
