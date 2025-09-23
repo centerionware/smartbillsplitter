@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Bill, Settings } from './types.ts';
 import { View } from './types.ts';
@@ -20,6 +21,8 @@ export type RequestConfirmationOptions = {
   confirmText?: string;
   cancelText?: string;
   confirmVariant?: 'danger' | 'primary';
+  // FIX: Add optional onCancel callback to allow custom cancel logic.
+  onCancel?: () => void;
 };
 
 export type RequestConfirmationFn = (
@@ -55,6 +58,10 @@ const App: React.FC = () => {
   };
 
   const handleCancelDialog = () => {
+    // FIX: Execute the custom onCancel handler if it was provided.
+    if (confirmation?.onCancel) {
+      confirmation.onCancel();
+    }
     setConfirmation(null);
   };
 

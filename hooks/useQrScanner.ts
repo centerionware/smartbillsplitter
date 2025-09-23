@@ -31,6 +31,7 @@ export const useQrScanner = (onScan: (data: string) => void): QrScannerHook => {
         const code = jsQR(imageData.data, imageData.width, imageData.height);
 
         if (code) {
+          // FIX: Pass the scanned data to the onScan callback.
           onScan(code.data);
           // Stop scanning once a code is found
           // The component using the hook is responsible for calling stopScanner to close the UI
