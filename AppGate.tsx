@@ -36,10 +36,11 @@ const AppGate: React.FC = () => {
               customerId: data.customerId,
               subscriptionId: data.subscriptionId,
             });
-            // After successfully logging in, replace the current history entry
-            // (which has ?session_id=...) and reload the app from a clean state.
-            // This prevents the user from navigating 'back' to the paywall.
-            window.location.replace('/');
+            // After a successful subscription, replace the current history entry
+            // (which includes the session_id) with the root URL and reload.
+            // This prevents the user from using the back button to return to the paywall.
+            window.history.replaceState(null, '', '/');
+            window.location.reload();
             return; // Stop execution as the page will reload.
           } else {
              throw new Error('Payment verification was not successful.');

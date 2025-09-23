@@ -7,11 +7,11 @@ import { initDB } from './services/db.ts';
 
 const Root: React.FC = () => {
   const reloadApp = () => {
-    // Replace the current history entry and reload the page from the root.
-    // This effectively clears the forward/back history within the app for this session,
-    // preventing users from navigating "back" to a state that no longer exists
-    // (e.g., the settings page after a data reset).
-    window.location.replace('/');
+    // Replace the current history entry with the root path, then reload.
+    // This is a more robust way to clear the forward/back history after a
+    // destructive action, preventing users from navigating back to a stale state.
+    window.history.replaceState(null, '', '/');
+    window.location.reload();
   };
 
   return (

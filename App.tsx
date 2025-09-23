@@ -123,12 +123,21 @@ const App: React.FC = () => {
   }, [handleNavigation]);
 
 
-  const navigate = (hash: string) => {
-    if (window.location.hash !== hash) {
-      window.history.pushState(null, '', hash);
-      handleNavigation(); // Manually trigger navigation logic since pushState doesn't fire an event
+  const navigate = useCallback((hash: string, options?: { replace?: boolean }) => {
+    const method = options?.replace ? 'replaceState' : 'pushState';
+    const currentHash = window.location.hash || '#/';
+
+    // For `pushState`, we only want to add a new entry if the URL is different.
+    // For `replaceState`, we always want to execute to replace the current state.
+    if (method === 'pushState' && currentHash === hash) {
+      return;
     }
-  };
+
+    window.history[method](null, '', hash);
+    // Manually trigger the navigation handler to update the view,
+    // since pushState/replaceState don't fire popstate events.
+    handleNavigation();
+  }, [handleNavigation]);
 
   useEffect(() => {
     if (subscriptionStatus === 'free') {
@@ -285,7 +294,7 @@ const App: React.FC = () => {
     if (fromTemplateId) {
         updateRecurringBillDueDate(fromTemplateId);
     }
-    navigate('#/');
+    navigate('#/', { replace: true });
   };
 
   const handleSaveRecurringBill = async (bill: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => {
@@ -293,7 +302,7 @@ const App: React.FC = () => {
     if(settings.notificationsEnabled) {
       await notificationService.scheduleNotification(newBill, settings.notificationDays);
     }
-    navigate('#/recurring');
+    navigate('#/recurring', { replace: true });
   };
 
   const handleUpdateRecurringBill = async (bill: RecurringBill) => {
@@ -303,7 +312,7 @@ const App: React.FC = () => {
     } else {
       await notificationService.cancelNotification(bill.id);
     }
-    navigate('#/recurring');
+    navigate('#/recurring', { replace: true });
   }
 
   const handleDeleteRecurringBill = async (billId: string) => {
