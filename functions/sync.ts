@@ -1,6 +1,6 @@
 import type { Context } from "@netlify/edge-functions";
 
-// FIX: Declare Deno to resolve TypeScript error in Netlify Edge Function environment
+// Declare Deno to resolve TypeScript error in Netlify Edge Function environment
 declare var Deno: any;
 
 // This is a simplified in-memory store.
@@ -30,30 +30,21 @@ function safeSend(ws: WebSocket, message: object) {
 }
 
 export default async (request: Request, context: Context) => {
-  // --- Start of new logging ---
   console.log(`[Sync Edge Function] Invoked for path: ${new URL(request.url).pathname}`);
   const headersObject: { [key: string]: string } = {};
   for (const [key, value] of request.headers.entries()) {
     headersObject[key] = value;
   }
   console.log("[Sync Edge Function] Request headers:", JSON.stringify(headersObject, null, 2));
-  // --- End of new logging ---
 
-  // Ensure this is a WebSocket upgrade request.
-  const upgradeHeader = request.headers.get("upgrade")?.toLowerCase();
-  if (upgradeHeader !== "websocket") {
-    // --- More detailed logging for non-upgrade requests ---
-    console.log(`[Sync Edge Function] Not a WebSocket upgrade request. Upgrade header: '${upgradeHeader}'. Returning 426.`);
-    return new Response("This endpoint requires a WebSocket connection.", { status: 426 });
-  }
-  
-  console.log("[Sync Edge Function] WebSocket upgrade request detected. Proceeding to upgrade connection.");
   const { searchParams } = new URL(request.url);
   const codeFromUrl = searchParams.get('code');
 
-  // Deno/Netlify Edge function specific upgrade
   try {
+    // Deno.upgradeWebSocket will throw if the request is not a valid WebSocket upgrade request.
+    // The explicit 'Upgrade' header check is removed as it's not present at this level in Netlify's environment.
     const { socket: ws, response } = Deno.upgradeWebSocket(request);
+    console.log("[Sync Edge Function] WebSocket upgrade successful. Attaching listeners.");
 
     ws.onopen = () => {
       console.log("[Sync Edge Function] WebSocket connection opened.");
@@ -150,7 +141,8 @@ export default async (request: Request, context: Context) => {
 
     return response;
   } catch (error) {
-      console.error("[Sync Edge Function] Error during WebSocket upgrade:", error);
-      return new Response("Failed to upgrade WebSocket connection.", { status: 500 });
+      console.error("[Sync Edge Function] Deno.upgradeWebSocket failed. This likely means the request was not a valid WebSocket upgrade request.", error);
+      // Return a 400 Bad Request because the client sent a request to a WebSocket endpoint that wasn't a valid upgrade request.
+      return new Response("Failed to upgrade WebSocket connection.", { status: 400 });
   }
 };
