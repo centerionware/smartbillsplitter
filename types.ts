@@ -24,7 +24,7 @@ export interface Bill {
   items?: ReceiptItem[];
   status: 'active' | 'archived';
   receiptImage?: string; // base64 data URL of the receipt
-  additionalInfo?: string; // Extra details from receipt scanning
+  additionalInfo?: Record<string, string>; // Extra details from receipt scanning as key-value pairs
 }
 
 export interface RecurrenceRule {

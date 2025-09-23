@@ -144,7 +144,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpda
                 View Scanned Receipt
                 </button>
             )}
-            {bill.additionalInfo && (
+            {bill.additionalInfo && Object.keys(bill.additionalInfo).length > 0 && (
                 <button
                 onClick={() => setIsInfoModalOpen(true)}
                 className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"
@@ -249,7 +249,14 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpda
                 <h3 id="info-dialog-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">Additional Information</h3>
               </div>
               <div className="p-6 flex-grow overflow-y-auto">
-                <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap font-mono text-sm">{bill.additionalInfo}</p>
+                <dl className="space-y-4">
+                  {Object.entries(bill.additionalInfo).map(([key, value]) => (
+                    <div key={key} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-md">
+                      <dt className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{key}</dt>
+                      <dd className="mt-1 text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
                 <button

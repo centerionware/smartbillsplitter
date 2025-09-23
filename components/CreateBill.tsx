@@ -45,7 +45,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
   );
   const [items, setItems] = useState<ReceiptItem[]>(initialData?.items || []);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
-  const [additionalInfo, setAdditionalInfo] = useState<string>('');
+  const [additionalInfo, setAdditionalInfo] = useState<{ id: string; key: string; value: string }[]>([]);
   const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
   const [splitMode, setSplitMode] = useState<SplitMode>(initialData?.splitMode || 'equally');
 
@@ -58,7 +58,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const [isContactPickerSupported, setIsContactPickerSupported] = useState(false);
   useEffect(() => { 'contacts' in navigator && 'ContactsManager' in window && setIsContactPickerSupported(true); }, []);
 
-  const isDirty = useMemo(() => description !== '' || totalAmount !== '' || participants.length > 1 || items.length > 0 || additionalInfo !== '', [description, totalAmount, participants, items, additionalInfo]);
+  const isDirty = useMemo(() => description !== '' || totalAmount !== '' || participants.length > 1 || items.length > 0 || additionalInfo.length > 0, [description, totalAmount, participants, items, additionalInfo]);
   
   useEffect(() => {
     if (mode === 'create-from-recurring' && initialData) {
@@ -210,10 +210,17 @@ const CreateBill: React.FC<CreateBillProps> = ({
     setItems(updatedItems);
   };
 
-  const handleItemsScanned = (data: { description: string, date?: string, items: { name: string, price: number }[], additionalInfo?: string }) => {
+  const handleItemsScanned = (data: { description: string; date?: string; items: { name: string; price: number }[]; additionalInfo?: { key: string; value: string }[] }) => {
     if (data.description) setDescription(prev => prev || data.description);
     if (data.date) setDate(data.date);
-    if (data.additionalInfo) setAdditionalInfo(data.additionalInfo);
+    if (data.additionalInfo) {
+      const infoArray = data.additionalInfo.map(({ key, value }, index) => ({
+        id: `info-scan-${Date.now()}-${index}`,
+        key,
+        value,
+      }));
+      setAdditionalInfo(infoArray);
+    }
     
     // Find 'myself' to auto-assign items
     const myself = participants.find(p => p.name.trim().toLowerCase() === settings.myDisplayName.trim().toLowerCase());
@@ -252,6 +259,19 @@ const CreateBill: React.FC<CreateBillProps> = ({
     }
     return { splitTotal: 0, splitRemainder: 0, isSplitValid: true };
   }, [splitMode, participants, effectiveTotal, isRecurring]);
+
+  // --- Additional Info Handlers ---
+  const handleAddInfoField = () => {
+    setAdditionalInfo(prev => [...prev, { id: `info-${Date.now()}`, key: '', value: '' }]);
+  };
+
+  const handleInfoChange = (id: string, field: 'key' | 'value', value: string) => {
+    setAdditionalInfo(prev => prev.map(info => info.id === id ? { ...info, [field]: value } : info));
+  };
+
+  const handleRemoveInfoField = (id: string) => {
+    setAdditionalInfo(prev => prev.filter(info => info.id !== id));
+  };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -311,8 +331,16 @@ const CreateBill: React.FC<CreateBillProps> = ({
         }
         
         const finalParticipants = activeParticipants.map(({ splitValue, ...p }) => p);
+        const finalAdditionalInfo = additionalInfo
+            .filter(info => info.key.trim() !== '' && info.value.trim() !== '')
+            .reduce((acc, { key, value }) => {
+                acc[key.trim()] = value.trim();
+                return acc;
+            }, {} as Record<string, string>);
+        
         const billData: Omit<Bill, 'id' | 'status'> = {
-            description, totalAmount: effectiveTotal, date, participants: finalParticipants, items, receiptImage, additionalInfo
+            description, totalAmount: effectiveTotal, date, participants: finalParticipants, items, receiptImage,
+            additionalInfo: Object.keys(finalAdditionalInfo).length > 0 ? finalAdditionalInfo : undefined
         };
         onSave(billData, mode === 'create-from-recurring' ? initialData?.id : undefined);
     }
@@ -347,21 +375,6 @@ const CreateBill: React.FC<CreateBillProps> = ({
         <h2 className="text-3xl font-bold text-slate-700 dark:text-slate-200 mb-6">{mode === 'edit-recurring' ? 'Edit Recurring Bill' : (mode === 'create-from-recurring' ? 'Create Bill from Template' : 'Create New Bill')}</h2>
 
         {!isRecurring && <ReceiptScanner onItemsScanned={handleItemsScanned} onImageSelected={setReceiptImage} onImageCleared={() => setReceiptImage(null)} />}
-
-        {additionalInfo && !isRecurring && (
-          <div className="my-6">
-            <label htmlFor="additionalInfo" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Additional Information from Receipt</label>
-            <textarea 
-              id="additionalInfo" 
-              rows={4} 
-              value={additionalInfo} 
-              onChange={(e) => setAdditionalInfo(e.target.value)} 
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-slate-50 dark:bg-slate-700/50 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              placeholder="e.g., Store location, return policy..." 
-            />
-             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">This information was extracted by AI and can be edited.</p>
-          </div>
-        )}
 
         <div className="space-y-6">
           <div>
@@ -401,121 +414,169 @@ const CreateBill: React.FC<CreateBillProps> = ({
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM5 11a1 1 0 100 2h8a1 1 0 100-2H5z" /></svg>
               <span>{items.length > 0 ? `Edit ${items.length} Item${items.length > 1 ? 's' : ''}` : (isRecurring ? 'Add Default Items' : 'Itemize Bill')}</span>
           </button>
+        </div>
 
-          <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
-          
-          {mode !== 'create-from-recurring' && mode !== 'edit-recurring' &&
-             <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <div><h3 className="font-semibold text-slate-700 dark:text-slate-200">Create a Recurring Bill?</h3><p className="text-sm text-slate-500 dark:text-slate-400">Save this as a template for future use.</p></div>
-                <button type="button" onClick={() => setIsRecurring(prev => !prev)} className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${isRecurring ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`}><span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${isRecurring ? 'translate-x-5' : 'translate-x-0'}`} /></button>
-            </div>
-          }
-
-          {isRecurring && <RecurrenceSelector value={recurrenceRule} onChange={setRecurrenceRule} />}
-          
-          <div>
-            <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Participants</h3>
-            
-            <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">{isRecurring ? 'Default Split Method' : 'Split Method'}</label>
-                <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg">
-                    {splitOptions.map(opt => (
-                        <button type="button" key={opt.id} onClick={() => handleSplitModeChange(opt.id)} disabled={opt.id === 'item' && items.length === 0}
-                            className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-colors capitalize disabled:opacity-50 disabled:cursor-not-allowed ${splitMode === opt.id ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50'}`}>
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            
-            <ul className="space-y-3">
-              {participants.map((p) => (
-                <li key={p.id} className="flex items-center gap-2">
-                  <div className="flex-grow relative">
-                    <label htmlFor={`p-name-${p.id}`} className="sr-only">Participant Name</label>
-                    <input id={`p-name-${p.id}`} type="text" value={p.name} onChange={(e) => handleParticipantChange(p.id, 'name', e.target.value)} required className={`w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 ${isContactPickerSupported ? 'pr-10' : ''}`} placeholder="Participant Name" />
-                    {isContactPickerSupported && <button type="button" onClick={() => handleSelectContact(p.id)} className="absolute right-0 top-0 h-full px-3 flex items-center text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-400" aria-label="Select from contacts" title="Select from contacts"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2-2H6a2 2 0 01-2-2V4zm2 2a1 1 0 00-1 1v2a1 1 0 001 1h8a1 1 0 001-1V7a1 1 0 00-1-1H6zm1 6a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg></button>}
-                  </div>
-                   {(splitMode === 'amount' || splitMode === 'percentage') && (
-                       <div className="w-28 relative">
-                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">{splitMode === 'amount' ? '$' : '%'}</span>
-                         <input type="number" step="0.01" value={p.splitValue || ''} onChange={e => handleParticipantChange(p.id, 'splitValue', e.target.value)} className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" placeholder="0.00" />
-                       </div>
-                   )}
-                   {!isRecurring && splitMode !== 'item' && (
-                        <div className="w-28 text-right text-lg font-semibold text-slate-800 dark:text-slate-100">
-                           ${p.amountOwed.toFixed(2)}
-                        </div>
-                   )}
-                  <button type="button" onClick={() => handleRemoveParticipant(p.id)} disabled={participants.length <= 1} className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 disabled:text-slate-400 disabled:cursor-not-allowed bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" /></svg></button>
-                </li>
-              ))}
-            </ul>
-
-            {!isRecurring && (splitMode === 'amount' || splitMode === 'percentage') && (
-                <div className={`mt-3 p-3 rounded-md text-sm text-center font-medium ${isSplitValid ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-red-50 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
-                    {splitMode === 'amount' && `Total Assigned: $${splitTotal.toFixed(2)}. Remainder: $${splitRemainder.toFixed(2)}`}
-                    {splitMode === 'percentage' && `Total Assigned: ${splitTotal.toFixed(2)}%`}
-                </div>
-            )}
-            
-            <div className="mt-4 flex flex-col sm:flex-row gap-4">
-              <button type="button" onClick={handleAddMyself} disabled={isMyselfInList} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                <span>Add Myself</span>
-              </button>
-              <button type="button" onClick={handleAddParticipant} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                <span>Add Participant</span>
-              </button>
-            </div>
-          </div>
-          
-          {splitMode === 'item' && items.length > 0 && (
+        {/* Additional Info Section */}
+        {!isRecurring && (
             <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-                <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Assign Items</h3>
+                <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Additional Information</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                    {isRecurring
-                      ? 'Set default assignments for this template. The cost will be split evenly when a bill is created.'
-                      : 'Assign each item to participants. The cost will be split evenly among those selected for that item.'
-                    }
+                    Key-value details extracted from the receipt can be edited here.
                 </p>
-                <ul className="space-y-4">
-                    {items.map(item => (
-                        <li key={item.id} className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold text-slate-800 dark:text-slate-100">{item.name || 'Unnamed Item'}</span>
-                                {!isRecurring && <span className="font-bold text-slate-900 dark:text-slate-50">${item.price.toFixed(2)}</span>}
-                            </div>
-                            <div className="mt-3">
-                                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Assigned to:</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {participants.filter(p => p.name.trim() !== '').map(p => (
-                                        <button type="button" key={p.id} onClick={() => handleToggleAssignment(item.id, p.id)}
-                                            className={`flex items-center justify-center h-9 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-all ring-2 ring-offset-2 dark:ring-offset-slate-800 ${item.assignedTo.includes(p.id) ? 'bg-teal-500 text-white ring-teal-500' : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 ring-transparent'}`}
-                                            title={p.name}
-                                        >
-                                            {p.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                <ul className="space-y-3">
+                    {additionalInfo.map((info) => (
+                        <li key={info.id} className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={info.key}
+                                onChange={(e) => handleInfoChange(info.id, 'key', e.target.value)}
+                                placeholder="Key (e.g., Store Address)"
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600"
+                            />
+                            <input
+                                type="text"
+                                value={info.value}
+                                onChange={(e) => handleInfoChange(info.id, 'value', e.target.value)}
+                                placeholder="Value (e.g., 123 Main St)"
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => handleRemoveInfoField(info.id)}
+                                className="p-2 text-red-500 hover:text-red-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full"
+                                aria-label="Remove field"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
+                            </button>
                         </li>
                     ))}
                 </ul>
+                <div className="mt-4">
+                    <button
+                        type="button"
+                        onClick={handleAddInfoField}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                        <span>Add Field</span>
+                    </button>
+                </div>
             </div>
-          )}
-          
-          {validationError && (
-            <div className="mt-6 p-4 text-sm font-semibold text-red-800 bg-red-100 rounded-lg dark:bg-red-900/40 dark:text-red-300" role="alert">
-                {validationError}
-            </div>
-          )}
+        )}
 
-          <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-4">
-            <button type="button" onClick={handleCancel} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Cancel</button>
-            <button type="submit" className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">{saveButtonText}</button>
-          </div>
+        <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
+          
+        {mode !== 'create-from-recurring' && mode !== 'edit-recurring' &&
+            <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+            <div><h3 className="font-semibold text-slate-700 dark:text-slate-200">Create a Recurring Bill?</h3><p className="text-sm text-slate-500 dark:text-slate-400">Save this as a template for future use.</p></div>
+            <button type="button" onClick={() => setIsRecurring(prev => !prev)} className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${isRecurring ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`}><span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${isRecurring ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+        </div>
+        }
+
+        {isRecurring && <RecurrenceSelector value={recurrenceRule} onChange={setRecurrenceRule} />}
+          
+        <div>
+        <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Participants</h3>
+        
+        <div className="mb-4">
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">{isRecurring ? 'Default Split Method' : 'Split Method'}</label>
+            <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg">
+                {splitOptions.map(opt => (
+                    <button type="button" key={opt.id} onClick={() => handleSplitModeChange(opt.id)} disabled={opt.id === 'item' && items.length === 0}
+                        className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-colors capitalize disabled:opacity-50 disabled:cursor-not-allowed ${splitMode === opt.id ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50'}`}>
+                        {opt.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+        
+        <ul className="space-y-3">
+            {participants.map((p) => (
+            <li key={p.id} className="flex items-center gap-2">
+                <div className="flex-grow relative">
+                <label htmlFor={`p-name-${p.id}`} className="sr-only">Participant Name</label>
+                <input id={`p-name-${p.id}`} type="text" value={p.name} onChange={(e) => handleParticipantChange(p.id, 'name', e.target.value)} required className={`w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 ${isContactPickerSupported ? 'pr-10' : ''}`} placeholder="Participant Name" />
+                {isContactPickerSupported && <button type="button" onClick={() => handleSelectContact(p.id)} className="absolute right-0 top-0 h-full px-3 flex items-center text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-400" aria-label="Select from contacts" title="Select from contacts"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2-2H6a2 2 0 01-2-2V4zm2 2a1 1 0 00-1 1v2a1 1 0 001 1h8a1 1 0 001-1V7a1 1 0 00-1-1H6zm1 6a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg></button>}
+                </div>
+                {(splitMode === 'amount' || splitMode === 'percentage') && (
+                    <div className="w-28 relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">{splitMode === 'amount' ? '$' : '%'}</span>
+                        <input type="number" step="0.01" value={p.splitValue || ''} onChange={e => handleParticipantChange(p.id, 'splitValue', e.target.value)} className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" placeholder="0.00" />
+                    </div>
+                )}
+                {!isRecurring && splitMode !== 'item' && (
+                    <div className="w-28 text-right text-lg font-semibold text-slate-800 dark:text-slate-100">
+                        ${p.amountOwed.toFixed(2)}
+                    </div>
+                )}
+                <button type="button" onClick={() => handleRemoveParticipant(p.id)} disabled={participants.length <= 1} className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 disabled:text-slate-400 disabled:cursor-not-allowed bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" /></svg></button>
+            </li>
+            ))}
+        </ul>
+
+        {!isRecurring && (splitMode === 'amount' || splitMode === 'percentage') && (
+            <div className={`mt-3 p-3 rounded-md text-sm text-center font-medium ${isSplitValid ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-red-50 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
+                {splitMode === 'amount' && `Total Assigned: $${splitTotal.toFixed(2)}. Remainder: $${splitRemainder.toFixed(2)}`}
+                {splitMode === 'percentage' && `Total Assigned: ${splitTotal.toFixed(2)}%`}
+            </div>
+        )}
+        
+        <div className="mt-4 flex flex-col sm:flex-row gap-4">
+            <button type="button" onClick={handleAddMyself} disabled={isMyselfInList} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+            <span>Add Myself</span>
+            </button>
+            <button type="button" onClick={handleAddParticipant} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+            <span>Add Participant</span>
+            </button>
+        </div>
+        </div>
+          
+        {splitMode === 'item' && items.length > 0 && (
+        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+            <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Assign Items</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                {isRecurring
+                    ? 'Set default assignments for this template. The cost will be split evenly when a bill is created.'
+                    : 'Assign each item to participants. The cost will be split evenly among those selected for that item.'
+                }
+            </p>
+            <ul className="space-y-4">
+                {items.map(item => (
+                    <li key={item.id} className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                        <div className="flex justify-between items-center">
+                            <span className="font-semibold text-slate-800 dark:text-slate-100">{item.name || 'Unnamed Item'}</span>
+                            {!isRecurring && <span className="font-bold text-slate-900 dark:text-slate-50">${item.price.toFixed(2)}</span>}
+                        </div>
+                        <div className="mt-3">
+                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Assigned to:</p>
+                            <div className="flex flex-wrap gap-2">
+                                {participants.filter(p => p.name.trim() !== '').map(p => (
+                                    <button type="button" key={p.id} onClick={() => handleToggleAssignment(item.id, p.id)}
+                                        className={`flex items-center justify-center h-9 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-all ring-2 ring-offset-2 dark:ring-offset-slate-800 ${item.assignedTo.includes(p.id) ? 'bg-teal-500 text-white ring-teal-500' : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 ring-transparent'}`}
+                                        title={p.name}
+                                    >
+                                        {p.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+        </div>
+        )}
+          
+        {validationError && (
+        <div className="mt-6 p-4 text-sm font-semibold text-red-800 bg-red-100 rounded-lg dark:bg-red-900/40 dark:text-red-300" role="alert">
+            {validationError}
+        </div>
+        )}
+
+        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-4">
+        <button type="button" onClick={handleCancel} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Cancel</button>
+        <button type="submit" className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">{saveButtonText}</button>
         </div>
       </form>
     </div>

@@ -39,9 +39,23 @@ const responseSchema = {
       },
     },
     additionalInfo: {
-        type: Type.STRING,
-        description: "Any other relevant unstructured information from the receipt, like store address, tracking numbers, return policies, or promotional details, formatted as a single text block.",
+        type: Type.ARRAY,
+        description: "A list of any other relevant key-value pairs from the receipt, like store address, tracking numbers, return policies, or promotional details.",
         nullable: true,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            key: {
+              type: Type.STRING,
+              description: "The label for the piece of information (e.g., 'Store Address', 'Tracking Number')."
+            },
+            value: {
+              type: Type.STRING,
+              description: "The value of the information (e.g., '123 Main St, Anytown', '1Z9999W99999999999')."
+            }
+          },
+          required: ["key", "value"]
+        }
     },
   },
   required: ["description", "items"],
@@ -64,7 +78,7 @@ export const scanReceiptHandler = async (req: express.Request, res: express.Resp
     const ai = new GoogleGenAI({ apiKey });
 
     const imagePart = { inlineData: { data: base64Image, mimeType: mimeType } };
-    const textPart = { text: "Analyze the provided receipt image. Extract a concise description (like the store name), the date, the final total, and a list of all line items with their individual prices. Also, extract any other relevant information like store location, tracking numbers, or notes as a single text block. Ignore any taxes, tips, or subtotals that are not individual items. Return all data in the specified JSON format." };
+    const textPart = { text: "Analyze the provided receipt image. Extract a concise description (like the store name), the date, the final total, a list of all line items with their individual prices, and a list of any other relevant information (like store location, tracking numbers, etc.) as key-value pairs. Ignore any taxes, tips, or subtotals that are not individual items. Return all data in the specified JSON format." };
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
