@@ -25,7 +25,7 @@ jobs:
         with:
           owner: ${{ github.repository_owner }}
           package-name: ${{ env.FRONTEND_IMAGE_NAME }}
-          num-old-versions-to-delete: 0
+          min-versions-to-keep:a 0
           package-type: container
           token: ${{ secrets.GH_PAT }}
           
@@ -35,7 +35,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           package-name: ${{ env.BACKEND_IMAGE_NAME }}
           package-type: container
-          num-old-versions-to-delete: 0
+          min-versions-to-keep: 0
           token: ${{ secrets.GH_PAT }}
   
   build-and-push-images:
