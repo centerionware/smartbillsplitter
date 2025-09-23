@@ -183,37 +183,32 @@ export async function exportData(): Promise<object> {
 export async function importData(data: { [key: string]: any }): Promise<void> {
     if (!db) await initDB();
     
-    const transaction = db.transaction(Object.values(STORES), 'readwrite');
-    
-    const importPromises = Object.entries(data).map(([storeName, storeData]) => {
-        return new Promise<void>((resolve, reject) => {
-            if (!Object.values(STORES).includes(storeName)) {
-                console.warn(`Skipping import for unknown store: ${storeName}`);
-                return resolve();
-            }
-            
-            const store = transaction.objectStore(storeName);
-            const clearRequest = store.clear();
-            
-            clearRequest.onsuccess = () => {
-                if (storeData === null || storeData === undefined) {
-                   return resolve();
-                }
+    const allStoreNames = Object.values(STORES);
+    const transaction = db.transaction(allStoreNames, 'readwrite');
 
-                if (Array.isArray(storeData)) { // For 'bills'
-                    storeData.forEach(item => store.add(item));
-                } else { // For singleton stores
-                    store.add(storeData, SINGLE_KEY);
-                }
-                resolve();
-            };
-            clearRequest.onerror = () => reject(clearRequest.error);
-        });
-    });
-
+    // This promise wrapper ensures we can await the completion of the entire transaction.
     return new Promise((resolve, reject) => {
-        Promise.all(importPromises).catch(reject);
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+
+        // Iterate through ALL known stores, not just the ones in the data object.
+        allStoreNames.forEach(storeName => {
+            const store = transaction.objectStore(storeName);
+            // 1. Always clear the store first.
+            store.clear(); 
+
+            const storeData = data[storeName];
+            // 2. If data for this store exists in the import object, add it.
+            if (storeData !== null && storeData !== undefined) {
+                if (Array.isArray(storeData)) {
+                    // For stores like 'bills'
+                    storeData.forEach(item => store.add(item));
+                } else {
+                    // For singleton stores
+                    store.add(storeData, SINGLE_KEY);
+                }
+            }
+        });
     });
 }
