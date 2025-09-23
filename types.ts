@@ -44,6 +44,8 @@ export interface RecurringBill {
   nextDueDate: string; // ISO string, calculated for sorting
   splitMode: SplitMode;
   totalAmount?: number;
+  // FIX: Add optional additionalInfo to RecurringBill to match Bill and fix type errors.
+  additionalInfo?: Record<string, string>;
 }
 
 export interface PaymentDetails {
