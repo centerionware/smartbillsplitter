@@ -52,7 +52,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.frontend
+          file: ./Dockerfile.frontend.yaml
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -61,7 +61,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.backend
+          file: ./Dockerfile.backend.yaml
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "start": "node server.js",
+    "build:frontend": "vite build",
+    "build:backend": "esbuild server.ts functions/*.ts --bundle --platform=node --format=esm --outdir=dist-server --packages=external",
+    "build": "npm run build:frontend && npm run build:backend",
+    "start": "node dist-server/server.js",
     "preview": "vite preview"
   },
   "dependencies": {
