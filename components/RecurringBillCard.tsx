@@ -30,6 +30,88 @@ const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) 
         case 'yearly': return `Repeats ${interval > 1 ? `every ${interval} years` : 'Yearly'}`;
     }
   }
+  
+  const formatTimeUntilDue = (dueDateString: string): string => {
+    const now = new Date();
+    const dueDate = new Date(dueDateString);
+
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const due = new Date(Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate()));
+
+    const diffInMs = due.getTime() - today.getTime();
+    
+    if (diffInMs < 0) {
+        return "Overdue";
+    }
+    
+    if (diffInMs < 1000) { // Effectively zero
+        return "Due today";
+    }
+
+    let current = new Date(today.getTime());
+    let years = 0;
+    let months = 0;
+    let weeks = 0;
+
+    // Calculate years
+    while (true) {
+        let tempDate = new Date(current.getTime());
+        tempDate.setUTCFullYear(tempDate.getUTCFullYear() + 1);
+        if (tempDate <= due) {
+            years++;
+            current = tempDate;
+        } else {
+            break;
+        }
+    }
+    
+    // Calculate months
+    while (true) {
+        let tempDate = new Date(current.getTime());
+        const originalYear = tempDate.getUTCFullYear();
+        const originalMonth = tempDate.getUTCMonth();
+        tempDate.setUTCMonth(originalMonth + 1);
+        
+        // Correct for month overflow (e.g., Jan 31 -> Mar 3 instead of Feb 28/29)
+        if (tempDate.getUTCMonth() !== (originalMonth + 1) % 12) {
+             tempDate = new Date(Date.UTC(originalYear, originalMonth + 2, 0));
+        }
+
+        if (tempDate <= due) {
+            months++;
+            current = tempDate;
+        } else {
+            break;
+        }
+    }
+    
+    // Calculate weeks
+    while (true) {
+        let tempDate = new Date(current.getTime());
+        tempDate.setUTCDate(tempDate.getUTCDate() + 7);
+        if (tempDate <= due) {
+            weeks++;
+            current = tempDate;
+        } else {
+            break;
+        }
+    }
+    
+    const remainingMs = due.getTime() - current.getTime();
+    const days = Math.round(remainingMs / (1000 * 60 * 60 * 24));
+
+    const parts: string[] = [];
+    if (years > 0) parts.push(`${years} year${years > 1 ? 's' : ''}`);
+    if (months > 0) parts.push(`${months} month${months > 1 ? 's' : ''}`);
+    if (weeks > 0) parts.push(`${weeks} week${weeks > 1 ? 's' : ''}`);
+    if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+    
+    if (parts.length === 0) {
+        return "Due today";
+    }
+    
+    return parts.join(', ');
+  };
 
   return (
     <div
@@ -49,10 +131,10 @@ const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) 
         <div className="mt-4 flex justify-between items-end">
            <div>
               <p className="text-sm font-semibold text-teal-600 dark:text-teal-400">
-                Next bill due:
+                Next bill due in:
               </p>
                <p className="text-xl font-bold text-slate-900 dark:text-slate-50">
-                 {new Date(bill.nextDueDate).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric'})}
+                 {formatTimeUntilDue(bill.nextDueDate)}
                </p>
            </div>
            {bill.totalAmount && bill.totalAmount > 0 && (

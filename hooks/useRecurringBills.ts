@@ -56,7 +56,7 @@ const calculateFirstDueDate = (rule: RecurrenceRule, fromDate: Date): string => 
  * @param fromDate The last due date.
  * @returns An ISO string of the next due date in the sequence.
  */
-const calculateNextDueDate = (rule: RecurrenceRule, fromDate: string | Date): string => {
+export const calculateNextDueDate = (rule: RecurrenceRule, fromDate: string | Date): string => {
     const dt = new Date(fromDate);
     const interval = rule.interval || 1;
     
