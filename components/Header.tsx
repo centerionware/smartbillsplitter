@@ -3,6 +3,7 @@ import type { Theme } from '../types.ts';
 import ThemeToggle from './ThemeToggle.tsx';
 
 interface HeaderProps {
+  onGoHome: () => void;
   onCreateNewBill: () => void;
   onGoToSettings: () => void;
   onGoToRecurringBills: () => void;
@@ -11,7 +12,7 @@ interface HeaderProps {
   setTheme: (theme: Theme) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onCreateNewBill, onGoToSettings, onGoToRecurringBills, hasRecurringBills, theme, setTheme }) => {
+const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettings, onGoToRecurringBills, hasRecurringBills, theme, setTheme }) => {
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
   const fabRef = useRef<HTMLDivElement>(null);
   
@@ -37,12 +38,16 @@ const Header: React.FC<HeaderProps> = ({ onCreateNewBill, onGoToSettings, onGoTo
   return (
     <header className="bg-white dark:bg-slate-800 shadow-md dark:shadow-none dark:border-b dark:border-slate-700">
       <div className="container mx-auto flex items-center justify-between p-4">
-        <div className="flex items-center space-x-2">
+        <button 
+          onClick={onGoHome} 
+          className="flex items-center space-x-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 p-1 -ml-1"
+          aria-label="Go to dashboard"
+        >
           <svg className="h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Smart Bill Splitter</h1>
-        </div>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">SharedBills</h1>
+        </button>
         <div className="flex items-center gap-2 md:gap-4">
           <ThemeToggle theme={theme} setTheme={setTheme} />
           

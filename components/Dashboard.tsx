@@ -151,7 +151,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         const constructedUrl = new URL('/', window.location.href).href;
         appUrl = constructedUrl.endsWith('/') ? constructedUrl.slice(0, -1) : constructedUrl;
       } catch (e) { console.warn("Could not determine app URL from context."); }
-      promoText = `\n\nCreated with Smart Bill Splitter: ${appUrl}`;
+      promoText = `\n\nCreated with SharedBills: ${appUrl}`;
     }
     
     let shareText = settings.shareTemplate

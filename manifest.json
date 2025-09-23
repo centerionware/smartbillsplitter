@@ -1,7 +1,7 @@
 {
-  "name": "Smart Bill Splitter",
-  "short_name": "BillSplit",
-  "description": "An intelligent bill splitting application that uses AI to scan receipts, making it easy to divide expenses among friends.",
+  "name": "SharedBills",
+  "short_name": "SharedBills",
+  "description": "Effortlessly split bills and track shared expenses with friends. Scan receipts with AI, manage recurring bills, and settle up easily.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

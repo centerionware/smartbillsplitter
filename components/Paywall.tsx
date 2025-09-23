@@ -56,7 +56,7 @@ const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => 
           <svg className="h-12 w-12 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
-          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 ml-3">Smart Bill Splitter</h1>
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 ml-3">SharedBills</h1>
         </div>
 
         <h2 className="text-2xl font-semibold text-slate-700 dark:text-slate-200 mb-2">Upgrade to Pro</h2>

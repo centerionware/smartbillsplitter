@@ -270,6 +270,7 @@ const App: React.FC = () => {
   const handleGoToRecurringBills = () => navigate('#/recurring');
   const handleCreateFromTemplate = (template: RecurringBill) => navigate(`#/create?fromTemplate=${template.id}`);
   const handleEditTemplate = (template: RecurringBill) => navigate(`#/create?editTemplate=${template.id}`);
+  const handleGoHome = () => navigate('#/');
   
   const handleSetDashboardView = (view: 'bills' | 'participants') => {
     if (view === 'bills') navigate('#/');
@@ -439,6 +440,7 @@ const App: React.FC = () => {
         </div>
       </div>
       <Header 
+        onGoHome={handleGoHome}
         onCreateNewBill={handleCreateNewBill} 
         onGoToSettings={handleGoToSettings} 
         onGoToRecurringBills={handleGoToRecurringBills}
