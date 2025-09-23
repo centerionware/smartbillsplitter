@@ -1,6 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-// FIX: Changed type-only import to a regular import to ensure Express types are correctly resolved.
-import { Request, Response } from 'express';
+import { RequestHandler } from 'express';
 
 // Defines the expected JSON structure from the Gemini API for consistent data handling.
 const responseSchema = {
@@ -43,7 +42,7 @@ const responseSchema = {
 };
 
 // The main handler, now an Express RequestHandler.
-export const scanReceiptHandler = async (req: Request, res: Response) => {
+export const scanReceiptHandler: RequestHandler = async (req, res) => {
   const { base64Image, mimeType } = req.body;
   if (!base64Image || !mimeType) {
     return res.status(400).json({ error: 'Missing required parameters: base64Image and mimeType.' });

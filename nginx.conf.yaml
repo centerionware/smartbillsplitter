@@ -1,0 +1,35 @@
+server {
+    # Listen on port 80 for IPv4 requests
+    listen 80 default_server;
+    # Listen on port 80 for IPv6 requests
+    listen [::]:80 default_server;
+
+    # Set the root directory for static files, matching the Dockerfile COPY command
+    root /usr/share/nginx/html;
+
+    # Default file to serve
+    index index.html index.htm;
+
+    # Handle all locations for SPA routing
+    location / {
+        # First, try to serve the requested file as is ($uri).
+        # If it's a directory, try to serve its index file ($uri/).
+        # If neither is found, fall back to serving /index.html.
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Optional: Improve performance by caching static assets
+    location ~* \.(?:css|js|jpg|jpeg|gif|png|ico|svg|webp)$ {
+        expires 1y;
+        add_header Cache-Control "public";
+    }
+
+    # Optional: Gzip compression for performance
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_buffers 16 8k;
+    gzip_http_version 1.1;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+}
