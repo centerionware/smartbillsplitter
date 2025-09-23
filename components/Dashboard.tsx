@@ -32,19 +32,29 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
   // --- Calculations for Summary & Participant View ---
   const activeBills = useMemo(() => bills.filter(b => b.status === 'active'), [bills]);
 
-  const totalOwed = useMemo(() => {
-    return activeBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
-  }, [activeBills]);
+  const summaryTotals = useMemo(() => {
+    const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
 
-  const totalRemaining = useMemo(() => {
-    const totalPaid = activeBills.reduce((sum, bill) => {
-      const paidAmount = bill.participants
-        .filter(p => p.paid)
-        .reduce((participantSum, p) => participantSum + p.amountOwed, 0);
-      return sum + paidAmount;
-    }, 0);
-    return totalOwed - totalPaid;
-  }, [activeBills, totalOwed]);
+    let totalTracked = 0;
+    let othersOweMe = 0;
+    let iOwe = 0;
+
+    activeBills.forEach(bill => {
+      totalTracked += bill.totalAmount;
+
+      bill.participants.forEach(p => {
+        if (!p.paid) {
+          if (p.name.trim().toLowerCase() === myDisplayNameLower) {
+            iOwe += p.amountOwed;
+          } else {
+            othersOweMe += p.amountOwed;
+          }
+        }
+      });
+    });
+
+    return { totalTracked, othersOweMe, iOwe };
+  }, [activeBills, settings.myDisplayName]);
 
   const participantsWithDebt = useMemo(() => {
     const debtMap = new Map<string, number>();
@@ -292,18 +302,23 @@ const Dashboard: React.FC<DashboardProps> = ({ bills, settings, subscriptionStat
 
   return (
     <div>
-       {/* Summary Line */}
+      {/* Summary Cards */}
       <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md mb-8">
-        <div className="flex flex-col sm:flex-row justify-center items-center sm:gap-4 text-center">
-            <p className="text-lg text-slate-700 dark:text-slate-300">
-                <span className="font-semibold">Total Owed:</span>
-                <span className="text-slate-900 dark:text-slate-100 font-bold ml-2">${totalOwed.toFixed(2)}</span>
-            </p>
-            <div className="hidden sm:block h-6 w-px bg-slate-300 dark:bg-slate-600"></div>
-            <p className="text-lg text-amber-600 dark:text-amber-400">
-                <span className="font-semibold">Total Unpaid:</span>
-                <span className="font-bold ml-2">${totalRemaining.toFixed(2)}</span>
-            </p>
+        <div className="flex flex-col sm:flex-row justify-around items-center text-center">
+            <div className="p-2 flex-1">
+                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Tracked</p>
+                <p className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1">${summaryTotals.totalTracked.toFixed(2)}</p>
+            </div>
+            <div className="h-12 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block mx-4"></div>
+            <div className="p-2 flex-1">
+                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Others Owe Me</p>
+                <p className="text-2xl lg:text-3xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">${summaryTotals.othersOweMe.toFixed(2)}</p>
+            </div>
+            <div className="h-12 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block mx-4"></div>
+            <div className="p-2 flex-1">
+                <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">I Owe</p>
+                <p className="text-2xl lg:text-3xl font-bold text-amber-700 dark:text-amber-300 mt-1">${summaryTotals.iOwe.toFixed(2)}</p>
+            </div>
         </div>
       </div>
 
