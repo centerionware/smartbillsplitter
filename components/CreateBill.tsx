@@ -124,9 +124,11 @@ const CreateBill: React.FC<CreateBillProps> = ({ onSave, onCancel, requestConfir
 
         setParticipants(prev => [...prev, ...participantsToAdd]);
       }
-    } catch (ex: any) {
+    } catch (ex: unknown) {
+      // FIX: Handle error as 'unknown' type for improved type safety.
+      // Added an 'instanceof Error' check before accessing properties.
       console.error("Error picking contacts:", ex);
-       if (ex.name === 'AbortError') {
+       if (ex instanceof Error && ex.name === 'AbortError') {
          // This is expected when the user cancels the picker.
          // No error message is needed.
          return;

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "esbuild functions/scan-receipt.ts --bundle --platform=node --format=esm --outfile=netlify/functions/scan-receipt.mjs && vite build",
+    "build": "esbuild functions/scan-receipt.ts --bundle --platform=node --format=esm --outfile=netlify/functions/scan-receipt.mjs && esbuild functions/sync.ts --bundle --platform=browser --format=esm --outfile=netlify/edge-functions/sync.mjs && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

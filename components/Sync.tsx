@@ -10,15 +10,17 @@ interface SyncProps {
   requestConfirmation: RequestConfirmationFn;
 }
 
-type Mode = 'idle' | 'sharing' | 'receiving';
+type Mode = 'idle' | 'sharing' | 'receivingInput' | 'syncing';
 type Status = 'idle' | 'connecting' | 'waiting' | 'connected' | 'sending' | 'receiving' | 'confirming' | 'complete' | 'error';
 
-// This is a placeholder URL. In a real-world scenario, this would point
-// to a WebSocket-capable serverless function (e.g., on Cloudflare Workers).
-// Standard Netlify/Vercel functions do not support persistent WebSocket connections.
-const WEBSOCKET_URL = 'wss://sync.bill-splitter.example.com';
+const getWebSocketUrl = (code?: string) => {
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const host = window.location.host;
+    // The path must match the path of our edge function
+    const path = '/sync';
+    return code ? `${protocol}://${host}${path}?code=${code}` : `${protocol}://${host}${path}`;
+};
 
-const generateSyncCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => {
     const [mode, setMode] = useState<Mode>('idle');
@@ -32,7 +34,6 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
     const encryptionKeyRef = useRef<CryptoKey | null>(null);
 
     const handleScan = useCallback((data: string) => {
-        // Basic validation for a 6-digit code
         if (/^\d{6}$/.test(data)) {
             setInputCode(data);
             stopScanner();
@@ -41,7 +42,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
     
     const { isScanning, startScanner, stopScanner, videoRef, error: scannerError } = useQrScanner(handleScan);
 
-    const resetState = () => {
+    const resetState = useCallback(() => {
         setMode('idle');
         setStatus('idle');
         setErrorMessage(null);
@@ -52,133 +53,22 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             wsRef.current = null;
         }
         encryptionKeyRef.current = null;
-    };
+    }, []);
 
     const handleBackClick = () => {
         resetState();
         onBack();
     }
-    
-    const connectWebSocket = (code: string, isInitiator: boolean) => {
-        setStatus('connecting');
-        setErrorMessage(null);
 
-        const ws = new WebSocket(`${WEBSOCKET_URL}?code=${code}`);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-             console.log('WebSocket connected');
-             setStatus(isInitiator ? 'waiting' : 'connected');
-             if (!isInitiator) {
-                 ws.send(JSON.stringify({ type: 'receiver_ready' }));
-             }
-        };
-
-        ws.onmessage = async (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                console.log('Received message:', message.type);
-
-                if (isInitiator) {
-                    // --- SENDER LOGIC ---
-                    if (message.type === 'receiver_ready') {
-                        setStatus('connected');
-                        await startDataTransfer();
-                    }
-                } else {
-                    // --- RECEIVER LOGIC ---
-                    if (message.type === 'key') {
-                        encryptionKeyRef.current = await cryptoService.importKey(message.key);
-                    } else if (message.type === 'data') {
-                        setStatus('receiving');
-                        if (!encryptionKeyRef.current) throw new Error('Encryption key not received.');
-                        const decryptedData = await cryptoService.decrypt(message.payload, encryptionKeyRef.current);
-                        const parsedData = JSON.parse(decryptedData);
-                        
-                        setStatus('confirming');
-                        requestConfirmation(
-                            'Confirm Data Import',
-                            'Data has been received from the other device. This will overwrite all current bills and settings. Do you want to proceed?',
-                            async () => {
-                                try {
-                                    await importData(parsedData);
-                                    ws.send(JSON.stringify({ type: 'sync_complete' }));
-                                    setStatus('complete');
-                                    // Give a moment for the user to see the success message
-                                    setTimeout(() => reloadApp(), 1500);
-                                } catch (e) {
-                                    console.error("Import error:", e);
-                                    setErrorMessage('Failed to apply the received data.');
-                                    setStatus('error');
-                                }
-                            },
-                            { confirmText: 'Overwrite', confirmVariant: 'danger', cancelText: 'Cancel' }
-                        );
-                    }
-                }
-
-                if (message.type === 'sync_complete' && isInitiator) {
-                     setStatus('complete');
-                } else if (message.type === 'error') {
-                    setErrorMessage(message.message || 'An unknown error occurred.');
-                    setStatus('error');
-                    ws.close();
-                }
-
-            } catch (error) {
-                console.error('Error processing message:', error);
-                setErrorMessage('An error occurred during data transfer.');
-                setStatus('error');
-                ws.close();
-            }
-        };
-
-        ws.onclose = () => {
-            console.log('WebSocket disconnected.');
-            if (status !== 'complete' && status !== 'idle') {
-                // If it wasn't a clean close, show an error.
-                if (status !== 'error') {
-                    setErrorMessage('Connection to the sync service was lost.');
-                    setStatus('error');
-                }
-            }
-        };
-
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            setErrorMessage('Could not connect to the sync service. Please check your internet connection and try again.');
-            setStatus('error');
-        };
-    };
-
-    const startSharing = () => {
-        const newCode = generateSyncCode();
-        setSyncCode(newCode);
-        setMode('sharing');
-        connectWebSocket(newCode, true);
-    };
-    
-    const startReceiving = () => {
-        if (/^\d{6}$/.test(inputCode)) {
-            setSyncCode(inputCode);
-            setMode('receiving');
-            connectWebSocket(inputCode, false);
-        } else {
-            setErrorMessage('Please enter a valid 6-digit code.');
-            setStatus('error');
-        }
-    };
-    
     const startDataTransfer = async () => {
         if (!wsRef.current) return;
         setStatus('sending');
         try {
-            // 1. Generate & send encryption key
             const key = await cryptoService.generateKey();
+            encryptionKeyRef.current = key; // Store for potential re-sends if needed
             const exportedKey = await cryptoService.exportKey(key);
             wsRef.current.send(JSON.stringify({ type: 'key', key: exportedKey }));
             
-            // 2. Export, encrypt, and send data
             const data = await exportData();
             const encryptedData = await cryptoService.encrypt(JSON.stringify(data), key);
             wsRef.current.send(JSON.stringify({ type: 'data', payload: encryptedData }));
@@ -188,16 +78,142 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             setStatus('error');
         }
     };
+    
+    const startSharing = () => {
+        setMode('syncing');
+        setStatus('connecting');
+        setErrorMessage(null);
+
+        const ws = new WebSocket(getWebSocketUrl());
+        wsRef.current = ws;
+
+        ws.onopen = () => console.log('Sender WebSocket connected, waiting for session...');
+
+        ws.onmessage = async (event) => {
+            const message = JSON.parse(event.data);
+            console.log("Sender received:", message.type);
+            switch (message.type) {
+                case 'session_created':
+                    setSyncCode(message.code);
+                    setStatus('waiting');
+                    break;
+                case 'peer_joined':
+                    setStatus('connected');
+                    await startDataTransfer();
+                    break;
+                case 'sync_complete':
+                    setStatus('complete');
+                    setTimeout(() => {
+                       handleBackClick();
+                    }, 2000);
+                    break;
+                case 'error':
+                    setErrorMessage(message.message || 'An error occurred on the other device.');
+                    setStatus('error');
+                    break;
+                case 'peer_disconnected':
+                    setErrorMessage('The other device disconnected.');
+                    setStatus('error');
+                    break;
+            }
+        };
+        ws.onclose = () => {
+             if (status !== 'complete' && status !== 'idle') {
+                if (status !== 'error') {
+                    setErrorMessage('Connection to the sync service was lost.');
+                    setStatus('error');
+                }
+            }
+        };
+        ws.onerror = () => {
+            setErrorMessage('Could not connect to sync service.');
+            setStatus('error');
+        };
+    };
+
+    const startReceiving = () => {
+        if (!/^\d{6}$/.test(inputCode)) {
+            setErrorMessage('Please enter a valid 6-digit code.');
+            setStatus('error');
+            return;
+        }
+
+        setMode('syncing');
+        setStatus('connecting');
+        setErrorMessage(null);
+
+        const ws = new WebSocket(getWebSocketUrl(inputCode));
+        wsRef.current = ws;
+
+        ws.onmessage = async (event) => {
+             const message = JSON.parse(event.data);
+             console.log("Receiver received:", message.type);
+             switch (message.type) {
+                case 'key':
+                    encryptionKeyRef.current = await cryptoService.importKey(message.key);
+                    break;
+                case 'data':
+                    if (!encryptionKeyRef.current) {
+                        setErrorMessage("Data received before encryption key. Sync failed.");
+                        setStatus('error');
+                        return;
+                    }
+                    setStatus('receiving');
+                    const decryptedData = await cryptoService.decrypt(message.payload, encryptionKeyRef.current);
+                    const parsedData = JSON.parse(decryptedData);
+                    
+                    setStatus('confirming');
+                    requestConfirmation(
+                        'Confirm Data Import',
+                        'Data has been received. This will overwrite all current bills and settings.',
+                        async () => {
+                            await importData(parsedData);
+                            ws.send(JSON.stringify({ type: 'sync_complete' }));
+                            setStatus('complete');
+                            setTimeout(() => reloadApp(), 2000);
+                        },
+                        { 
+                            confirmText: 'Overwrite & Import', 
+                            confirmVariant: 'danger', 
+                            onCancel: () => {
+                                ws.send(JSON.stringify({ type: 'error', message: 'User cancelled import.' }));
+                                resetState();
+                            }
+                        }
+                    );
+                    break;
+                 case 'error':
+                    setErrorMessage(message.message || 'An error occurred.');
+                    setStatus('error');
+                    break;
+                case 'peer_disconnected':
+                    setErrorMessage('The other device disconnected.');
+                    setStatus('error');
+                    break;
+             }
+        };
+        ws.onopen = () => {
+            console.log('Receiver connected.');
+            setStatus('connected');
+        };
+        ws.onclose = () => {
+             if (status !== 'complete' && status !== 'idle') {
+                if (status !== 'error') {
+                    setErrorMessage('Connection to the sync service was lost.');
+                    setStatus('error');
+                }
+            }
+        };
+        ws.onerror = () => {
+            setErrorMessage('Could not connect to sync service. The code may be invalid or expired.');
+            setStatus('error');
+        };
+    };
 
     useEffect(() => {
-        // Cleanup WebSocket on component unmount
-        return () => {
-            if (wsRef.current) {
-                wsRef.current.close();
-            }
-            if (isScanning) {
-                stopScanner();
-            }
+        return () => { // Cleanup on unmount
+            if (wsRef.current) wsRef.current.close();
+            if (isScanning) stopScanner();
         };
     }, [isScanning, stopScanner]);
 
@@ -211,7 +227,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             'idle': 'Select an option to begin.',
             'connecting': 'Connecting to sync service...',
             'waiting': 'Waiting for the other device to connect...',
-            'connected': 'Device connected! Preparing data...',
+            'connected': 'Device connected! Transferring data...',
             'sending': 'Encrypting and sending your data...',
             'receiving': 'Receiving and decrypting data...',
             'confirming': 'Waiting for your confirmation...',
@@ -225,7 +241,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
     if (isScanning) {
         return (
             <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-4">
-                <video ref={videoRef} className="w-full h-auto max-w-lg rounded-lg shadow-2xl" />
+                <video ref={videoRef} className="w-full h-auto max-w-lg rounded-lg shadow-2xl" playsInline autoPlay/>
                 <div className="absolute top-4 left-4 text-white text-lg font-bold bg-black/50 p-3 rounded-lg">Scan QR Code</div>
                 <div className="mt-4">
                     <button onClick={stopScanner} className="px-6 py-3 bg-slate-600/70 text-white font-semibold rounded-lg text-lg">Cancel</button>
@@ -249,12 +265,12 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
                     <p className="text-slate-500 dark:text-slate-400 mb-8">Securely transfer your app data between two devices.</p>
                     <div className="flex flex-col md:flex-row gap-6">
                         <button onClick={startSharing} className="flex-1 p-8 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all transform hover:-translate-y-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.03 1.125 0 1.131.094 1.976 1.057 1.976 2.192V7.5m-9 7.5h10.5a2.25 2.25 0 002.25-2.25V7.5a2.25 2.25 0 00-2.25-2.25H5.25a2.25 2.25 0 00-2.25 2.25v10.5a2.25 2.25 0 002.25 2.25z" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" /></svg>
                             <h3 className="text-xl font-bold mt-4 text-slate-800 dark:text-slate-100">Share Data</h3>
                             <p className="mt-1 text-slate-500 dark:text-slate-400">Send data from this device.</p>
                         </button>
-                        <button onClick={() => setMode('receiving')} className="flex-1 p-8 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all transform hover:-translate-y-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l-3.75 3.75M12 9.75l3.75 3.75M3 10.5a8.25 8.25 0 0115 5.636l-1.5-1.5m-1.5 1.5l1.5-1.5M3 10.5a8.25 8.25 0 0115 5.636" /></svg>
+                        <button onClick={() => setMode('receivingInput')} className="flex-1 p-8 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all transform hover:-translate-y-1">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m-3 0l3-3m0 0l-3-3m3 3H9" /></svg>
                             <h3 className="text-xl font-bold mt-4 text-slate-800 dark:text-slate-100">Receive Data</h3>
                             <p className="mt-1 text-slate-500 dark:text-slate-400">Load data onto this device.</p>
                         </button>
@@ -263,31 +279,8 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             </div>
         );
     }
-
-    if (mode === 'sharing') {
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${syncCode}&qzone=1`;
-        return (
-            <div className="max-w-md mx-auto text-center">
-                 <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
-                    <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-2">Share Data</h2>
-                    <p className="text-slate-500 dark:text-slate-400 mb-6">On your other device, choose "Receive Data" and enter or scan this code.</p>
-                    
-                    <div className="bg-slate-100 dark:bg-slate-700 p-4 rounded-lg">
-                        <p className="text-5xl font-bold tracking-widest text-slate-800 dark:text-slate-100">{syncCode.replace(/(\d{3})(?=\d)/, '$1 ')}</p>
-                    </div>
-
-                    <div className="my-6 p-4 bg-white rounded-lg inline-block">
-                        <img src={qrUrl} alt="QR Code for sync" width="256" height="256"/>
-                    </div>
-
-                    {renderStatus()}
-                    <button onClick={handleBackClick} className="mt-4 px-6 py-3 w-full bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Cancel</button>
-                 </div>
-            </div>
-        );
-    }
     
-    if (mode === 'receiving') {
+     if (mode === 'receivingInput') {
          return (
              <div className="max-w-md mx-auto text-center">
                  <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
@@ -304,16 +297,52 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
                             className="flex-grow p-4 text-3xl text-center tracking-[0.5em] font-mono bg-slate-100 dark:bg-slate-700 rounded-lg focus:ring-teal-500 focus:border-teal-500"
                         />
                          <button onClick={startScanner} className="p-4 bg-slate-100 dark:bg-slate-700 rounded-lg text-teal-600 dark:text-teal-400 hover:bg-slate-200 dark:hover:bg-slate-600">
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
                              <span className="sr-only">Scan QR Code</span>
                          </button>
                     </div>
-
                     {renderStatus()}
+
                     <div className="mt-6 grid grid-cols-2 gap-4">
-                        <button onClick={handleBackClick} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Cancel</button>
-                        <button onClick={startReceiving} disabled={inputCode.length !== 6 || status === 'connecting' || status === 'complete'} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 disabled:bg-slate-400 dark:disabled:bg-slate-600">Connect</button>
+                        <button onClick={() => setMode('idle')} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Back</button>
+                        <button onClick={startReceiving} disabled={inputCode.length !== 6} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 disabled:bg-slate-400 dark:disabled:bg-slate-600">Connect</button>
                     </div>
+                 </div>
+            </div>
+        );
+    }
+    
+    if (mode === 'syncing') {
+         const qrUrl = syncCode ? `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${syncCode}&qzone=1` : '';
+         return (
+            <div className="max-w-md mx-auto text-center">
+                 <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
+                    <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-2">{syncCode ? 'Share Data' : 'Receiving Data'}</h2>
+                    <p className="text-slate-500 dark:text-slate-400 mb-6">
+                        {syncCode ? 'On your other device, choose "Receive Data" and enter or scan this code.' : 'Connected. Waiting to receive data...'}
+                    </p>
+                    
+                    {syncCode && (
+                        <>
+                            <div className="bg-slate-100 dark:bg-slate-700 p-4 rounded-lg">
+                                <p className="text-5xl font-bold tracking-widest text-slate-800 dark:text-slate-100">{syncCode.replace(/(\d{3})(?=\d)/, '$1 ')}</p>
+                            </div>
+
+                            <div className="my-6 p-4 bg-white rounded-lg inline-block">
+                                <img src={qrUrl} alt="QR Code for sync" width="256" height="256"/>
+                            </div>
+                        </>
+                    )}
+                    
+                    {status === 'connecting' && (
+                         <svg className="animate-spin h-12 w-12 text-teal-500 mx-auto my-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    )}
+                    
+                    {renderStatus()}
+                    <button onClick={handleBackClick} className="mt-4 px-6 py-3 w-full bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Cancel</button>
                  </div>
             </div>
         );
