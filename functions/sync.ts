@@ -1,4 +1,5 @@
-import { RequestHandler } from 'express';
+// Fix: Use explicit Request and Response types instead of the generic RequestHandler to avoid type conflicts.
+import type { Request, Response } from 'express';
 
 // In-memory store for sync sessions. This is suitable for the ephemeral nature
 // of serverless functions for short-lived data.
@@ -25,7 +26,8 @@ setInterval(() => {
   }
 }, 60 * 1000); // Run cleanup every minute
 
-export const syncHandler: RequestHandler = async (req, res) => {
+// Fix: Define handler with explicit Request and Response types.
+export const syncHandler = async (req: Request, res: Response) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");

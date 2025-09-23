@@ -1,4 +1,5 @@
-import express from 'express';
+// Fix: Import Request and Response types from express to ensure type consistency.
+import express, { Request, Response } from 'express';
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
 
@@ -12,7 +13,8 @@ app.post('/scan-receipt', scanReceiptHandler);
 app.all('/sync', syncHandler);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+// Fix: Add explicit types to the inline handler.
+app.get('/health', (req: Request, res: Response) => {
   res.status(200).send('OK');
 });
 
