@@ -1,4 +1,5 @@
 // FIX: Changed from 'import type' to a direct import to ensure Express types are resolved correctly, avoiding conflicts with global DOM types.
+// FIX: Import the full express module to use express.Request and express.Response, avoiding type conflicts with global DOM types.
 import { Request, Response } from 'express';
 
 // In-memory store for sync sessions. This is suitable for the ephemeral nature

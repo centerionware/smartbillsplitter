@@ -41,22 +41,31 @@ const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => 
     const origin = window.location.origin + window.location.pathname.replace(/\/$/, ""); // Ensure no trailing slash
 
     try {
+      // 1. Generate a unique ID for this user session.
+      const clientReferenceId = crypto.randomUUID();
+      // 2. Store it temporarily so we can retrieve it on the success page.
+      sessionStorage.setItem('pendingClientReferenceId', clientReferenceId);
+
       const { error } = await stripe.redirectToCheckout({
         lineItems: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
         successUrl: `${origin}?payment_success=true&plan=${plan}`,
         cancelUrl: origin,
+        // 3. Pass the ID to Stripe. It will be associated with the checkout session.
+        clientReferenceId: clientReferenceId,
       });
 
       if (error) {
         console.error('Stripe redirectToCheckout error:', error);
         setError(error.message);
         setIsLoading(null);
+        sessionStorage.removeItem('pendingClientReferenceId'); // Clean up on error
       }
       // If successful, the user is redirected and this component will unmount.
     } catch (err: any) {
       setError(err.message || 'An unknown error occurred. Please try again.');
       setIsLoading(null);
+      sessionStorage.removeItem('pendingClientReferenceId'); // Clean up on error
     }
   };
 

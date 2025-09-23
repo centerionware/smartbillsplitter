@@ -12,12 +12,18 @@ const AppGate: React.FC = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const paymentSuccess = urlParams.get('payment_success');
       const plan = urlParams.get('plan') as SubscriptionDuration;
+      const clientReferenceId = sessionStorage.getItem('pendingClientReferenceId');
 
-      // If the success parameter is present, log the user in.
-      if (paymentSuccess === 'true' && (plan === 'monthly' || plan === 'yearly')) {
-        login(plan);
-        // Clean up the URL to prevent re-triggering on refresh.
+      // If all parts are present, log the user in.
+      if (paymentSuccess === 'true' && (plan === 'monthly' || plan === 'yearly') && clientReferenceId) {
+        login(plan, clientReferenceId);
+        
+        // Clean up session storage and URL to prevent re-triggering on refresh.
+        sessionStorage.removeItem('pendingClientReferenceId');
         window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (clientReferenceId) {
+        // Clean up session storage if the payment was not successful or parameters are missing
+        sessionStorage.removeItem('pendingClientReferenceId');
       }
     };
 

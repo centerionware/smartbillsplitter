@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import type { Bill, Settings } from './types.ts';
 import { View } from './types.ts';
 import { useBills } from './hooks/useBills.ts';
@@ -45,6 +46,24 @@ const App: React.FC = () => {
     message: string;
     onConfirm: () => void;
   } & RequestConfirmationOptions | null>(null);
+
+  useEffect(() => {
+    // Dynamically load the Google AdSense script only for free users.
+    // This prevents "Auto Ads" from appearing for Pro subscribers.
+    if (subscriptionStatus === 'free') {
+      const adsenseScriptId = 'adsense-script';
+      if (document.getElementById(adsenseScriptId)) {
+        return; // Script already exists, do nothing.
+      }
+
+      const script = document.createElement('script');
+      script.id = adsenseScriptId;
+      script.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7626920066448337";
+      script.async = true;
+      script.crossOrigin = "anonymous";
+      document.head.appendChild(script);
+    }
+  }, [subscriptionStatus]);
 
   const requestConfirmation: RequestConfirmationFn = (title, message, onConfirm, options) => {
     setConfirmation({ isOpen: true, title, message, onConfirm, ...options });
@@ -204,7 +223,7 @@ const App: React.FC = () => {
       {subscriptionStatus === 'free' && <FloatingAd />}
       <footer className="text-center p-6 text-slate-500 dark:text-slate-400 text-sm">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 dark:text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w.org/2000/svg" className="h-5 w-5 text-slate-400 dark:text-slate-500" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
           </svg>
           <p>

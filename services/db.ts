@@ -19,6 +19,7 @@ const SINGLE_KEY = 'current';
 let db: IDBDatabase;
 
 export interface SubscriptionDetails {
+  clientReferenceId: string;
   startDate: string;
   duration: 'monthly' | 'yearly';
 }

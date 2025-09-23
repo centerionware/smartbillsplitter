@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getSubscriptionStatus, saveSubscriptionStatus, saveSubscriptionDetails, deleteSubscriptionDetails } from '../services/db.ts';
+import { getSubscriptionStatus, saveSubscriptionStatus, saveSubscriptionDetails, deleteSubscriptionDetails, SubscriptionDetails } from '../services/db.ts';
 
 export type SubscriptionStatus = 'subscribed' | 'free' | null;
 export type SubscriptionDuration = 'monthly' | 'yearly';
@@ -7,7 +7,7 @@ export type SubscriptionDuration = 'monthly' | 'yearly';
 interface AuthContextType {
   subscriptionStatus: SubscriptionStatus;
   isLoading: boolean;
-  login: (duration: SubscriptionDuration) => void;
+  login: (duration: SubscriptionDuration, clientReferenceId: string) => void;
   selectFreeTier: () => void;
   logout: () => void;
 }
@@ -35,8 +35,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadStatus();
   }, []);
 
-  const login = useCallback(async (duration: SubscriptionDuration) => {
-    const details = {
+  const login = useCallback(async (duration: SubscriptionDuration, clientReferenceId: string) => {
+    const details: SubscriptionDetails = {
+        clientReferenceId,
         startDate: new Date().toISOString(),
         duration,
     };
