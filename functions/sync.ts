@@ -3,146 +3,42 @@ import type { Context } from "@netlify/edge-functions";
 // Declare Deno to resolve TypeScript error in Netlify Edge Function environment
 declare var Deno: any;
 
-// This is a simplified in-memory store.
-// NOTE: In a real multi-instance edge environment, this state is NOT shared
-// across different edge nodes. A proper implementation would require a distributed
-// state manager like Upstash (Redis). For this app's purpose of short-lived,
-// single-user sessions, this is acceptable as a user's session will likely
-// hit the same edge node for its duration.
-const rooms = new Map<string, { sender: WebSocket; receiver?: WebSocket; timeoutId?: any }>();
-
-function generateUniqueCode(): string {
-  let code: string;
-  do {
-    code = Math.floor(100000 + Math.random() * 900000).toString();
-  } while (rooms.has(code));
-  return code;
-}
-
-function safeSend(ws: WebSocket, message: object) {
-  try {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(message));
-    }
-  } catch (e) {
-    console.error("Failed to send message:", e);
-  }
-}
-
+/**
+ * A minimal WebSocket echo server for diagnostics.
+ * This temporarily replaces the sync logic to isolate the platform's
+ * WebSocket handling.
+ */
 export default async (request: Request, context: Context) => {
-  console.log(`[Sync Edge Function] Invoked for path: ${new URL(request.url).pathname}`);
-  const headersObject: { [key: string]: string } = {};
-  for (const [key, value] of request.headers.entries()) {
-    headersObject[key] = value;
-  }
-  console.log("[Sync Edge Function] Request headers:", JSON.stringify(headersObject, null, 2));
-
-  const { searchParams } = new URL(request.url);
-  const codeFromUrl = searchParams.get('code');
-
   try {
-    // Deno.upgradeWebSocket will throw if the request is not a valid WebSocket upgrade request.
-    // The explicit 'Upgrade' header check is removed as it's not present at this level in Netlify's environment.
-    const { socket: ws, response } = Deno.upgradeWebSocket(request);
-    console.log("[Sync Edge Function] WebSocket upgrade successful. Attaching listeners.");
+    // Attempt to upgrade the connection. This is where the error occurs.
+    const { socket, response } = Deno.upgradeWebSocket(request);
 
-    ws.onopen = () => {
-      console.log("[Sync Edge Function] WebSocket connection opened.");
-      if (codeFromUrl) {
-        // This is a RECEIVER
-        const room = rooms.get(codeFromUrl);
-        if (room && !room.receiver) {
-          console.log(`[Sync Edge Function] Receiver joined room ${codeFromUrl}`);
-          room.receiver = ws;
-          clearTimeout(room.timeoutId); // The session is now active, clear the expiry timer.
-          
-          // Notify both parties
-          safeSend(room.sender, { type: 'peer_joined' });
-        } else {
-          console.log(`[Sync Edge Function] Receiver failed to join room ${codeFromUrl}. Room not found or full.`);
-          safeSend(ws, { type: 'error', message: 'Invalid or full sync code.' });
-          ws.close();
-        }
-      } else {
-        // This is a SENDER (initiator)
-        const newCode = generateUniqueCode();
-        console.log(`[Sync Edge Function] Sender created room ${newCode}`);
-
-        // Set a timeout to clean up the room if a receiver doesn't connect
-        const timeoutId = setTimeout(() => {
-          const room = rooms.get(newCode);
-          if (room && !room.receiver) {
-            console.log(`[Sync Edge Function] Room ${newCode} timed out.`);
-            safeSend(ws, { type: 'error', message: 'Sync session timed out.' });
-            ws.close();
-            rooms.delete(newCode);
-          }
-        }, 5 * 60 * 1000); // 5 minute timeout
-
-        rooms.set(newCode, { sender: ws, timeoutId });
-        safeSend(ws, { type: 'session_created', code: newCode });
-      }
+    // If upgrade is successful, attach basic echo listeners.
+    socket.onopen = () => {
+      console.log("[Sync Echo] WebSocket connection opened successfully.");
+      socket.send("Connection established. This is an echo server.");
     };
 
-    ws.onmessage = (event) => {
-      // Find the room this websocket belongs to
-      let roomCode: string | undefined = codeFromUrl;
-      if (!roomCode) {
-          for (const [code, room] of rooms.entries()) {
-              if (room.sender === ws || room.receiver === ws) {
-                  roomCode = code;
-                  break;
-              }
-          }
-      }
-      if (!roomCode) {
-        console.log("[Sync Edge Function] Message received from WebSocket not in any room.");
-        return;
-      }
-      
-      const room = rooms.get(roomCode);
-      if (!room) return;
-      
-      // Relay message to the other party
-      const target = ws === room.sender ? room.receiver : room.sender;
-      if (target && target.readyState === WebSocket.OPEN) {
-        target.send(event.data);
-      }
+    socket.onmessage = (event) => {
+      console.log("[Sync Echo] Received message:", event.data);
+      const reply = `Echo: ${event.data}`;
+      socket.send(reply);
     };
 
-    ws.onclose = ws.onerror = (event) => {
-      const reason = event instanceof CloseEvent ? `code: ${event.code}, reason: ${event.reason}` : 'an error occurred';
-      console.log(`[Sync Edge Function] WebSocket closed or errored: ${reason}`);
-      // Find and clean up the room associated with the closed websocket
-      let roomCode: string | undefined = codeFromUrl;
-      if (!roomCode) {
-          for (const [code, room] of rooms.entries()) {
-              if (room.sender === ws || room.receiver === ws) {
-                  roomCode = code;
-                  break;
-              }
-          }
-      }
-      if (!roomCode) return;
-
-      const room = rooms.get(roomCode);
-      if (room) {
-        // Notify the other party if they exist
-        const otherWs = ws === room.sender ? room.receiver : room.sender;
-        if (otherWs && otherWs.readyState < WebSocket.CLOSING) {
-          safeSend(otherWs, { type: 'peer_disconnected' });
-          otherWs.close();
-        }
-        clearTimeout(room.timeoutId);
-        rooms.delete(roomCode);
-        console.log(`[Sync Edge Function] Room ${roomCode} closed and cleaned up.`);
-      }
+    socket.onclose = (event) => {
+      console.log(`[Sync Echo] WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
     };
 
+    socket.onerror = (error) => {
+      console.error("[Sync Echo] WebSocket error:", error);
+    };
+
+    // Return the response object from the upgrade to complete the handshake.
     return response;
   } catch (error) {
-      console.error("[Sync Edge Function] Deno.upgradeWebSocket failed. This likely means the request was not a valid WebSocket upgrade request.", error);
-      // Return a 400 Bad Request because the client sent a request to a WebSocket endpoint that wasn't a valid upgrade request.
-      return new Response("Failed to upgrade WebSocket connection.", { status: 400 });
+    console.error("[Sync Echo] Failed to upgrade WebSocket connection:", error);
+    // If Deno.upgradeWebSocket throws, it means the handshake failed.
+    // The browser will see a failed connection attempt.
+    return new Response("Failed to upgrade to WebSocket.", { status: 400 });
   }
 };
