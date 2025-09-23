@@ -5,10 +5,6 @@ on:
     branches:
       - main
 
-# This condition prevents the workflow from running in a loop.
-# When this workflow commits a change, the commit message will include "[ci skip]".
-if: "!contains(github.event.head_commit.message, '[ci skip]')"
-
 env:
   REGISTRY: ghcr.io
   # Dynamically set the image owner from the repository context
@@ -19,6 +15,7 @@ env:
 jobs:
   build-and-push-images:
     name: Build and Push Docker Images
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -72,10 +69,10 @@ jobs:
   prune-old-images:
     name: Prune Old Image Versions
     needs: build-and-push-images
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
     permissions:
       packages: write
-      packages: read
     steps:
       - name: Prune old frontend image versions
         uses: actions/delete-package-versions@v5
@@ -94,6 +91,7 @@ jobs:
   update-manifest:
     name: Update Kubernetes Manifest
     needs: build-and-push-images
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -125,3 +123,4 @@ jobs:
           else
             echo "No changes to commit."
           fi
+
