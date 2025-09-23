@@ -10,8 +10,8 @@ resources:
 
 images:
   - name: bill-splitter-frontend # Matches image name in deployment
-    newName: ghcr.io/PLACEHOLDER_OWNER/bill-splitter-frontend # Placeholder for repo
-    newTag: placeholder-tag # Placeholder for tag
+    newName: ghcr.io/centerionware/bill-splitter-frontend # Placeholder for repo
+    newTag: beb42b9 # Placeholder for tag
   - name: bill-splitter-backend # Matches image name in deployment
-    newName: ghcr.io/PLACEHOLDER_OWNER/bill-splitter-backend # Placeholder for repo
-    newTag: placeholder-tag # Placeholder for tag
+    newName: ghcr.io/centerionware/bill-splitter-backend # Placeholder for repo
+    newTag: beb42b9 # Placeholder for tag
