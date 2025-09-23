@@ -80,7 +80,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           package-name: ${{ env.FRONTEND_IMAGE_NAME }}
           min-versions-to-keep: 1
-          ignore-tags: ${{ needs.build-and-push-images.outputs.image_tag }}
+          ignore-versions: ${{ needs.build-and-push-images.outputs.image_tag }}
           package-type: container
           token: ${{ secrets.GH_PAT }}
           
@@ -91,7 +91,7 @@ jobs:
           package-name: ${{ env.BACKEND_IMAGE_NAME }}
           package-type: container
           min-versions-to-keep: 1
-          ignore-tags: ${{ needs.build-and-push-images.outputs.image_tag }}
+          ignore-versions: ${{ needs.build-and-push-images.outputs.image_tag }}
           token: ${{ secrets.GH_PAT }}
 
   update-helm-chart:
