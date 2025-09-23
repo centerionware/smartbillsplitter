@@ -45,6 +45,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
   );
   const [items, setItems] = useState<ReceiptItem[]>(initialData?.items || []);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [additionalInfo, setAdditionalInfo] = useState<string>('');
   const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
   const [splitMode, setSplitMode] = useState<SplitMode>(initialData?.splitMode || 'equally');
 
@@ -57,7 +58,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const [isContactPickerSupported, setIsContactPickerSupported] = useState(false);
   useEffect(() => { 'contacts' in navigator && 'ContactsManager' in window && setIsContactPickerSupported(true); }, []);
 
-  const isDirty = useMemo(() => description !== '' || totalAmount !== '' || participants.length > 1 || items.length > 0, [description, totalAmount, participants, items]);
+  const isDirty = useMemo(() => description !== '' || totalAmount !== '' || participants.length > 1 || items.length > 0 || additionalInfo !== '', [description, totalAmount, participants, items, additionalInfo]);
   
   useEffect(() => {
     if (mode === 'create-from-recurring' && initialData) {
@@ -209,9 +210,10 @@ const CreateBill: React.FC<CreateBillProps> = ({
     setItems(updatedItems);
   };
 
-  const handleItemsScanned = (data: { description: string, date?: string, items: { name: string, price: number }[] }) => {
+  const handleItemsScanned = (data: { description: string, date?: string, items: { name: string, price: number }[], additionalInfo?: string }) => {
     if (data.description) setDescription(prev => prev || data.description);
     if (data.date) setDate(data.date);
+    if (data.additionalInfo) setAdditionalInfo(data.additionalInfo);
     
     // Find 'myself' to auto-assign items
     const myself = participants.find(p => p.name.trim().toLowerCase() === settings.myDisplayName.trim().toLowerCase());
@@ -310,7 +312,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
         
         const finalParticipants = activeParticipants.map(({ splitValue, ...p }) => p);
         const billData: Omit<Bill, 'id' | 'status'> = {
-            description, totalAmount: effectiveTotal, date, participants: finalParticipants, items, receiptImage,
+            description, totalAmount: effectiveTotal, date, participants: finalParticipants, items, receiptImage, additionalInfo
         };
         onSave(billData, mode === 'create-from-recurring' ? initialData?.id : undefined);
     }
@@ -345,6 +347,21 @@ const CreateBill: React.FC<CreateBillProps> = ({
         <h2 className="text-3xl font-bold text-slate-700 dark:text-slate-200 mb-6">{mode === 'edit-recurring' ? 'Edit Recurring Bill' : (mode === 'create-from-recurring' ? 'Create Bill from Template' : 'Create New Bill')}</h2>
 
         {!isRecurring && <ReceiptScanner onItemsScanned={handleItemsScanned} onImageSelected={setReceiptImage} onImageCleared={() => setReceiptImage(null)} />}
+
+        {additionalInfo && !isRecurring && (
+          <div className="my-6">
+            <label htmlFor="additionalInfo" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Additional Information from Receipt</label>
+            <textarea 
+              id="additionalInfo" 
+              rows={4} 
+              value={additionalInfo} 
+              onChange={(e) => setAdditionalInfo(e.target.value)} 
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-slate-50 dark:bg-slate-700/50 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              placeholder="e.g., Store location, return policy..." 
+            />
+             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">This information was extracted by AI and can be edited.</p>
+          </div>
+        )}
 
         <div className="space-y-6">
           <div>

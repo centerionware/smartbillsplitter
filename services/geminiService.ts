@@ -4,6 +4,7 @@ interface ScannedReceiptData {
   date?: string;
   items: { name: string; price: number }[];
   total?: number;
+  additionalInfo?: string;
 }
 
 export const parseReceipt = async (base64Image: string, mimeType: string): Promise<ScannedReceiptData> => {

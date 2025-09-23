@@ -38,6 +38,11 @@ const responseSchema = {
         required: ["name", "price"],
       },
     },
+    additionalInfo: {
+        type: Type.STRING,
+        description: "Any other relevant unstructured information from the receipt, like store address, tracking numbers, return policies, or promotional details, formatted as a single text block.",
+        nullable: true,
+    },
   },
   required: ["description", "items"],
 };
@@ -59,7 +64,7 @@ export const scanReceiptHandler = async (req: express.Request, res: express.Resp
     const ai = new GoogleGenAI({ apiKey });
 
     const imagePart = { inlineData: { data: base64Image, mimeType: mimeType } };
-    const textPart = { text: "Analyze the provided receipt image. Extract a concise description (like the store name), the date, the final total, and a list of all line items with their individual prices. Ignore any taxes, tips, or subtotals that are not individual items. Return the data in the specified JSON format." };
+    const textPart = { text: "Analyze the provided receipt image. Extract a concise description (like the store name), the date, the final total, and a list of all line items with their individual prices. Also, extract any other relevant information like store location, tracking numbers, or notes as a single text block. Ignore any taxes, tips, or subtotals that are not individual items. Return all data in the specified JSON format." };
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
