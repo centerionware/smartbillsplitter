@@ -13,6 +13,32 @@ env:
   BACKEND_IMAGE_NAME: bill-splitter-backend
 
 jobs:
+  prune-old-images:
+    name: Prune Old Image Versions
+    needs: build-and-push-images
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Prune old frontend image versions
+        uses: actions/delete-package-versions@v5
+        with:
+          owner: ${{ github.repository_owner }}
+          package-name: ${{ env.FRONTEND_IMAGE_NAME }}
+          num-old-versions-to-delete: 5
+          package-type: container
+          token: ${{ secrets.GH_PAT }}
+          
+      - name: Prune old backend image versions
+        uses: actions/delete-package-versions@v5
+        with:
+          owner: ${{ github.repository_owner }}
+          package-name: ${{ env.BACKEND_IMAGE_NAME }}
+          package-type: container
+          num-old-versions-to-delete: 5
+          token: ${{ secrets.GH_PAT }}
+  
   build-and-push-images:
     name: Build and Push Docker Images
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
@@ -65,34 +91,6 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}
-
-  prune-old-images:
-    name: Prune Old Image Versions
-    needs: build-and-push-images
-    if: "!contains(github.event.head_commit.message, '[ci skip]')"
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    steps:
-      - name: Prune old frontend image versions
-        uses: actions/delete-package-versions@v5
-        with:
-          owner: ${{ github.repository_owner }}
-          package-name: ${{ env.FRONTEND_IMAGE_NAME }}
-          num-old-versions-to-delete: 5
-          ignore-versions: ${{ needs.build-and-push-images.outputs.image_tag }}
-          package-type: container
-          token: ${{ secrets.GH_PAT }}
-          
-      - name: Prune old backend image versions
-        uses: actions/delete-package-versions@v5
-        with:
-          owner: ${{ github.repository_owner }}
-          package-name: ${{ env.BACKEND_IMAGE_NAME }}
-          package-type: container
-          num-old-versions-to-delete: 5
-          ignore-versions: ${{ needs.build-and-push-images.outputs.image_tag }}
-          token: ${{ secrets.GH_PAT }}
 
   update-helm-chart:
     name: Update Helm Chart and Push to Production Branch
