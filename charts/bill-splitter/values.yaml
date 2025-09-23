@@ -14,9 +14,17 @@ backend:
   replicaCount: 1
   service:
     port: 3000
-  env:
-    secretName: gemini-api-key-secret
-    secretKey: API_KEY
+
+# Configuration for the Gemini API Key secret
+secret:
+  # Set to true to create a new secret from the value below.
+  # If false, you must ensure a secret named "{{ .Release.Name }}-bill-splitter-secret"
+  # with a key of "API_KEY" already exists in the namespace.
+  create: true
+  # The Gemini API Key. This value MUST be provided if secret.create is true.
+  # It is strongly recommended to set this via --set "secret.API_KEY=your-key"
+  # or by using a separate values file passed with -f.
+  API_KEY: ""
 
 ingress:
   enabled: true

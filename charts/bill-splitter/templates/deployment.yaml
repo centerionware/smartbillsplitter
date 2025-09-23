@@ -30,8 +30,8 @@ spec:
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.backend.env.secretName }}
-                  key: {{ .Values.backend.env.secretKey }}
+                  name: {{ include "bill-splitter.fullname" . }}-secret
+                  key: API_KEY
           livenessProbe:
             httpGet:
               path: /health
