@@ -31,11 +31,16 @@ const AppGate: React.FC = () => {
           }
 
           if (data.status === 'success') {
-            login({
+            await login({
               duration: data.duration,
               customerId: data.customerId,
               subscriptionId: data.subscriptionId,
             });
+            // After successfully logging in, replace the current history entry
+            // (which has ?session_id=...) and reload the app from a clean state.
+            // This prevents the user from navigating 'back' to the paywall.
+            window.location.replace('/');
+            return; // Stop execution as the page will reload.
           } else {
              throw new Error('Payment verification was not successful.');
           }
@@ -43,8 +48,7 @@ const AppGate: React.FC = () => {
         } catch (error: any) {
           console.error("Payment verification failed:", error);
           setVerificationError(error.message);
-        } finally {
-          // Clean up the URL to prevent re-triggering on refresh.
+          // If verification fails, clean up the URL and stop the loading spinner.
           window.history.replaceState({}, document.title, window.location.pathname);
           setIsVerifying(false);
         }

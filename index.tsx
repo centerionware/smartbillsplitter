@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom/client';
 import AppGate from './AppGate.tsx';
 import { AuthProvider } from './hooks/useAuth.ts';
@@ -6,18 +6,17 @@ import { AppControlContext } from './contexts/AppControlContext.tsx';
 import { initDB } from './services/db.ts';
 
 const Root: React.FC = () => {
-  const [appKey, setAppKey] = useState(0);
-
   const reloadApp = () => {
-    // Incrementing the key will cause React to unmount and remount the component tree,
-    // effectively resetting all state and re-reading from IndexedDB.
-    setAppKey(prevKey => prevKey + 1);
+    // Replace the current history entry and reload the page from the root.
+    // This effectively clears the forward/back history within the app for this session,
+    // preventing users from navigating "back" to a state that no longer exists
+    // (e.g., the settings page after a data reset).
+    window.location.replace('/');
   };
 
   return (
     <AppControlContext.Provider value={{ reloadApp }}>
-      {/* The key is applied here to ensure the entire app, including auth state, is reset on demand */}
-      <AuthProvider key={appKey}>
+      <AuthProvider>
         <AppGate />
       </AuthProvider>
     </AppControlContext.Provider>
