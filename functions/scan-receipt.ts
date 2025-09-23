@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-// FIX: Use a namespaced import for express to resolve type conflicts with global DOM types for Request and Response.
-import * as express from 'express';
+// FIX: Changed express import to use the default export and explicitly reference express.Request and express.Response types. This resolves type inference issues where methods like .status() and properties like .body were not found.
+import express from 'express';
 
 // Defines the expected JSON structure from the Gemini API for consistent data handling.
 const responseSchema = {

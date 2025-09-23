@@ -1,5 +1,5 @@
-// FIX: Use a namespaced import for express to resolve type conflicts with global DOM types.
-import * as express from 'express';
+// FIX: Changed express import to use the default export and explicitly reference express.Request and express.Response types. This resolves type inference issues where methods like .status() and properties like .body were not found.
+import express from 'express';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;

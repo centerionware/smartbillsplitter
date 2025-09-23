@@ -1,10 +1,10 @@
-// FIX: Use a namespaced import for express to resolve type conflicts with global DOM types for Request, Response, and Express.
-import * as express from 'express';
+// FIX: Changed express import to use the default export and explicitly reference express.Request and express.Response types. This resolves type inference issues where methods like .status() were not found on the response object.
+import express, { Express } from 'express';
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
 import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler } from './functions/stripe';
 
-const app: express.Express = express();
+const app: Express = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' })); // Increase limit for receipt images
