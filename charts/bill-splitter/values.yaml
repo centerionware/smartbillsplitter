@@ -15,15 +15,13 @@ backend:
   service:
     port: 3000
 
-# Configuration for the Gemini API Key secret
+# Configuration for secrets
 secret:
-  # Set to true to create a new secret from the value below.
-  # If false, you must ensure a secret named "{{ .Release.Name }}-bill-splitter-secret"
-  # with a key of "API_KEY" already exists in the namespace.
+  # Set to true to create a new secret from the values below.
+  # If false, you must ensure a secret with the correct name and keys exists.
   create: true
-  # The Gemini API Key. This value MUST be provided if secret.create is true.
-  # It is strongly recommended to set this via --set "secret.API_KEY=your-key"
-  # or by using a separate values file passed with -f.
+  
+  # The Gemini API Key. MUST be provided if secret.create is true.
   API_KEY: ""
 
 ingress:

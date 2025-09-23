@@ -35,7 +35,8 @@
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
     "@netlify/edge-functions": "https://aistudiocdn.com/@netlify/edge-functions@^2.18.0",
     "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^4.2.5",
-    "express": "https://aistudiocdn.com/express@^5.1.0"
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "stripe": "https://aistudiocdn.com/stripe@^18.5.0"
   }
 }
 </script>
@@ -44,6 +45,7 @@
 </head>
   <body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
     <div id="root"></div>
+    <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script type="module" src="/index.js"></script>
     <script>

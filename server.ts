@@ -1,9 +1,9 @@
-// Fix: Import express namespace and use express.Request/express.Response to avoid type conflicts.
-import express from 'express';
+// FIX: Explicitly import 'Express' type and apply it to the app instance to ensure correct type resolution for middleware and handlers.
+import express, { Express, Request, Response } from 'express';
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
 
-const app = express();
+const app: Express = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' })); // Increase limit for receipt images
@@ -13,8 +13,7 @@ app.post('/scan-receipt', scanReceiptHandler);
 app.all('/sync', syncHandler);
 
 // Health check endpoint
-// Fix: Use explicit express types for the inline handler.
-app.get('/health', (req: express.Request, res: express.Response) => {
+app.get('/health', (req: Request, res: Response) => {
   res.status(200).send('OK');
 });
 

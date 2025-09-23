@@ -1,32 +1,31 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from './hooks/useAuth.ts';
+import React, { useEffect } from 'react';
+import { useAuth, SubscriptionDuration } from './hooks/useAuth.ts';
 import App from './App.tsx';
 import Paywall from './components/Paywall.tsx';
 
 const AppGate: React.FC = () => {
   const { subscriptionStatus, login, selectFreeTier, isLoading: isAuthLoading } = useAuth();
-  // We use a loading state to prevent a flicker while we check the URL.
-  const [isCheckingUrl, setIsCheckingUrl] = useState(true);
 
   useEffect(() => {
-    const checkUrlForPaymentSuccess = () => {
+    // This effect handles the redirect from a successful Stripe checkout.
+    const verifyClientSidePayment = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.has('payment') && urlParams.get('payment') === 'success') {
-        const duration = urlParams.get('duration');
-        if (duration === 'monthly' || duration === 'yearly') {
-          login(duration);
-        }
+      const paymentSuccess = urlParams.get('payment_success');
+      const plan = urlParams.get('plan') as SubscriptionDuration;
+
+      // If the success parameter is present, log the user in.
+      if (paymentSuccess === 'true' && (plan === 'monthly' || plan === 'yearly')) {
+        login(plan);
         // Clean up the URL to prevent re-triggering on refresh.
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-      setIsCheckingUrl(false);
     };
 
-    checkUrlForPaymentSuccess();
+    verifyClientSidePayment();
   }, [login]);
 
-  // While checking the URL or auth status, show a loading state.
-  if (isCheckingUrl || isAuthLoading) {
+  // While checking auth status, show a loading state.
+  if (isAuthLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center text-center p-4">
         <svg className="animate-spin h-10 w-10 text-teal-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -40,7 +39,7 @@ const AppGate: React.FC = () => {
 
   // If status is null, user hasn't made a choice or subscription expired. Show paywall.
   if (!subscriptionStatus) {
-    return <Paywall onLogin={() => { /* This is now handled by URL check */ }} onSelectFreeTier={selectFreeTier} />;
+    return <Paywall onSelectFreeTier={selectFreeTier} />;
   }
 
   // If status is 'subscribed' or 'free', show the app.

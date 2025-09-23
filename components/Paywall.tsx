@@ -1,49 +1,69 @@
 import React, { useState, useEffect } from 'react';
 
 interface PaywallProps {
-  onLogin: () => void;
   onSelectFreeTier: () => void;
   initialError?: string;
 }
 
-// --- IMPORTANT ---
-// These links must be configured in Stripe to redirect to your app's URL
-// with `?payment=success` on successful payment. We add the `duration` parameter here.
-const BASE_URL = window.location.origin + window.location.pathname;
-const MONTHLY_PLAN_PAYMENT_LINK = `https://buy.stripe.com/test_bJe00j34BbdkfAOa9m6sw00?success_url=${encodeURIComponent(BASE_URL + '?payment=success&duration=monthly')}`;
-const YEARLY_PLAN_PAYMENT_LINK = `https://buy.stripe.com/test_7sY6oHcFb6X42O2ftG6sw01?success_url=${encodeURIComponent(BASE_URL + '?payment=success&duration=yearly')}`;
+// Add a global declaration for the Stripe object from the script tag.
+declare const Stripe: any;
 
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51SA6UQHQAboiqUmtMpUwZGQHxMzVJx8I1mFuLqnELrtg0rpabNbe4NpiKq3tDY6c8nXUyt1EtnfijSem1KAq9iK300tzTnkXL7';
+const MONTHLY_PRICE_ID = 'price_1SA6ZeHQAboiqUmtWoNH736o';
+const YEARLY_PRICE_ID = 'price_1SA6agHQAboiqUmtjz5UCjub';
 
-const Paywall: React.FC<PaywallProps> = ({ onLogin, onSelectFreeTier, initialError }) => {
+const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(initialError || null);
+  const [stripe, setStripe] = useState<any>(null);
 
-  // If an initial error is passed, ensure it's displayed on mount.
+  // Initialize the Stripe.js instance once the component mounts.
   useEffect(() => {
-    if (initialError) {
-      setError(initialError);
+    // FIX: Use type assertion to access Stripe from the window object, as it's loaded from a script.
+    if ((window as any).Stripe) {
+      setStripe(Stripe(STRIPE_PUBLISHABLE_KEY));
+    } else {
+      console.error("Stripe.js has not loaded. Please check your internet connection and script tag.");
+      setError("Payment provider could not be loaded. Please refresh the page.");
     }
-  }, [initialError]);
+  }, []);
 
-  const handleCheckout = (planIdentifier: string, paymentLinkUrl: string) => {
-    setError(null);
-
-    // A valid Payment Link URL from Stripe always starts with "https://buy.stripe.com/".
-    if (!paymentLinkUrl || !paymentLinkUrl.startsWith('https://buy.stripe.com/')) {
-      setError(`This plan has not been configured. Please paste a valid Stripe Payment Link URL in the code.`);
+  const handleCheckout = async (plan: 'monthly' | 'yearly') => {
+    if (!stripe) {
+      setError("Stripe is not ready yet. Please wait a moment and try again.");
       return;
     }
 
-    setIsLoading(planIdentifier);
-    
-    // Redirect the current window to the checkout page.
-    window.location.href = paymentLinkUrl;
+    setError(null);
+    setIsLoading(plan);
+
+    const priceId = plan === 'monthly' ? MONTHLY_PRICE_ID : YEARLY_PRICE_ID;
+    const origin = window.location.origin + window.location.pathname.replace(/\/$/, ""); // Ensure no trailing slash
+
+    try {
+      const { error } = await stripe.redirectToCheckout({
+        lineItems: [{ price: priceId, quantity: 1 }],
+        mode: 'subscription',
+        successUrl: `${origin}?payment_success=true&plan=${plan}`,
+        cancelUrl: origin,
+      });
+
+      if (error) {
+        console.error('Stripe redirectToCheckout error:', error);
+        setError(error.message);
+        setIsLoading(null);
+      }
+      // If successful, the user is redirected and this component will unmount.
+    } catch (err: any) {
+      setError(err.message || 'An unknown error occurred. Please try again.');
+      setIsLoading(null);
+    }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, planIdentifier: string, paymentLinkUrl: string) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, plan: 'monthly' | 'yearly') => {
     if ((e.key === 'Enter' || e.key === ' ') && !isLoading) {
       e.preventDefault();
-      handleCheckout(planIdentifier, paymentLinkUrl);
+      handleCheckout(plan);
     }
   };
 
@@ -71,8 +91,8 @@ const Paywall: React.FC<PaywallProps> = ({ onLogin, onSelectFreeTier, initialErr
         <div className="space-y-4 mb-8">
           {/* Monthly Plan */}
           <div
-            onClick={() => !isLoading && handleCheckout('monthly', MONTHLY_PLAN_PAYMENT_LINK)}
-            onKeyDown={(e) => handleKeyDown(e, 'monthly', MONTHLY_PLAN_PAYMENT_LINK)}
+            onClick={() => !isLoading && handleCheckout('monthly')}
+            onKeyDown={(e) => handleKeyDown(e, 'monthly')}
             role="button"
             tabIndex={isLoading ? -1 : 0}
             className={`p-5 border border-slate-200 dark:border-slate-700 rounded-lg text-left flex items-center transition-all duration-300 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-lg hover:border-teal-600 dark:hover:border-teal-500 hover:-translate-y-1'}`}
@@ -93,8 +113,8 @@ const Paywall: React.FC<PaywallProps> = ({ onLogin, onSelectFreeTier, initialErr
           </div>
           {/* Yearly Plan */}
           <div
-            onClick={() => !isLoading && handleCheckout('yearly', YEARLY_PLAN_PAYMENT_LINK)}
-            onKeyDown={(e) => handleKeyDown(e, 'yearly', YEARLY_PLAN_PAYMENT_LINK)}
+            onClick={() => !isLoading && handleCheckout('yearly')}
+            onKeyDown={(e) => handleKeyDown(e, 'yearly')}
             role="button"
             tabIndex={isLoading ? -1 : 0}
             className={`relative p-5 border-2 rounded-lg text-left flex items-center transition-all duration-300 ${isLoading ? 'opacity-50 cursor-not-allowed border-slate-300 dark:border-slate-600' : 'cursor-pointer hover:shadow-lg hover:-translate-y-1 border-teal-500'}`}

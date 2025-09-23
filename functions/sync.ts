@@ -1,5 +1,5 @@
-// Fix: Use a namespace import for express types to avoid conflicts with global types.
-import type * as express from 'express';
+// FIX: Changed from 'import type' to a direct import to ensure Express types are resolved correctly, avoiding conflicts with global DOM types.
+import { Request, Response } from 'express';
 
 // In-memory store for sync sessions. This is suitable for the ephemeral nature
 // of serverless functions for short-lived data.
@@ -26,8 +26,7 @@ setInterval(() => {
   }
 }, 60 * 1000); // Run cleanup every minute
 
-// Fix: Use express.Request and express.Response to ensure correct type resolution.
-export const syncHandler = async (req: express.Request, res: express.Response) => {
+export const syncHandler = async (req: Request, res: Response) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
