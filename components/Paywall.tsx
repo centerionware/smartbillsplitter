@@ -14,7 +14,7 @@ const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => 
     setIsLoading(plan);
 
     try {
-        const origin = window.location.origin + window.location.pathname.replace(/\/$/, "");
+        const origin = window.location.origin;
 
         const response = await fetch('/create-checkout-session', {
             method: 'POST',

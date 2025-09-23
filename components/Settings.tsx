@@ -149,7 +149,7 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, onUpdateSettings
     setPortalError(null);
     
     try {
-        const origin = window.location.origin + window.location.pathname.replace(/\/$/, "");
+        const origin = window.location.origin;
         const response = await fetch('/create-customer-portal-session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

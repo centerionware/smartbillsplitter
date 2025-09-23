@@ -1,6 +1,5 @@
-// FIX: Explicitly import 'Express' type and apply it to the app instance to ensure correct type resolution for middleware and handlers.
-// FIX: Use express namespace to get types and avoid conflicts with global DOM types.
-import express from 'express';
+// FIX: Use a namespaced import for express to resolve type conflicts with global DOM types for Request, Response, and Express.
+import * as express from 'express';
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
 import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler } from './functions/stripe';

@@ -1,6 +1,5 @@
-// FIX: Changed from 'import type' to a direct import to ensure Express types are resolved correctly, avoiding conflicts with global DOM types.
-// FIX: Import the full express module to use express.Request and express.Response, avoiding type conflicts with global DOM types.
-import express from 'express';
+// FIX: Use a namespaced import for express to resolve type conflicts with global DOM types.
+import * as express from 'express';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
