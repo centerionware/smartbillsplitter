@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: "{{ include "bill-splitter.backendImage" . }}"
+          image: "{{ .Values.image.owner }}/bill-splitter-backend:IMAGE_TAG_PLACEHOLDER_BACKEND"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -60,7 +60,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: "{{ include "bill-splitter.frontendImage" . }}"
+          image: "{{ .Values.image.owner }}/bill-splitter-frontend:IMAGE_TAG_PLACEHOLDER_FRONTEND"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

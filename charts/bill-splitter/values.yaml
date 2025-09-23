@@ -4,7 +4,6 @@
 
 image:
   owner: PLACEHOLDER_OWNER
-  tag: placeholder-tag
 
 frontend:
   replicaCount: 2
