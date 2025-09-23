@@ -77,6 +77,7 @@ jobs:
       - name: Prune old frontend image versions
         uses: actions/delete-package-versions@v5
         with:
+          owner: ${{ github.repository_owner }}
           package-name: ${{ env.FRONTEND_IMAGE_NAME }}
           min-versions-to-keep: 1
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -84,12 +85,13 @@ jobs:
       - name: Prune old backend image versions
         uses: actions/delete-package-versions@v5
         with:
+          owner: ${{ github.repository_owner }}
           package-name: ${{ env.BACKEND_IMAGE_NAME }}
           min-versions-to-keep: 1
           token: ${{ secrets.GITHUB_TOKEN }}
 
   update-helm-chart:
-    name: Update Helm Chart on Production Branch
+    name: Update Helm Chart and Push to Production Branch
     needs: build-and-push-images
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     runs-on: ubuntu-latest
@@ -97,10 +99,8 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout production branch
+      - name: Checkout main branch
         uses: actions/checkout@v4
-        with:
-          ref: production
 
       - name: Set image tag variable
         id: vars
@@ -111,14 +111,11 @@ jobs:
           sed -i "s|owner: PLACEHOLDER_OWNER|owner: ${{ env.IMAGE_OWNER }}|" charts/bill-splitter/values.yaml
           sed -i "s|tag: placeholder-tag|tag: ${{ steps.vars.outputs.tag }}|" charts/bill-splitter/values.yaml
 
-      - name: Commit and push changes
+      - name: Commit and push changes to production branch
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add charts/bill-splitter/values.yaml
-          if ! git diff-index --quiet HEAD; then
-            git commit -m "build: deploy ${{ steps.vars.outputs.tag }} [ci skip]"
-            git push origin production
-          else
-            echo "No changes to commit."
-          fi
+          git commit -m "build: deploy ${{ steps.vars.outputs.tag }} [ci skip]"
+          git push --force origin HEAD:production
+
