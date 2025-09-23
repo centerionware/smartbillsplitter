@@ -36,9 +36,37 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [searchMode, setSearchMode] = useState<'description' | 'participant'>('description');
   const [visibleCount, setVisibleCount] = useState(BILLS_PER_PAGE);
   const [copiedParticipantName, setCopiedParticipantName] = useState<string | null>(null);
+  const [archivingBillIds, setArchivingBillIds] = useState<string[]>([]);
 
   // --- Calculations for Summary & Participant View ---
   const activeBills = useMemo(() => bills.filter(b => b.status === 'active'), [bills]);
+
+  // --- Auto-Archive Logic ---
+  useEffect(() => {
+    // Only run this logic when viewing active bills on the main dashboard
+    if (dashboardView !== 'bills' || billStatusFilter !== 'active') return;
+
+    const billsToAutoArchive = activeBills.filter(b =>
+        b.participants.length > 0 && b.participants.every(p => p.paid)
+    );
+
+    if (billsToAutoArchive.length > 0) {
+        const idsToArchive = billsToAutoArchive.map(b => b.id);
+        setArchivingBillIds(idsToArchive);
+
+        const timer = setTimeout(() => {
+            const updatedBills = billsToAutoArchive.map(b => ({ ...b, status: 'archived' as const }));
+            onUpdateMultipleBills(updatedBills);
+        }, 600); // Animation duration + buffer
+
+        return () => clearTimeout(timer);
+    } else {
+        // If no bills are pending archive, ensure the animation state is cleared.
+        if (archivingBillIds.length > 0) {
+            setArchivingBillIds([]);
+        }
+    }
+  }, [activeBills, onUpdateMultipleBills, dashboardView, billStatusFilter]);
 
   const summaryTotals = useMemo(() => {
     const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
@@ -202,15 +230,17 @@ const Dashboard: React.FC<DashboardProps> = ({
     const renderedItems: React.ReactElement[] = [];
 
     billsToShow.forEach((bill, index) => {
+      const isArchiving = archivingBillIds.includes(bill.id);
       renderedItems.push(
-        <SwipeableBillCard
-          key={bill.id}
-          bill={bill}
-          onArchive={() => onArchiveBill(bill.id)}
-          onUnarchive={() => onUnarchiveBill(bill.id)}
-          onDelete={() => onDeleteBill(bill.id)}
-          onClick={() => onSelectBill(bill)}
-        />
+        <div key={bill.id} className={`transition-all duration-500 ease-out ${isArchiving ? 'opacity-0 scale-90 max-h-0' : 'max-h-96'}`}>
+          <SwipeableBillCard
+            bill={bill}
+            onArchive={() => onArchiveBill(bill.id)}
+            onUnarchive={() => onUnarchiveBill(bill.id)}
+            onDelete={() => onDeleteBill(bill.id)}
+            onClick={() => onSelectBill(bill)}
+          />
+        </div>
       );
 
       if ((index + 1) % AD_INTERVAL === 0) {
@@ -218,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       }
     });
     return renderedItems;
-  }, [filteredBills, visibleCount, onArchiveBill, onUnarchiveBill, onDeleteBill, onSelectBill]);
+  }, [filteredBills, visibleCount, onArchiveBill, onUnarchiveBill, onDeleteBill, onSelectBill, archivingBillIds]);
 
   const getEmptyState = () => {
     if (selectedParticipant) {

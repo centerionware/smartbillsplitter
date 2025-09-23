@@ -52,7 +52,8 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>(initialData?.recurrenceRule || {
     frequency: 'monthly', interval: 1, dayOfMonth: new Date().getDate(),
   });
-
+  
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [isContactPickerSupported, setIsContactPickerSupported] = useState(false);
   useEffect(() => { 'contacts' in navigator && 'ContactsManager' in window && setIsContactPickerSupported(true); }, []);
 
@@ -211,7 +212,18 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const handleItemsScanned = (data: { description: string, date?: string, items: { name: string, price: number }[] }) => {
     if (data.description) setDescription(prev => prev || data.description);
     if (data.date) setDate(data.date);
-    const newItems: ReceiptItem[] = data.items.map((item, index) => ({ id: `item-scan-${Date.now()}-${index}`, name: item.name, price: item.price, assignedTo: [] }));
+    
+    // Find 'myself' to auto-assign items
+    const myself = participants.find(p => p.name.trim().toLowerCase() === settings.myDisplayName.trim().toLowerCase());
+    const myselfId = myself ? [myself.id] : [];
+
+    const newItems: ReceiptItem[] = data.items.map((item, index) => ({ 
+      id: `item-scan-${Date.now()}-${index}`, 
+      name: item.name, 
+      price: item.price, 
+      assignedTo: myselfId 
+    }));
+    
     setItems(newItems);
     setSplitMode('item');
   };
@@ -241,6 +253,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+    setValidationError(null); // Clear previous errors
     
     if (isRecurring) {
         const finalParticipants = participants.filter(p => p.name.trim() !== '').map(p => ({
@@ -271,7 +284,31 @@ const CreateBill: React.FC<CreateBillProps> = ({
             onSaveRecurring(recurringBillData);
         }
     } else {
-        const finalParticipants = participants.filter(p => p.name.trim() !== '').map(({ splitValue, ...p }) => p);
+        const activeParticipants = participants.filter(p => p.name.trim() !== '');
+        
+        // --- VALIDATION LOGIC ---
+        if (effectiveTotal > 0 && activeParticipants.length === 0) {
+            setValidationError("Please add at least one participant to the bill.");
+            return;
+        }
+
+        const totalOwedByParticipants = activeParticipants.reduce((sum, p) => sum + p.amountOwed, 0);
+        const discrepancy = effectiveTotal - totalOwedByParticipants;
+
+        if (Math.abs(discrepancy) > 0.01) {
+            let errorMessage = `The participant totals ($${totalOwedByParticipants.toFixed(2)}) do not add up to the bill total ($${effectiveTotal.toFixed(2)}).`;
+            if (splitMode === 'item') {
+                errorMessage += " Please ensure every item is assigned to at least one participant.";
+            } else if (splitMode === 'amount') {
+                errorMessage += ` The amounts entered are off by $${(splitRemainder).toFixed(2)}.`;
+            } else if (splitMode === 'percentage') {
+                errorMessage += ` The percentages add up to ${splitTotal.toFixed(0)}%, not 100%.`;
+            }
+            setValidationError(errorMessage);
+            return;
+        }
+        
+        const finalParticipants = activeParticipants.map(({ splitValue, ...p }) => p);
         const billData: Omit<Bill, 'id' | 'status'> = {
             description, totalAmount: effectiveTotal, date, participants: finalParticipants, items, receiptImage,
         };
@@ -449,6 +486,12 @@ const CreateBill: React.FC<CreateBillProps> = ({
                         </li>
                     ))}
                 </ul>
+            </div>
+          )}
+          
+          {validationError && (
+            <div className="mt-6 p-4 text-sm font-semibold text-red-800 bg-red-100 rounded-lg dark:bg-red-900/40 dark:text-red-300" role="alert">
+                {validationError}
             </div>
           )}
 
