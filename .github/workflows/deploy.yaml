@@ -28,7 +28,6 @@ jobs:
   #         min-versions-to-keep: 0
   #         package-type: container
   #         token: ${{ secrets.GH_PAT }}
-          
   #     - name: Prune old backend image versions
   #       uses: actions/delete-package-versions@v5
   #       with:
@@ -37,7 +36,6 @@ jobs:
   #         package-type: container
   #         min-versions-to-keep: 0
   #         token: ${{ secrets.GH_PAT }}
-  
   build-and-push-images:
     name: Build and Push Docker Images
     if: !contains(github.event.head_commit.message, '[ci skip]')
