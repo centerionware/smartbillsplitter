@@ -51,6 +51,60 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
   const initRef = useRef(false);
 
+  // --- Navigation ---
+  useEffect(() => {
+    const handleNavigation = () => {
+      const hash = window.location.hash || '#/';
+      const [path, queryString] = hash.split('?');
+      const params = new URLSearchParams(queryString || '');
+
+      // Reset states before setting the new view
+      setSelectedBill(null);
+      setBillCreationTemplate(null);
+
+      if (path.startsWith('#/bill/')) {
+        const billId = path.substring(7);
+        const bill = bills.find(b => b.id === billId);
+        if (bill) {
+          setSelectedBill(bill);
+          setCurrentView(View.BillDetails);
+        } else {
+          window.location.hash = '#/';
+        }
+      } else if (path === '#/create') {
+        const fromTemplateId = params.get('fromTemplate');
+        const editTemplateId = params.get('editTemplate');
+        if (fromTemplateId) {
+          const template = recurringBills.find(rb => rb.id === fromTemplateId);
+          setBillCreationTemplate(template || null);
+        } else if (editTemplateId) {
+          const template = recurringBills.find(rb => rb.id === editTemplateId);
+          setBillCreationTemplate(template ? { forEditing: template } : null);
+        } else {
+          setBillCreationTemplate(null);
+        }
+        setCurrentView(View.CreateBill);
+      } else if (path === '#/settings') {
+        setCurrentView(View.Settings);
+      } else if (path === '#/sync') {
+        setCurrentView(View.Sync);
+      } else if (path === '#/disclaimer') {
+        setCurrentView(View.Disclaimer);
+      } else if (path === '#/recurring') {
+        setCurrentView(View.RecurringBills);
+      } else { // Default to Dashboard
+        setCurrentView(View.Dashboard);
+      }
+    };
+
+    if (!billsLoading && !recurringBillsLoading) {
+      handleNavigation();
+    }
+
+    window.addEventListener('hashchange', handleNavigation);
+    return () => window.removeEventListener('hashchange', handleNavigation);
+  }, [bills, recurringBills, billsLoading, recurringBillsLoading]);
+
   useEffect(() => {
     if (subscriptionStatus === 'free') {
       const adsenseScriptId = 'adsense-script';
@@ -152,7 +206,7 @@ const App: React.FC = () => {
     }
 
     if (createdCount > 0) {
-        setNotification(`${createdCount} bill${createdCount > 1 ? 's' : ''} automatically generated.`);
+        setNotification(`${createdCount > 1 ? 's' : ''} automatically generated.`);
     }
   }, [recurringBills, settings, addBill, updateRecurringBill, createBillFromTemplate]);
 
@@ -180,14 +234,11 @@ const App: React.FC = () => {
   };
 
   const handleCreateNewBill = () => {
-    setBillCreationTemplate(null);
-    setCurrentView(View.CreateBill);
-    setSelectedBill(null);
+    window.location.hash = '#/create';
   };
 
   const handleSelectBill = (bill: Bill) => {
-    setSelectedBill(bill);
-    setCurrentView(View.BillDetails);
+    window.location.hash = `#/bill/${bill.id}`;
   };
 
   const handleSaveBill = (bill: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => {
@@ -195,8 +246,7 @@ const App: React.FC = () => {
     if (fromTemplateId) {
         updateRecurringBillDueDate(fromTemplateId);
     }
-    setCurrentView(View.Dashboard);
-    setBillCreationTemplate(null);
+    window.location.hash = '#/';
   };
 
   const handleSaveRecurringBill = async (bill: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => {
@@ -204,8 +254,7 @@ const App: React.FC = () => {
     if(settings.notificationsEnabled) {
       await notificationService.scheduleNotification(newBill, settings.notificationDays);
     }
-    setCurrentView(View.RecurringBills);
-    setBillCreationTemplate(null);
+    window.location.hash = '#/recurring';
   };
 
   const handleUpdateRecurringBill = async (bill: RecurringBill) => {
@@ -215,8 +264,7 @@ const App: React.FC = () => {
     } else {
       await notificationService.cancelNotification(bill.id);
     }
-    setCurrentView(View.RecurringBills);
-    setBillCreationTemplate(null);
+    window.location.hash = '#/recurring';
   }
 
   const handleDeleteRecurringBill = async (billId: string) => {
@@ -229,36 +277,32 @@ const App: React.FC = () => {
     setSelectedBill(bill);
   };
 
-  const handleBackToDashboard = () => {
-    setCurrentView(View.Dashboard);
-    setSelectedBill(null);
-    setBillCreationTemplate(null);
+  const handleBack = () => {
+    window.history.back();
   };
   
   const handleGoToSettings = () => {
-    setCurrentView(View.Settings);
+    window.location.hash = '#/settings';
   };
 
   const handleGoToSync = () => {
-    setCurrentView(View.Sync);
+    window.location.hash = '#/sync';
   };
 
   const handleGoToDisclaimer = () => {
-    setCurrentView(View.Disclaimer);
+    window.location.hash = '#/disclaimer';
   };
 
   const handleGoToRecurringBills = () => {
-    setCurrentView(View.RecurringBills);
+    window.location.hash = '#/recurring';
   };
   
   const handleCreateFromTemplate = (template: RecurringBill) => {
-    setBillCreationTemplate(template);
-    setCurrentView(View.CreateBill);
+    window.location.hash = `#/create?fromTemplate=${template.id}`;
   };
 
   const handleEditTemplate = (template: RecurringBill) => {
-    setBillCreationTemplate({ forEditing: template });
-    setCurrentView(View.CreateBill);
+    window.location.hash = `#/create?editTemplate=${template.id}`;
   };
 
   const renderContent = () => {
@@ -268,7 +312,7 @@ const App: React.FC = () => {
             onSave={handleSaveBill}
             onSaveRecurring={handleSaveRecurringBill}
             onUpdateRecurring={handleUpdateRecurringBill}
-            onCancel={billCreationTemplate ? handleGoToRecurringBills : handleBackToDashboard}
+            onCancel={handleBack}
             requestConfirmation={requestConfirmation}
             settings={settings}
             billTemplate={billCreationTemplate}
@@ -280,7 +324,7 @@ const App: React.FC = () => {
             bills={bills}
             settings={settings}
             onUpdateBill={handleUpdateBill}
-            onBack={handleBackToDashboard}
+            onBack={handleBack}
             subscriptionStatus={subscriptionStatus}
           />
         ) : (
@@ -303,13 +347,13 @@ const App: React.FC = () => {
             onArchive={archiveRecurringBill}
             onUnarchive={unarchiveRecurringBill}
             onDelete={handleDeleteRecurringBill}
-            onBack={handleBackToDashboard}
+            onBack={handleBack}
         />;
       case View.Settings:
         return <SettingsComponent 
           settings={settings} 
           onUpdateSettings={updateSettings} 
-          onBack={handleBackToDashboard}
+          onBack={handleBack}
           onGoToSync={handleGoToSync}
           subscriptionStatus={subscriptionStatus}
           onLogout={logout}
@@ -318,11 +362,11 @@ const App: React.FC = () => {
         />;
       case View.Sync:
         return <SyncComponent
-          onBack={handleGoToSettings}
+          onBack={handleBack}
           requestConfirmation={requestConfirmation}
         />;
       case View.Disclaimer:
-        return <Disclaimer onBack={handleBackToDashboard} />;
+        return <Disclaimer onBack={handleBack} />;
       case View.Dashboard:
       default:
         return (
@@ -389,7 +433,7 @@ const App: React.FC = () => {
       {subscriptionStatus === 'free' && <FloatingAd />}
       <footer className="text-center p-6 text-slate-500 dark:text-slate-400 text-sm">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <svg xmlns="http://www.w.org/2000/svg" className="h-5 w-5 text-slate-400 dark:text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 dark:text-slate-500" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
           </svg>
           <p>
