@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import type { Bill, Participant, ReceiptItem, Settings, RecurringBill, RecurrenceRule } from '../types.ts';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import type { Bill, Participant, ReceiptItem, Settings, RecurringBill, RecurrenceRule, SplitMode } from '../types.ts';
 import type { RequestConfirmationFn } from '../App.tsx';
 import ReceiptScanner from './ReceiptScanner.tsx';
 import ItemEditor from './ItemEditor.tsx';
@@ -12,267 +12,429 @@ interface CreateBillProps {
   onCancel: () => void;
   requestConfirmation: RequestConfirmationFn;
   settings: Settings;
-  billTemplate?: RecurringBill | { forEditing: RecurringBill } | null;
+  billTemplate: RecurringBill | { forEditing: RecurringBill } | null;
 }
 
-interface ScannedData {
-  description: string;
-  date?: string;
-  items: { name: string; price: number }[];
-  total?: number;
-}
-
-type SplitMode = 'even' | 'item' | 'amount' | 'percentage';
-
-const CreateBill: React.FC<CreateBillProps> = ({ onSave, onSaveRecurring, onUpdateRecurring, onCancel, requestConfirmation, settings, billTemplate }) => {
-  const [description, setDescription] = useState('');
-  const [totalAmount, setTotalAmount] = useState<number | ''>('');
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [newParticipantName, setNewParticipantName] = useState('');
-  const [participantError, setParticipantError] = useState('');
-  const [items, setItems] = useState<ReceiptItem[]>([]);
-  const [receiptImage, setReceiptImage] = useState<string | undefined>();
-  const [splitMode, setSplitMode] = useState<SplitMode>('even');
-  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
-  const [contactError, setContactError] = useState('');
-  const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
-  
-  // Recurring Bill State
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>({ frequency: 'monthly', interval: 1, dayOfMonth: new Date().getDate() });
-  
-  const templateForInstance = billTemplate && 'id' in billTemplate ? billTemplate : null;
-  const templateForEditing = billTemplate && 'forEditing' in billTemplate ? billTemplate.forEditing : null;
-  const isEditingTemplate = !!templateForEditing;
-  const isFromTemplate = !!templateForInstance;
-
-  useEffect(() => {
-    const template = templateForInstance || templateForEditing;
-    if (template) {
-        setDescription(template.description);
-        setParticipants(template.participants.map(p => ({...p, amountOwed: 0, paid: false})));
-        setItems(template.items?.map(i => ({...i, price: 0, assignedTo: []})) || []);
+const CreateBill: React.FC<CreateBillProps> = ({
+  onSave,
+  onSaveRecurring,
+  onUpdateRecurring,
+  onCancel,
+  requestConfirmation,
+  settings,
+  billTemplate,
+}) => {
+  const { mode, initialData } = useMemo(() => {
+    if (billTemplate) {
+      if ('forEditing' in billTemplate) return { mode: 'edit-recurring' as const, initialData: billTemplate.forEditing };
+      return { mode: 'create-from-recurring' as const, initialData: billTemplate };
     }
-    if (templateForEditing) {
-        setIsRecurring(true);
-        setRecurrenceRule(templateForEditing.recurrenceRule);
-    }
+    return { mode: 'create' as const, initialData: null };
   }, [billTemplate]);
 
-  const isDirty = useMemo(() => {
-    return description !== '' || totalAmount !== '' || participants.length > 0 || items.length > 0 || receiptImage !== undefined;
-  }, [description, totalAmount, participants, items, receiptImage]);
+  // --- State Initialization ---
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [totalAmount, setTotalAmount] = useState<string>('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [participants, setParticipants] = useState<Participant[]>(
+      initialData?.participants || [{ id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: true, splitValue: 0 }]
+  );
+  const [items, setItems] = useState<ReceiptItem[]>(initialData?.items || []);
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
+  const [splitMode, setSplitMode] = useState<SplitMode>(initialData?.splitMode || 'equally');
 
-  const handleCancel = () => {
-    if (isDirty) {
-      requestConfirmation(
-        'Discard Changes?',
-        'You have unsaved changes. Are you sure you want to discard them?',
-        onCancel,
-        { confirmText: 'Discard', confirmVariant: 'danger' }
-      );
-    } else {
-      onCancel();
+  const [isRecurring, setIsRecurring] = useState(mode === 'edit-recurring' || mode === 'create-from-recurring');
+  const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>(initialData?.recurrenceRule || {
+    frequency: 'monthly', interval: 1, dayOfMonth: new Date().getDate(),
+  });
+
+  const [isContactPickerSupported, setIsContactPickerSupported] = useState(false);
+  useEffect(() => { 'contacts' in navigator && 'ContactsManager' in window && setIsContactPickerSupported(true); }, []);
+
+  const isDirty = useMemo(() => description !== '' || totalAmount !== '' || participants.length > 1 || items.length > 0, [description, totalAmount, participants, items]);
+  
+  useEffect(() => {
+    if (mode === 'create-from-recurring' && initialData) {
+      setDescription(initialData.description);
+      setParticipants(initialData.participants.map(p => ({ ...p, id: `p-${Date.now()}-${Math.random()}` })));
+      setItems(initialData.items.map(i => ({...i, id: `i-${Date.now()}-${Math.random()}`, price: 0})));
+      setSplitMode(initialData.splitMode || (initialData.items.length > 0 ? 'item' : 'equally'));
+      setIsRecurring(false); // We are creating a regular bill, not a template.
     }
+    if (mode === 'edit-recurring') {
+      setIsRecurring(true);
+    }
+  }, [mode, initialData]);
+
+  const itemizedTotal = useMemo(() => items.reduce((sum, item) => sum + item.price, 0), [items]);
+  const hasPricedItems = useMemo(() => items.some(i => i.price > 0), [items]);
+  const effectiveTotal = useMemo(() => hasPricedItems ? itemizedTotal : parseFloat(totalAmount) || 0, [hasPricedItems, itemizedTotal, totalAmount]);
+  
+  useEffect(() => { if (hasPricedItems) setTotalAmount(itemizedTotal.toFixed(2)); }, [itemizedTotal, hasPricedItems]);
+
+  const handleAddParticipant = () => setParticipants(prev => [...prev, { id: `p-${Date.now()}`, name: '', amountOwed: 0, paid: false, splitValue: 0 }]);
+  const handleRemoveParticipant = (id: string) => { if (participants.length > 1) setParticipants(prev => prev.filter(p => p.id !== id)); };
+
+  const isMyselfInList = useMemo(() => 
+    participants.some(p => p.name.trim().toLowerCase() === settings.myDisplayName.trim().toLowerCase()),
+    [participants, settings.myDisplayName]
+  );
+  
+  const handleAddMyself = () => {
+    if (isMyselfInList) return;
+    setParticipants(prev => [...prev, { id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: true, splitValue: 0 }]);
+  };
+
+  const handleParticipantChange = (id: string, field: 'name' | 'splitValue', value: string) => {
+    setParticipants(prev => prev.map(p => {
+        if (p.id === id) {
+            if (field === 'name') return { ...p, name: value };
+            if (field === 'splitValue') return { ...p, splitValue: parseFloat(value) || 0 };
+        }
+        return p;
+    }));
   };
   
-  const addParticipant = (name: string) => {
-    const trimmedName = name.trim();
-     if (trimmedName && !participants.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
-        const newParticipant: Participant = {
-            id: `p-${new Date().getTime()}-${trimmedName}`,
-            name: trimmedName,
-            amountOwed: 0,
-            paid: false,
-        };
-        setParticipants(prev => [...prev, newParticipant]);
-        return true;
-    } else if (trimmedName) {
-        setParticipantError(`'${trimmedName}' has already been added.`);
-        return false;
-    }
-    return false;
-  }
-
-  const handleAddParticipant = () => {
-    if (addParticipant(newParticipantName)) {
-        setNewParticipantName('');
-        setParticipantError('');
-    }
+  const handleToggleAssignment = (itemId: string, participantId: string) => {
+    setItems(currentItems => currentItems.map(item => {
+        if (item.id === itemId) {
+            const assignedTo = item.assignedTo.includes(participantId)
+              ? item.assignedTo.filter(id => id !== participantId)
+              : [...item.assignedTo, participantId];
+            return { ...item, assignedTo };
+        }
+        return item;
+    }));
   };
 
-  const handleAddMyself = () => { addParticipant(settings.myDisplayName || 'Myself'); }
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') { e.preventDefault(); handleAddParticipant(); } };
-
-  const handleSelectContacts = async () => {
-    const isContactApiSupported = 'contacts' in navigator && 'select' in (navigator as any).contacts;
-    if (!isContactApiSupported) return;
-    setContactError('');
+  const handleSelectContact = async (participantId: string) => {
+    if (!isContactPickerSupported) return;
     try {
-      const contacts = await (navigator as any).contacts.select(['name'], { multiple: true });
-      if (contacts.length > 0) {
-        contacts.forEach((c: any) => addParticipant(c.name[0]));
-      }
-    } catch (ex: any) {
-       if (ex.name === 'AbortError') return;
-       setContactError("Could not retrieve contacts. This feature requires a supported browser (like Chrome on Android) and a secure (HTTPS) connection.");
+        // @ts-ignore
+        const contacts = await navigator.contacts.select(['name'], { multiple: true });
+        if (contacts.length === 0) return;
+
+        setParticipants(prev => {
+            let newParticipants = [...prev];
+            const triggeringParticipantIndex = newParticipants.findIndex(p => p.id === participantId);
+            let contactIndex = 0;
+            if (triggeringParticipantIndex !== -1 && newParticipants[triggeringParticipantIndex].name.trim() === '' && contacts[0]?.name?.length > 0) {
+                newParticipants[triggeringParticipantIndex].name = contacts[0].name[0];
+                contactIndex = 1;
+            }
+            const participantsToAdd = contacts.slice(contactIndex).map((c, i) => ({
+                id: `p-${Date.now()}-${i}`, name: c.name[0], amountOwed: 0, paid: false, splitValue: 0
+            }));
+            return [...newParticipants, ...participantsToAdd];
+        });
+    } catch (ex) { console.error("Error selecting contacts:", ex); }
+  };
+  
+  const handleSplitModeChange = (newMode: SplitMode) => {
+    setSplitMode(newMode);
+    setParticipants(prev => prev.map(p => ({ ...p, splitValue: 0 })));
+    if(newMode === 'item' && items.length === 0) {
+        setIsItemEditorOpen(true);
     }
   };
 
-  const removeParticipant = (id: string) => {
-    setParticipants(participants.filter(p => p.id !== id));
-    setCustomSplits(prev => { const next = {...prev}; delete next[id]; return next; });
-    setItems(prevItems => prevItems.map(item => ({...item, assignedTo: item.assignedTo.filter(pId => pId !== id)})));
+  const participantsDeps = useMemo(() => JSON.stringify(
+    participants.map(({ id, name, splitValue }) => ({ id, name, splitValue }))
+  ), [participants]);
+  
+  const itemsDeps = useMemo(() => JSON.stringify(
+      items.map(({ price, assignedTo }) => ({ price, assignedTo }))
+  ), [items]);
+
+  useEffect(() => {
+    const activeParticipants = participants.filter(p => p.name.trim() !== '');
+    if (activeParticipants.length === 0 || isRecurring) return;
+
+    let newAmounts = new Map<string, number>();
+
+    switch(splitMode) {
+      case 'equally':
+        const amountPerPerson = activeParticipants.length > 0 ? effectiveTotal / activeParticipants.length : 0;
+        activeParticipants.forEach(p => newAmounts.set(p.id, amountPerPerson));
+        break;
+      case 'amount':
+        participants.forEach(p => newAmounts.set(p.id, p.splitValue || 0));
+        break;
+      case 'percentage':
+        participants.forEach(p => newAmounts.set(p.id, (effectiveTotal * (p.splitValue || 0)) / 100));
+        break;
+      case 'item':
+        participants.forEach(p => newAmounts.set(p.id, 0));
+        items.forEach(item => {
+            const assignees = item.assignedTo.filter(pid => participants.some(p => p.id === pid && p.name.trim() !== ''));
+            if (assignees.length > 0) {
+                const amountPerAssignee = item.price / assignees.length;
+                assignees.forEach(pid => {
+                    newAmounts.set(pid, (newAmounts.get(pid) || 0) + amountPerAssignee);
+                });
+            }
+        });
+        break;
+    }
+
+    setParticipants(current => current.map(p => ({...p, amountOwed: newAmounts.get(p.id) || 0 })));
+  }, [effectiveTotal, participantsDeps, splitMode, itemsDeps, isRecurring]);
+
+  const handleTotalAmountBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const newTotal = parseFloat(e.target.value);
+    const canDistribute = !isRecurring && newTotal > 0 && items.length > 0 && !hasPricedItems;
+    if (!canDistribute) return;
+
+    const totalInCents = Math.round(newTotal * 100);
+    const numItems = items.length;
+    const basePriceInCents = Math.floor(totalInCents / numItems);
+    let remainderInCents = totalInCents % numItems;
+    const updatedItems = items.map(item => {
+        let finalPriceInCents = basePriceInCents;
+        if (remainderInCents > 0) { finalPriceInCents++; remainderInCents--; }
+        return { ...item, price: finalPriceInCents / 100 };
+    });
+    setItems(updatedItems);
+  };
+
+  const handleItemsScanned = (data: { description: string, date?: string, items: { name: string, price: number }[] }) => {
+    if (data.description) setDescription(prev => prev || data.description);
+    if (data.date) setDate(data.date);
+    const newItems: ReceiptItem[] = data.items.map((item, index) => ({ id: `item-scan-${Date.now()}-${index}`, name: item.name, price: item.price, assignedTo: [] }));
+    setItems(newItems);
+    setSplitMode('item');
   };
   
-  const handleItemsScanned = useCallback((data: ScannedData) => {
-    const newDescription = data.date ? `${data.description} (${data.date})` : data.description;
-    setDescription(newDescription);
-    const newReceiptItems = data.items.map((item, index) => ({...item, id: `item-${new Date().getTime()}-${index}`, assignedTo: []}));
-    setItems(newReceiptItems);
-    const newTotal = data.total ?? newReceiptItems.reduce((sum, item) => sum + item.price, 0);
-    setTotalAmount(Math.round(newTotal * 100) / 100);
-    setSplitMode('item');
-  }, []);
-
   const handleSaveItems = (updatedItems: ReceiptItem[]) => {
     setItems(updatedItems);
-    if (!isRecurring) {
-        const newTotal = updatedItems.reduce((sum: number, item) => sum + item.price, 0);
-        setTotalAmount(Math.round(newTotal * 100) / 100);
-    }
     setIsItemEditorOpen(false);
+    if (!isRecurring && updatedItems.some(i => i.price > 0)) {
+        setSplitMode('item');
+    }
   };
-
-  const toggleItemAssignment = (itemId: string, participantId: string) => { setItems(prevItems => prevItems.map(item => { if (item.id === itemId) { const assigned = item.assignedTo.includes(participantId); return {...item, assignedTo: assigned ? item.assignedTo.filter(pId => pId !== participantId) : [...item.assignedTo, participantId]}; } return item; })); };
-  const handleCustomSplitChange = (participantId: string, value: string) => { if (/^\d*\.?\d*$/.test(value)) { setCustomSplits(prev => ({...prev, [participantId]: value})); } };
   
-  const handleEvenPercentageSplit = () => {
-    const numParticipants = participants.length; if (numParticipants === 0) return; const newSplits: Record<string, string> = {}; const basePercentage = 100 / numParticipants; let accumulatedPercentage = 0;
-    participants.forEach((p, index) => { if (index === numParticipants - 1) { newSplits[p.id] = (100 - accumulatedPercentage).toFixed(2); } else { const roundedPercentage = parseFloat(basePercentage.toFixed(2)); newSplits[p.id] = roundedPercentage.toString(); accumulatedPercentage += roundedPercentage; } });
-    setCustomSplits(newSplits);
-  };
+  const { splitTotal, splitRemainder, isSplitValid } = useMemo(() => {
+    if (isRecurring) return { splitTotal: 0, splitRemainder: 0, isSplitValid: true };
 
-  const { customSplitTotal, isCustomSplitValid } = useMemo(() => {
-    const total = Object.values(customSplits).reduce((sum: number, v) => sum + (parseFloat(v) || 0), 0);
-    if (splitMode === 'amount') return { customSplitTotal: total, isCustomSplitValid: Math.abs(total - (Number(totalAmount) || 0)) < 0.01 };
-    if (splitMode === 'percentage') return { customSplitTotal: total, isCustomSplitValid: Math.abs(total - 100) < 0.01 };
-    return { customSplitTotal: 0, isCustomSplitValid: true };
-  }, [customSplits, splitMode, totalAmount]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isFormValid) return;
-
-    if (isRecurring) {
-        const recurringBillPayload = {
-            description,
-            participants, // amountOwed and paid are irrelevant for template
-            items: items.map(i => ({...i, price: 0, assignedTo: []})),
-            recurrenceRule,
-        };
-        if (isEditingTemplate) {
-            onUpdateRecurring({ ...templateForEditing, ...recurringBillPayload });
-        } else {
-            onSaveRecurring(recurringBillPayload);
-        }
-        return;
+    if (splitMode === 'amount') {
+        const total = participants.reduce((sum, p) => sum + (p.splitValue || 0), 0);
+        const remainder = effectiveTotal - total;
+        return { splitTotal: total, splitRemainder: remainder, isSplitValid: Math.abs(remainder) < 0.01 };
     }
-
-    let finalParticipants = participants.map(p => ({...p, amountOwed: 0}));
-    switch(splitMode) {
-        case 'even': finalParticipants = finalParticipants.map(p => ({...p, amountOwed: (Number(totalAmount) || 0) / participants.length})); break;
-        case 'item': items.forEach(item => { if(item.assignedTo.length > 0) { const pricePerPerson = item.price / item.assignedTo.length; item.assignedTo.forEach(pId => { const p = finalParticipants.find(p => p.id === pId); if (p) p.amountOwed += pricePerPerson; }); } }); break;
-        case 'amount': finalParticipants = finalParticipants.map(p => ({...p, amountOwed: parseFloat(customSplits[p.id]) || 0})); break;
-        case 'percentage': finalParticipants = finalParticipants.map(p => ({...p, amountOwed: ((Number(totalAmount) || 0) * (parseFloat(customSplits[p.id]) || 0)) / 100 })); break;
+    if (splitMode === 'percentage') {
+        const total = participants.reduce((sum, p) => sum + (p.splitValue || 0), 0);
+        return { splitTotal: total, splitRemainder: 0, isSplitValid: Math.abs(total - 100) < 0.01 };
     }
+    return { splitTotal: 0, splitRemainder: 0, isSplitValid: true };
+  }, [splitMode, participants, effectiveTotal, isRecurring]);
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     
-    const processedParticipants = finalParticipants.map(p => ({...p, paid: p.amountOwed <= 0.005}));
-    onSave({ description, totalAmount: Number(totalAmount) || 0, date: new Date().toISOString(), participants: processedParticipants, items: splitMode === 'item' ? items : undefined, receiptImage }, templateForInstance?.id);
-  };
+    if (isRecurring) {
+        const finalParticipants = participants.filter(p => p.name.trim() !== '').map(p => ({
+            id: p.id,
+            name: p.name,
+            amountOwed: 0,
+            paid: false,
+            splitValue: (splitMode === 'amount' || splitMode === 'percentage') ? p.splitValue || 0 : undefined,
+        }));
+        
+        const finalItems = items.map(({ price, ...i }) => ({
+            ...i,
+            price: 0,
+            assignedTo: splitMode === 'item' ? i.assignedTo : [],
+        })).filter(i => i.name.trim() !== '');
 
-  const isFormValid = isRecurring ? description && participants.length > 0 : description && totalAmount && participants.length > 0 && isCustomSplitValid;
+        const recurringBillData = {
+            description,
+            participants: finalParticipants,
+            items: finalItems,
+            recurrenceRule,
+            splitMode,
+        };
+        if (mode === 'edit-recurring' && initialData) {
+            onUpdateRecurring({ ...recurringBillData, id: initialData.id, status: initialData.status, nextDueDate: initialData.nextDueDate });
+        } else {
+            onSaveRecurring(recurringBillData);
+        }
+    } else {
+        const finalParticipants = participants.filter(p => p.name.trim() !== '').map(({ splitValue, ...p }) => p);
+        const billData: Omit<Bill, 'id' | 'status'> = {
+            description, totalAmount: effectiveTotal, date, participants: finalParticipants, items, receiptImage,
+        };
+        onSave(billData, mode === 'create-from-recurring' ? initialData?.id : undefined);
+    }
+  };
+  
+  const handleCancel = () => {
+    if (isDirty) {
+      requestConfirmation('Discard Changes?', 'Are you sure? All entered data will be lost.', onCancel, { confirmText: 'Discard', confirmVariant: 'danger' });
+    } else { onCancel(); }
+  };
+  
+  const saveButtonText = useMemo(() => {
+    if (mode === 'edit-recurring') return 'Save Template';
+    if (isRecurring) return 'Create Template';
+    return 'Save Bill';
+  }, [mode, isRecurring]);
+
+  const splitOptions: { id: SplitMode, label: string }[] = [
+    { id: 'equally', label: 'Equally' }, { id: 'amount', label: 'By Amount' }, { id: 'percentage', label: 'By %' }, { id: 'item', label: 'By Item' }
+  ];
 
   return (
-    <>
-    {isItemEditorOpen && <ItemEditor initialItems={items} onSave={handleSaveItems} onCancel={() => setIsItemEditorOpen(false)} isRecurring={isRecurring}/>}
-    <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
-      <h2 className="text-3xl font-bold mb-6 text-slate-700 dark:text-slate-200">{isEditingTemplate ? 'Edit Recurring Bill' : isRecurring ? 'New Recurring Bill' : 'Create New Bill'}</h2>
-      
-      {!isFromTemplate && !isEditingTemplate && (
-          <div className="mb-6 flex items-center justify-center gap-4 bg-slate-100 dark:bg-slate-700 p-3 rounded-lg">
-              <span className={`font-semibold ${!isRecurring ? 'text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}>One-Time Bill</span>
-              <button type="button" onClick={() => setIsRecurring(!isRecurring)} className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${isRecurring ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`} role="switch" aria-checked={isRecurring}>
-                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isRecurring ? 'translate-x-5' : 'translate-x-0'}`}></span>
-              </button>
-              <span className={`font-semibold ${isRecurring ? 'text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}>Recurring Bill</span>
+    <div className="max-w-2xl mx-auto">
+      <button onClick={handleCancel} className="flex items-center gap-2 mb-6 text-teal-600 dark:text-teal-400 font-semibold hover:text-teal-800 dark:hover:text-teal-300">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+        Back
+      </button>
+
+      {isItemEditorOpen && <ItemEditor initialItems={items} participants={participants} onSave={handleSaveItems} onCancel={() => setIsItemEditorOpen(false)} isRecurring={isRecurring} />}
+
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
+        <h2 className="text-3xl font-bold text-slate-700 dark:text-slate-200 mb-6">{mode === 'edit-recurring' ? 'Edit Recurring Bill' : (mode === 'create-from-recurring' ? 'Create Bill from Template' : 'Create New Bill')}</h2>
+
+        {!isRecurring && <ReceiptScanner onItemsScanned={handleItemsScanned} onImageSelected={setReceiptImage} onImageCleared={() => setReceiptImage(null)} />}
+
+        <div className="space-y-6">
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Description</label>
+            <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="e.g., Monthly Rent" />
           </div>
-      )}
 
-      <form onSubmit={handleSubmit}>
-        <div className="mb-6">
-          <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{isRecurring ? 'Template Name' : 'Description'}</label>
-          <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder={isRecurring ? "e.g., Monthly Rent" : "e.g., Dinner with friends"} required />
-        </div>
-
-        {!isRecurring && <ReceiptScanner onItemsScanned={handleItemsScanned} onImageSelected={setReceiptImage} onImageCleared={() => setReceiptImage(undefined)} />}
-
-        {!isRecurring && (
-            <div className="mb-6">
+          {!isRecurring && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
                 <label htmlFor="totalAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Total Amount</label>
-                <input id="totalAmount" type="number" value={totalAmount} onChange={(e) => setTotalAmount(parseFloat(e.target.value) || '')} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="0.00" required disabled={items.length > 0 && splitMode === 'item'} />
-                { (splitMode === 'amount' || splitMode === 'percentage') && !totalAmount && <p className="text-sm text-amber-600 mt-1">Please enter a total amount before splitting.</p> }
+                <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
+                  <input id="totalAmount" type="number" step="0.01" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} onBlur={handleTotalAmountBlur} disabled={hasPricedItems} required={!isRecurring} className="w-full pl-7 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 disabled:bg-slate-100 dark:disabled:bg-slate-700/50" placeholder="0.00" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="date" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label>
+                <input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
+              </div>
             </div>
-        )}
-        
-        {isRecurring && <RecurrenceSelector value={recurrenceRule} onChange={setRecurrenceRule} />}
-
-        <div className="mb-6">
-          <button type="button" onClick={() => setIsItemEditorOpen(true)} className="w-full text-center bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
-            <span>{items.length > 0 ? `Edit Items (${items.length})` : isRecurring ? 'Add Default Items' : 'Add/Edit Itemization'}</span>
+          )}
+          
+          <button type="button" onClick={() => setIsItemEditorOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM5 11a1 1 0 100 2h8a1 1 0 100-2H5z" /></svg>
+              <span>{items.length > 0 ? `Edit ${items.length} Item${items.length > 1 ? 's' : ''}` : (isRecurring ? 'Add Default Items' : 'Itemize Bill')}</span>
           </button>
-           {isRecurring && <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-2">Item names will be saved as defaults. Prices can be added for each new bill.</p>}
-        </div>
 
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Participants</h3>
-          <div className="flex flex-col sm:flex-row gap-2">
-             <button type="button" onClick={handleAddMyself} className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-semibold px-4 py-3 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+          <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
+          
+          {mode !== 'create-from-recurring' && mode !== 'edit-recurring' &&
+             <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <div><h3 className="font-semibold text-slate-700 dark:text-slate-200">Create a Recurring Bill?</h3><p className="text-sm text-slate-500 dark:text-slate-400">Save this as a template for future use.</p></div>
+                <button type="button" onClick={() => setIsRecurring(prev => !prev)} className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${isRecurring ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`}><span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${isRecurring ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+            </div>
+          }
+
+          {isRecurring && <RecurrenceSelector value={recurrenceRule} onChange={setRecurrenceRule} />}
+          
+          <div>
+            <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Participants</h3>
+            
+            <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">{isRecurring ? 'Default Split Method' : 'Split Method'}</label>
+                <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg">
+                    {splitOptions.map(opt => (
+                        <button type="button" key={opt.id} onClick={() => handleSplitModeChange(opt.id)} disabled={opt.id === 'item' && items.length === 0}
+                            className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-colors capitalize disabled:opacity-50 disabled:cursor-not-allowed ${splitMode === opt.id ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-800/50'}`}>
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            
+            <ul className="space-y-3">
+              {participants.map((p) => (
+                <li key={p.id} className="flex items-center gap-2">
+                  <div className="flex-grow relative">
+                    <label htmlFor={`p-name-${p.id}`} className="sr-only">Participant Name</label>
+                    <input id={`p-name-${p.id}`} type="text" value={p.name} onChange={(e) => handleParticipantChange(p.id, 'name', e.target.value)} required className={`w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 ${isContactPickerSupported ? 'pr-10' : ''}`} placeholder="Participant Name" />
+                    {isContactPickerSupported && <button type="button" onClick={() => handleSelectContact(p.id)} className="absolute right-0 top-0 h-full px-3 flex items-center text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-400" aria-label="Select from contacts" title="Select from contacts"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2-2H6a2 2 0 01-2-2V4zm2 2a1 1 0 00-1 1v2a1 1 0 001 1h8a1 1 0 001-1V7a1 1 0 00-1-1H6zm1 6a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg></button>}
+                  </div>
+                   {(splitMode === 'amount' || splitMode === 'percentage') && (
+                       <div className="w-28 relative">
+                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">{splitMode === 'amount' ? '$' : '%'}</span>
+                         <input type="number" step="0.01" value={p.splitValue || ''} onChange={e => handleParticipantChange(p.id, 'splitValue', e.target.value)} className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" placeholder="0.00" />
+                       </div>
+                   )}
+                   {!isRecurring && splitMode !== 'item' && (
+                        <div className="w-28 text-right text-lg font-semibold text-slate-800 dark:text-slate-100">
+                           ${p.amountOwed.toFixed(2)}
+                        </div>
+                   )}
+                  <button type="button" onClick={() => handleRemoveParticipant(p.id)} disabled={participants.length <= 1} className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 disabled:text-slate-400 disabled:cursor-not-allowed bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" /></svg></button>
+                </li>
+              ))}
+            </ul>
+
+            {!isRecurring && (splitMode === 'amount' || splitMode === 'percentage') && (
+                <div className={`mt-3 p-3 rounded-md text-sm text-center font-medium ${isSplitValid ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-red-50 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
+                    {splitMode === 'amount' && `Total Assigned: $${splitTotal.toFixed(2)}. Remainder: $${splitRemainder.toFixed(2)}`}
+                    {splitMode === 'percentage' && `Total Assigned: ${splitTotal.toFixed(2)}%`}
+                </div>
+            )}
+            
+            <div className="mt-4 flex flex-col sm:flex-row gap-4">
+              <button type="button" onClick={handleAddMyself} disabled={isMyselfInList} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                <span>Add {settings.myDisplayName || 'Myself'}</span>
+                <span>Add Myself</span>
               </button>
-            <button type="button" onClick={handleSelectContacts} className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 font-semibold px-4 py-3 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1v-1z" /></svg>
-                <span>Add from Contacts</span>
-            </button>
+              <button type="button" onClick={handleAddParticipant} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                <span>Add Participant</span>
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2 my-4">
-              <input type="text" value={newParticipantName} onChange={(e) => { setNewParticipantName(e.target.value); if (participantError) setParticipantError(''); }} onKeyDown={handleKeyDown} className="flex-grow px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="Or enter name manually" aria-label="New participant name" />
-              <button type="button" onClick={handleAddParticipant} className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled={!newParticipantName.trim()}>Add</button>
-          </div>
-          {participantError && <p className="text-sm text-red-600 mt-1 mb-2">{participantError}</p>}
-          {contactError && <p className="text-sm text-red-600 dark:text-red-400 mt-2 text-center">{contactError}</p>}
-          <ul className="space-y-2 mt-4">{participants.map(p => (<li key={p.id} className="flex items-center justify-between bg-slate-100 dark:bg-slate-700 p-2 rounded-md"><span className="text-slate-800 dark:text-slate-100">{p.name}</span><button type="button" onClick={() => removeParticipant(p.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-bold text-xl leading-none px-2 py-1">&times;</button></li>))}</ul>
-        </div>
-        
-        {!isRecurring && participants.length > 0 && Number(totalAmount) > 0 && (
-          <>
-            <div className="mb-6"><h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Split Method</h3><div className="flex flex-wrap gap-2"><button type="button" onClick={() => setSplitMode('even')} className={`px-4 py-2 rounded-lg font-semibold ${splitMode === 'even' ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200'}`}>Split Evenly</button><button type="button" onClick={() => setSplitMode('item')} className={`px-4 py-2 rounded-lg font-semibold ${splitMode === 'item' ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200'}`} disabled={!items.length}>By Item</button><button type="button" onClick={() => setSplitMode('amount')} className={`px-4 py-2 rounded-lg font-semibold ${splitMode === 'amount' ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200'}`} disabled={!totalAmount}>By Amount</button><button type="button" onClick={() => setSplitMode('percentage')} className={`px-4 py-2 rounded-lg font-semibold ${splitMode === 'percentage' ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200'}`} disabled={!totalAmount}>By %</button></div></div>
-            {splitMode === 'amount' && (<div className="mb-6"><h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Enter Amounts</h3><ul className="space-y-2">{participants.map(p => (<li key={p.id} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-md"><label htmlFor={`split-${p.id}`} className="flex-1 text-slate-800 dark:text-slate-200">{p.name}</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span><input id={`split-${p.id}`} type="text" inputMode="decimal" value={customSplits[p.id] || ''} onChange={(e) => handleCustomSplitChange(p.id, e.target.value)} className="w-32 py-1 rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-teal-500 focus:border-teal-500 pl-6 pr-2" placeholder="0.00"/></div></li>))}{!isCustomSplitValid && <p className="text-sm text-red-600 mt-2 text-right">Total must equal ${totalAmount}. Currently: ${customSplitTotal.toFixed(2)}</p>}</ul></div>)}
-            {splitMode === 'item' && items.length > 0 && (<div className="mb-6"><h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Assign Items</h3><ul className="space-y-4">{items.map(item => (<li key={item.id} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-md"><div className="flex justify-between items-center mb-2"><span className="font-medium text-slate-800 dark:text-slate-200">{item.name}</span><span className="font-semibold text-slate-600 dark:text-slate-300">${item.price.toFixed(2)}</span></div><div className="flex flex-wrap gap-2">{participants.map(p => (<button type="button" key={p.id} onClick={() => toggleItemAssignment(item.id, p.id)} className={`px-3 py-1 text-sm rounded-full ${item.assignedTo.includes(p.id) ? 'bg-teal-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200'}`}>{p.name}</button>))}</div></li>))}</ul></div>)}
-            {splitMode === 'percentage' && (<div className="mb-6"><h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Enter Percentages</h3><div className="flex justify-end mb-2"><button type="button" onClick={handleEvenPercentageSplit} className="text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline">Distribute evenly</button></div><ul className="space-y-2">{participants.map(p => (<li key={p.id} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-md"><label htmlFor={`split-${p.id}`} className="flex-1 text-slate-800 dark:text-slate-200">{p.name}</label><div className="relative"><input id={`split-${p.id}`} type="text" inputMode="decimal" value={customSplits[p.id] || ''} onChange={(e) => handleCustomSplitChange(p.id, e.target.value)} className="w-32 py-1 rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-teal-500 focus:border-teal-500 pr-6 pl-2 text-right" placeholder="0.00"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">%</span></div></li>))}{!isCustomSplitValid && <p className="text-sm text-red-600 mt-2 text-right">Percentages must add up to 100%. Currently: {customSplitTotal.toFixed(2)}%</p>}</ul></div>)}
-          </>
-        )}
-        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-4">
+          
+          {splitMode === 'item' && items.length > 0 && (
+            <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+                <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Assign Items</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                    {isRecurring
+                      ? 'Set default assignments for this template. The cost will be split evenly when a bill is created.'
+                      : 'Assign each item to participants. The cost will be split evenly among those selected for that item.'
+                    }
+                </p>
+                <ul className="space-y-4">
+                    {items.map(item => (
+                        <li key={item.id} className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                            <div className="flex justify-between items-center">
+                                <span className="font-semibold text-slate-800 dark:text-slate-100">{item.name || 'Unnamed Item'}</span>
+                                {!isRecurring && <span className="font-bold text-slate-900 dark:text-slate-50">${item.price.toFixed(2)}</span>}
+                            </div>
+                            <div className="mt-3">
+                                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Assigned to:</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {participants.filter(p => p.name.trim() !== '').map(p => (
+                                        <button type="button" key={p.id} onClick={() => handleToggleAssignment(item.id, p.id)}
+                                            className={`flex items-center justify-center h-9 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-all ring-2 ring-offset-2 dark:ring-offset-slate-800 ${item.assignedTo.includes(p.id) ? 'bg-teal-500 text-white ring-teal-500' : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 ring-transparent'}`}
+                                            title={p.name}
+                                        >
+                                            {p.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+          )}
+
+          <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-4">
             <button type="button" onClick={handleCancel} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Cancel</button>
-            <button type="submit" disabled={!isFormValid} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed">
-                {isEditingTemplate ? 'Update Template' : isRecurring ? 'Save Template' : 'Create Bill'}
-            </button>
+            <button type="submit" className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">{saveButtonText}</button>
+          </div>
         </div>
       </form>
     </div>
-    </>
   );
 };
 

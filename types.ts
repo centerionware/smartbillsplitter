@@ -1,8 +1,11 @@
+export type SplitMode = 'equally' | 'amount' | 'percentage' | 'item';
+
 export interface Participant {
   id: string;
   name: string;
   amountOwed: number;
   paid: boolean;
+  splitValue?: number; // For storing default amounts/percentages in templates
 }
 
 export interface ReceiptItem {
@@ -33,11 +36,12 @@ export interface RecurrenceRule {
 export interface RecurringBill {
   id: string;
   description: string;
-  participants: Participant[]; // Template participants. amountOwed will be 0, paid will be false.
-  items?: ReceiptItem[]; // Template items. price will be 0, assignedTo will be empty array.
+  participants: Participant[]; // Template participants. amountOwed will be 0, paid will be false. Can contain splitValue.
+  items?: ReceiptItem[]; // Template items. price will be 0. Can contain assignedTo.
   status: 'active' | 'archived';
   recurrenceRule: RecurrenceRule;
   nextDueDate: string; // ISO string, calculated for sorting
+  splitMode: SplitMode;
 }
 
 export interface PaymentDetails {
