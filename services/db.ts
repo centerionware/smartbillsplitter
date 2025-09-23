@@ -1,12 +1,13 @@
-import type { Bill, Settings, Theme } from '../types.ts';
+import type { Bill, Settings, Theme, RecurringBill } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented version for new store
 
 // Object Store Names
 const STORES = {
   BILLS: 'bills',
+  RECURRING_BILLS: 'recurring_bills',
   SETTINGS: 'settings',
   THEME: 'theme',
   SUBSCRIPTION: 'subscription',
@@ -42,6 +43,9 @@ export function initDB(): Promise<void> {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
       if (!dbInstance.objectStoreNames.contains(STORES.BILLS)) {
         dbInstance.createObjectStore(STORES.BILLS, { keyPath: 'id' });
+      }
+      if (!dbInstance.objectStoreNames.contains(STORES.RECURRING_BILLS)) {
+        dbInstance.createObjectStore(STORES.RECURRING_BILLS, { keyPath: 'id' });
       }
       if (!dbInstance.objectStoreNames.contains(STORES.SETTINGS)) {
         dbInstance.createObjectStore(STORES.SETTINGS);
@@ -106,6 +110,12 @@ export const getBills = () => getAll<Bill>(STORES.BILLS);
 export const addBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const updateBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const deleteBillDB = (billId: string) => del(STORES.BILLS, billId);
+
+// --- Recurring Bills ---
+export const getRecurringBills = () => getAll<RecurringBill>(STORES.RECURRING_BILLS);
+export const addRecurringBill = (bill: RecurringBill) => set(STORES.RECURRING_BILLS, bill);
+export const updateRecurringBill = (bill: RecurringBill) => set(STORES.RECURRING_BILLS, bill);
+export const deleteRecurringBillDB = (billId: string) => del(STORES.RECURRING_BILLS, billId);
 
 // --- Settings ---
 export const getSettings = () => get<Settings>(STORES.SETTINGS, SINGLE_KEY);
@@ -173,7 +183,7 @@ export const saveSubscriptionStatus = (status: SubscriptionStatus) => {
 export async function exportData(): Promise<object> {
     const data: { [key: string]: any } = {};
     for (const storeName of Object.values(STORES)) {
-        if (storeName === STORES.BILLS) {
+        if ([STORES.BILLS, STORES.RECURRING_BILLS].includes(storeName)) {
              data[storeName] = await getAll(storeName);
         } else {
              data[storeName] = await get(storeName, SINGLE_KEY);

@@ -5,10 +5,10 @@ interface ItemEditorProps {
   initialItems: ReceiptItem[];
   onSave: (items: ReceiptItem[]) => void;
   onCancel: () => void;
+  isRecurring?: boolean;
 }
 
-const ItemEditor: React.FC<ItemEditorProps> = ({ initialItems, onSave, onCancel }) => {
-  // Create a deep copy of the items to edit locally without affecting the parent state until save.
+const ItemEditor: React.FC<ItemEditorProps> = ({ initialItems, onSave, onCancel, isRecurring }) => {
   const [items, setItems] = useState<ReceiptItem[]>(() => JSON.parse(JSON.stringify(initialItems)));
 
   const handleItemChange = (id: string, field: 'name' | 'price', value: string) => {
@@ -19,7 +19,6 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ initialItems, onSave, onCancel 
           if (field === 'name') {
             newItem.name = value;
           } else if (field === 'price') {
-            // Allow empty string for easy clearing, default to 0 for parsing
             newItem.price = value === '' ? 0 : parseFloat(value) || 0;
           }
           return newItem;
@@ -34,7 +33,7 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ initialItems, onSave, onCancel 
       id: `item-manual-${new Date().getTime()}`,
       name: '',
       price: 0,
-      assignedTo: [], // New items start unassigned
+      assignedTo: [],
     };
     setItems(currentItems => [...currentItems, newItem]);
   };
@@ -44,8 +43,11 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ initialItems, onSave, onCancel 
   };
 
   const handleSave = () => {
-    // Filter out any completely empty items before saving
-    const finalItems = items.filter(item => item.name.trim() !== '' || item.price > 0);
+    // For recurring bills, we save items even if they only have a name.
+    // For regular bills, filter out items with no name and no price.
+    const finalItems = isRecurring
+      ? items.filter(item => item.name.trim() !== '')
+      : items.filter(item => item.name.trim() !== '' || item.price > 0);
     onSave(finalItems);
   };
 
@@ -63,7 +65,7 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ initialItems, onSave, onCancel 
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 id="item-editor-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">
-            Edit Itemization
+            {isRecurring ? 'Edit Default Items' : 'Edit Itemization'}
           </h2>
         </div>
 
@@ -85,24 +87,26 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ initialItems, onSave, onCancel 
                       className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100"
                     />
                   </div>
-                  <div className="w-28">
-                     <label htmlFor={`item-price-${item.id}`} className="sr-only">Price</label>
-                     <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
-                        <input
-                          id={`item-price-${item.id}`}
-                          type="number"
-                          step="0.01"
-                          value={item.price}
-                          onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
-                          placeholder="0.00"
-                          className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-md focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100"
-                        />
-                     </div>
-                  </div>
+                  {!isRecurring && (
+                    <div className="w-28">
+                      <label htmlFor={`item-price-${item.id}`} className="sr-only">Price</label>
+                      <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
+                          <input
+                            id={`item-price-${item.id}`}
+                            type="number"
+                            step="0.01"
+                            value={item.price}
+                            onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
+                            placeholder="0.00"
+                            className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-md focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+                          />
+                      </div>
+                    </div>
+                  )}
                   <button
                     onClick={() => handleDeleteItem(item.id)}
-                    className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full"
+                    className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full flex-shrink-0"
                     aria-label={`Delete item ${item.name}`}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -128,8 +132,12 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ initialItems, onSave, onCancel 
 
         <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
           <div>
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">New Total:</span>
-            <span className="ml-2 text-lg font-bold text-slate-800 dark:text-slate-100">${currentTotal.toFixed(2)}</span>
+            {!isRecurring && (
+              <>
+                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">New Total:</span>
+                <span className="ml-2 text-lg font-bold text-slate-800 dark:text-slate-100">${currentTotal.toFixed(2)}</span>
+              </>
+            )}
           </div>
           <div className="flex space-x-4">
             <button
