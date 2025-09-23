@@ -57,6 +57,8 @@ export interface Settings {
     paymentDetails: PaymentDetails;
     myDisplayName: string;
     shareTemplate: string;
+    notificationsEnabled: boolean;
+    notificationDays: number; // Days before due date to notify
 }
 
 export type Theme = 'light' | 'dark' | 'system';

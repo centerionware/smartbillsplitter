@@ -123,6 +123,7 @@ export const useRecurringBills = () => {
         sortAndSet(updated);
         return updated;
     });
+    return newBill;
   }, []);
 
   const updateRecurringBill = useCallback(async (updatedBill: RecurringBill) => {

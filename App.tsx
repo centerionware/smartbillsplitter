@@ -6,6 +6,7 @@ import { useSettings } from './hooks/useSettings.ts';
 import { useTheme } from './hooks/useTheme.ts';
 import { useAuth } from './hooks/useAuth.ts';
 import { useRecurringBills, calculateNextDueDate } from './hooks/useRecurringBills.ts';
+import * as notificationService from './services/notificationService.ts';
 import Header from './components/Header.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import CreateBill from './components/CreateBill.tsx';
@@ -127,6 +128,7 @@ const App: React.FC = () => {
         let currentDueDate = new Date(template.nextDueDate);
         let nextDueDateStr = template.nextDueDate;
         let updated = false;
+        let finalNextDueDateStr = nextDueDateStr;
 
         while (currentDueDate <= now) {
             const newBillData = createBillFromTemplate(template, settings.myDisplayName);
@@ -135,12 +137,17 @@ const App: React.FC = () => {
             createdCount++;
 
             nextDueDateStr = calculateNextDueDate(template.recurrenceRule, nextDueDateStr);
+            finalNextDueDateStr = nextDueDateStr;
             currentDueDate = new Date(nextDueDateStr);
             updated = true;
         }
 
         if (updated) {
-            await updateRecurringBill({ ...template, nextDueDate: nextDueDateStr });
+            const updatedTemplate = { ...template, nextDueDate: finalNextDueDateStr };
+            await updateRecurringBill(updatedTemplate);
+            if(settings.notificationsEnabled) {
+              await notificationService.scheduleNotification(updatedTemplate, settings.notificationDays);
+            }
         }
     }
 
@@ -192,16 +199,29 @@ const App: React.FC = () => {
     setBillCreationTemplate(null);
   };
 
-  const handleSaveRecurringBill = (bill: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => {
-    addRecurringBill(bill);
+  const handleSaveRecurringBill = async (bill: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => {
+    const newBill = await addRecurringBill(bill);
+    if(settings.notificationsEnabled) {
+      await notificationService.scheduleNotification(newBill, settings.notificationDays);
+    }
     setCurrentView(View.RecurringBills);
     setBillCreationTemplate(null);
   };
 
-  const handleUpdateRecurringBill = (bill: RecurringBill) => {
-    updateRecurringBill(bill);
+  const handleUpdateRecurringBill = async (bill: RecurringBill) => {
+    await updateRecurringBill(bill);
+    if(settings.notificationsEnabled) {
+      await notificationService.scheduleNotification(bill, settings.notificationDays);
+    } else {
+      await notificationService.cancelNotification(bill.id);
+    }
     setCurrentView(View.RecurringBills);
     setBillCreationTemplate(null);
+  }
+
+  const handleDeleteRecurringBill = async (billId: string) => {
+    await deleteRecurringBill(billId);
+    await notificationService.cancelNotification(billId);
   }
 
   const handleUpdateBill = (bill: Bill) => {
@@ -282,7 +302,7 @@ const App: React.FC = () => {
             onEditTemplate={handleEditTemplate}
             onArchive={archiveRecurringBill}
             onUnarchive={unarchiveRecurringBill}
-            onDelete={deleteRecurringBill}
+            onDelete={handleDeleteRecurringBill}
             onBack={handleBackToDashboard}
         />;
       case View.Settings:
@@ -294,6 +314,7 @@ const App: React.FC = () => {
           subscriptionStatus={subscriptionStatus}
           onLogout={logout}
           requestConfirmation={requestConfirmation}
+          recurringBills={recurringBills}
         />;
       case View.Sync:
         return <SyncComponent
@@ -368,7 +389,7 @@ const App: React.FC = () => {
       {subscriptionStatus === 'free' && <FloatingAd />}
       <footer className="text-center p-6 text-slate-500 dark:text-slate-400 text-sm">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 dark:text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w.org/2000/svg" className="h-5 w-5 text-slate-400 dark:text-slate-500" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
           </svg>
           <p>
