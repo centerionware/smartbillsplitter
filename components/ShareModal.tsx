@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Bill, Settings, SharedBillPayload } from '../types.ts';
+import type { Bill, Settings } from '../types.ts';
 import { useKeys } from '../hooks/useKeys.ts';
 import * as cryptoService from '../services/cryptoService.ts';
+import { generateShareLink } from '../services/shareService.ts';
 
 interface ShareModalProps {
   bill: Bill;
@@ -18,6 +19,7 @@ const RENEWAL_THRESHOLD = 60 * 60 * 1000; // 1 hour
 const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpdateBill }) => {
   const [status, setStatus] = useState<Status>('generating');
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { keyPair, isLoading: keysLoading } = useKeys();
 
@@ -30,51 +32,26 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
 
     setStatus('generating');
     setError(null);
+    setQrCodeDataUrl(null);
 
     try {
-      const encryptionKey = await cryptoService.generateEncryptionKey();
+      const url = await generateShareLink(bill, settings, keyPair);
       
-      const { shareInfo, ...billToSign } = bill;
-      const signature = await cryptoService.sign(JSON.stringify(billToSign), keyPair.privateKey);
+      // The URL contains the key, but we need to extract the shareId to update the bill object.
+      const urlParams = new URLSearchParams(new URL(url).hash.split('?')[1]);
+      const shareId = urlParams.get('shareId');
+      const keyString = urlParams.get('key');
       
-      const publicKeyJwk = await cryptoService.exportKey(keyPair.publicKey);
+      if (!shareId || !keyString) throw new Error("Could not parse generated share URL.");
 
-      const payload: SharedBillPayload = {
-        bill: billToSign as Bill,
-        creatorName: settings.myDisplayName,
-        publicKey: publicKeyJwk,
-        signature,
-      };
-
-      const encryptedData = await cryptoService.encrypt(JSON.stringify(payload), encryptionKey);
-
-      const response = await fetch('/share', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ encryptedData }),
-      });
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to create a share link on the server.");
-      }
-      
-      const { shareId } = result;
-      const exportedEncryptionKey = await cryptoService.exportKey(encryptionKey);
-      
       const newShareInfo = {
           shareId,
-          encryptionKey: exportedEncryptionKey,
+          encryptionKey: JSON.parse(atob(keyString)),
           expiresAt: Date.now() + EXPIRATION_WINDOW,
       };
 
       onUpdateBill({ ...bill, shareInfo: newShareInfo });
-
-      const keyString = btoa(JSON.stringify(exportedEncryptionKey));
-      const url = new URL(window.location.href);
-      url.hash = `#/view-bill?shareId=${shareId}&key=${keyString}`;
-
-      setShareUrl(url.toString());
+      setShareUrl(url);
       setStatus('ready');
 
     } catch (err: any) {
@@ -82,7 +59,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
       setError(err.message || "An unknown error occurred while creating the share link.");
       setStatus('error');
     }
-  }, [bill, settings.myDisplayName, keyPair, onUpdateBill]);
+  }, [bill, settings, keyPair, onUpdateBill]);
 
   const processShareRequest = useCallback(async () => {
     if (keysLoading) return;
@@ -107,6 +84,23 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
     processShareRequest();
   }, [processShareRequest]);
   
+  useEffect(() => {
+    if (status === 'ready' && shareUrl) {
+        (window as any).QRCode.toDataURL(shareUrl, {
+            width: 256,
+            margin: 1,
+            errorCorrectionLevel: 'H'
+        }, (err: any, url: string) => {
+            if (err) {
+                console.error("QR Code generation failed:", err);
+                setError("Failed to generate QR code display.");
+            } else {
+                setQrCodeDataUrl(url);
+            }
+        });
+    }
+  }, [status, shareUrl]);
+
   const handleCopy = () => {
     if (shareUrl) {
       navigator.clipboard.writeText(shareUrl).then(() => {
@@ -141,7 +135,11 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
             <h3 id="share-dialog-title" className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">Share this Bill</h3>
             <p className="text-slate-500 dark:text-slate-400 mb-6">Anyone with this link can view and import this bill. The link will expire in 24 hours.</p>
             <div className="my-6 p-4 bg-white rounded-lg inline-block shadow-md">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(shareUrl)}&qzone=1`} alt="QR Code for sharing bill" width="256" height="256"/>
+                {qrCodeDataUrl ? (
+                    <img src={qrCodeDataUrl} alt="QR Code for sharing bill" width="256" height="256"/>
+                ) : (
+                    <div className="w-[256px] h-[256px] bg-slate-200 dark:bg-slate-600 animate-pulse rounded-lg"></div>
+                )}
             </div>
             <div className="flex items-center gap-2 mt-4">
               <input type="text" readOnly value={shareUrl} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 dark:bg-slate-700 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm"/>

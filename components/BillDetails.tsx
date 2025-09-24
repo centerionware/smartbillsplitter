@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { Bill, Settings, SharedBillPayload, Participant } from './types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import ShareModal from './ShareModal.tsx';
 import ShareActionSheet from './ShareActionSheet.tsx';
 import { useKeys } from '../hooks/useKeys.ts';
 import * as cryptoService from '../services/cryptoService.ts';
-import { generateShareText } from '../services/shareService.ts';
+import { generateShareText, generateShareLink } from '../services/shareService.ts';
 
 interface BillDetailsProps {
   bill: Bill;
@@ -106,6 +106,38 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
     setShareMenuParticipant(null);
   };
 
+  const handleShareLink = useCallback(async (participant: Participant, method: 'sms' | 'email' | 'generic') => {
+    if (!keyPair) {
+      alert("Cryptographic keys not loaded. Cannot generate share link.");
+      return;
+    }
+
+    const shareUrl = await generateShareLink(bill, settings, keyPair);
+    const message = `Here is a link to view our bill for "${bill.description}". This link will expire in 24 hours:\n\n${shareUrl}`;
+
+    try {
+        if (method === 'sms') {
+            if (participant.phone) window.location.href = `sms:${participant.phone}?&body=${encodeURIComponent(message)}`;
+        } else if (method === 'email') {
+            if (participant.email) window.location.href = `mailto:${participant.email}?subject=${encodeURIComponent(`Bill: ${bill.description}`)}&body=${encodeURIComponent(message)}`;
+        } else {
+            if (navigator.share) {
+                await navigator.share({ title: `Bill: ${bill.description}`, text: message });
+            } else {
+                await navigator.clipboard.writeText(message);
+                alert('Share link copied to clipboard!');
+            }
+        }
+    } catch (err: any) {
+        if (err.name !== 'AbortError') {
+            console.error("Error sharing link:", err);
+            alert("An error occurred while trying to share the link.");
+        }
+    } finally {
+        setShareMenuParticipant(null);
+    }
+  }, [keyPair, bill, settings]);
+
   return (
     <>
       <div className="max-w-3xl mx-auto">
@@ -198,6 +230,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
             onShareSms={handleShareSms}
             onShareEmail={handleShareEmail}
             onShareGeneric={handleShareGeneric}
+            onShareLinkSms={() => handleShareLink(shareMenuParticipant, 'sms')}
+            onShareLinkEmail={() => handleShareLink(shareMenuParticipant, 'email')}
+            onShareLinkGeneric={() => handleShareLink(shareMenuParticipant, 'generic')}
+            shareContext="bill"
         />
       )}
 

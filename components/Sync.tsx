@@ -49,6 +49,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
     const [receiveStatus, setReceiveStatus] = useState<ReceiveStatus>('scanning');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [syncPayload, setSyncPayload] = useState<{ code: string; qrData: string } | null>(null);
+    const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
     const [expiryTime, setExpiryTime] = useState<number>(0);
     
     const { reloadApp } = useAppControl();
@@ -127,6 +128,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
         setShareStatus('generating');
         setErrorMessage(null);
         setSyncPayload(null);
+        setQrCodeDataUrl(null);
         
         try {
             const key = await cryptoService.generateEncryptionKey();
@@ -158,6 +160,24 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             setMode('error');
         }
     }, []);
+    
+     useEffect(() => {
+        if (shareStatus === 'waiting' && syncPayload) {
+            (window as any).QRCode.toDataURL(syncPayload.qrData, {
+                width: 256,
+                margin: 1,
+                errorCorrectionLevel: 'H'
+            }, (err: any, url: string) => {
+                if (err) {
+                    console.error("QR Code generation failed:", err);
+                    setErrorMessage("Failed to generate QR code display.");
+                    setMode('error');
+                } else {
+                    setQrCodeDataUrl(url);
+                }
+            });
+        }
+    }, [shareStatus, syncPayload]);
 
     const startReceiving = () => {
         setReceiveStatus('scanning');
@@ -213,7 +233,13 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
                     <>
                         <p className="text-slate-500 dark:text-slate-400 mb-6">On your other device, choose "Receive Data" and scan this QR code.</p>
                         <div className="my-6 p-4 bg-white rounded-lg inline-block shadow-md">
-                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(syncPayload.qrData)}&qzone=1`} alt="QR Code for sync" width="256" height="256"/>
+                            {qrCodeDataUrl ? (
+                                <img src={qrCodeDataUrl} alt="QR Code for sync" width="256" height="256"/>
+                            ) : (
+                                <div className="w-[256px] h-[256px] bg-slate-200 dark:bg-slate-600 animate-pulse rounded-lg flex items-center justify-center">
+                                    <p className="text-slate-500">Generating QR...</p>
+                                </div>
+                            )}
                         </div>
                         <div className="bg-slate-100 dark:bg-slate-700 p-4 rounded-lg">
                             <p className="text-sm text-slate-500 dark:text-slate-400">Sync Code</p>

@@ -1,14 +1,16 @@
 
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import type { Bill, Settings, ImportedBill } from '../types';
+import type { Bill, Settings, ImportedBill, Participant } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
-import SwipeableBillCard from './SwipeableBillCard';
-import SwipeableParticipantCard from './SwipeableParticipantCard';
-import AdBillCard from './AdBillCard';
-import SwipeableImportedBillCard from './SwipeableImportedBillCard';
-import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
-import { generateShareText } from '../services/shareService.ts';
+import SwipeableBillCard from './SwipeableBillCard.tsx';
+import SwipeableParticipantCard from './SwipeableParticipantCard.tsx';
+import AdBillCard from './AdBillCard.tsx';
+import SwipeableImportedBillCard from './SwipeableImportedBillCard.tsx';
+import ShareActionSheet from './ShareActionSheet.tsx';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
+import { useKeys } from '../hooks/useKeys.ts';
+import { generateShareText, generateAggregateBill, generateShareLink } from '../services/shareService.ts';
 
 interface DashboardProps {
   bills: Bill[];
@@ -38,6 +40,15 @@ interface DashboardProps {
 const BILLS_PER_PAGE = 15;
 const AD_INTERVAL = 9; // Show an ad after every 9 bills
 
+// The data structure used for participant cards
+type ParticipantData = {
+  name: string;
+  amount: number;
+  type: 'owed' | 'paid';
+  phone?: string;
+  email?: string;
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ 
   bills, importedBills, settings, subscriptionStatus, 
   onSelectBill, onSelectImportedBill, 
@@ -49,8 +60,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'description' | 'participant'>('description');
   const [visibleCount, setVisibleCount] = useState(BILLS_PER_PAGE);
-  const [copiedParticipantName, setCopiedParticipantName] = useState<string | null>(null);
+  const [shareSheetParticipant, setShareSheetParticipant] = useState<ParticipantData | null>(null);
   const [archivingBillIds, setArchivingBillIds] = useState<string[]>([]);
+  const { keyPair } = useKeys();
 
   // --- Calculations for Summary & Participant View ---
   const activeBills = useMemo(() => bills.filter(b => b.status === 'active'), [bills]);
@@ -116,7 +128,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     return { totalTracked, othersOweMe, iOwe };
   }, [activeBills, importedBills, settings.myDisplayName]);
 
-  const participantsData = useMemo(() => {
+  const participantsData = useMemo((): ParticipantData[] => {
     const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
     const participantContactInfo = new Map<string, { phone?: string; email?: string }>();
     
@@ -293,36 +305,79 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
   }, [participantsData, activeBills, settings, subscriptionStatus]);
 
-  const handleShareWithParticipant = async (participantName: string) => {
-    const shareText = getShareTextForParticipant(participantName);
+  const handleShareGeneric = async (participant: Participant) => {
+    const shareText = getShareTextForParticipant(participant.name);
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Bill Split Reminder', text: shareText });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(shareText);
-        setCopiedParticipantName(participantName);
-        setTimeout(() => setCopiedParticipantName(null), 2000);
       } else {
-        alert("Sharing not supported on this browser. Message copied to clipboard as a fallback.");
+        await navigator.clipboard.writeText(shareText);
+        alert('Share text copied to clipboard!');
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.error("Error sharing or copying:", err);
-        alert("An error occurred while trying to share. Please try again.");
       }
+    } finally {
+        setShareSheetParticipant(null);
     }
   };
   
-  const handleShareViaSms = (participantName: string, phone: string) => {
-    const text = getShareTextForParticipant(participantName);
-    window.location.href = `sms:${phone}?&body=${encodeURIComponent(text)}`;
+  const handleShareSms = (participant: Participant) => {
+    if (!participant.phone) return;
+    const text = getShareTextForParticipant(participant.name);
+    window.location.href = `sms:${participant.phone}?&body=${encodeURIComponent(text)}`;
+    setShareSheetParticipant(null);
   };
     
-  const handleShareViaEmail = (participantName: string, email: string) => {
-    const text = getShareTextForParticipant(participantName);
+  const handleShareEmail = (participant: Participant) => {
+    if (!participant.email) return;
+    const text = getShareTextForParticipant(participant.name);
     const subject = "Shared Bill Reminder";
-    window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    window.location.href = `mailto:${participant.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    setShareSheetParticipant(null);
   };
+
+  const handleShareLink = useCallback(async (participantName: string, method: 'sms' | 'email' | 'generic') => {
+    if (!keyPair) {
+      alert("Cryptographic keys not loaded. Cannot generate share link.");
+      return;
+    }
+    
+    const participantUnpaidBills = bills.filter(b => 
+        b.participants.some(p => p.name === participantName && !p.paid && p.amountOwed > 0)
+    );
+
+    const summaryBill = generateAggregateBill(participantName, participantUnpaidBills, settings);
+    const shareUrl = await generateShareLink(summaryBill, settings, keyPair);
+
+    const message = `Here is a link to view a summary of your outstanding bills with me. This link will expire in 24 hours:\n\n${shareUrl}`;
+
+    try {
+        if (method === 'sms') {
+            const phone = participantsData.find(p => p.name === participantName)?.phone;
+            if (phone) window.location.href = `sms:${phone}?&body=${encodeURIComponent(message)}`;
+        } else if (method === 'email') {
+            const email = participantsData.find(p => p.name === participantName)?.email;
+            if (email) window.location.href = `mailto:${email}?subject=${encodeURIComponent("Summary of Outstanding Bills")}&body=${encodeURIComponent(message)}`;
+        } else {
+            if (navigator.share) {
+                await navigator.share({ title: 'Summary of Outstanding Bills', text: message });
+            } else {
+                await navigator.clipboard.writeText(message);
+                alert('Share link copied to clipboard!');
+            }
+        }
+    } catch (err: any) {
+        if (err.name !== 'AbortError') {
+            console.error("Error sharing link:", err);
+            alert("An error occurred while trying to share the link.");
+        }
+    } finally {
+        setShareSheetParticipant(null);
+    }
+  }, [keyPair, bills, settings, participantsData]);
+
 
   const handleMarkParticipantAsPaid = async (participantName: string) => {
     const billsToUpdate: Bill[] = [];
@@ -414,12 +469,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               <SwipeableParticipantCard
                 key={p.name}
                 participant={p}
-                onClick={() => onSelectParticipant(p.name)}
-                onShare={() => handleShareWithParticipant(p.name)}
-                onShareSms={handleShareViaSms}
-                onShareEmail={handleShareViaEmail}
+                onClick={() => setShareSheetParticipant(p)}
                 onPaidInFull={() => handleMarkParticipantAsPaid(p.name)}
-                isCopied={copiedParticipantName === p.name}
               />
             ))}
           </div>
@@ -514,7 +565,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         </div>
                         {hasMore && (
                             <div ref={loadMoreRef} className="flex justify-center items-center p-8">
-                                <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
@@ -612,6 +663,24 @@ const Dashboard: React.FC<DashboardProps> = ({
        </div>
 
       {renderContent()}
+
+      {shareSheetParticipant && (
+        <ShareActionSheet 
+            participant={{...shareSheetParticipant, id: shareSheetParticipant.name, amountOwed: shareSheetParticipant.amount, paid: false}}
+            onClose={() => setShareSheetParticipant(null)}
+            onShareSms={handleShareSms}
+            onShareEmail={handleShareEmail}
+            onShareGeneric={handleShareGeneric}
+            onShareLinkSms={() => handleShareLink(shareSheetParticipant.name, 'sms')}
+            onShareLinkEmail={() => handleShareLink(shareSheetParticipant.name, 'email')}
+            onShareLinkGeneric={() => handleShareLink(shareSheetParticipant.name, 'generic')}
+            onViewDetails={() => {
+                onSelectParticipant(shareSheetParticipant.name);
+                setShareSheetParticipant(null);
+            }}
+            shareContext="dashboard"
+        />
+      )}
     </div>
   );
 };
