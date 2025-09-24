@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import type { Bill, Settings, ImportedBill } from '../types.ts';
-import type { SubscriptionStatus } from '../hooks/useAuth.ts';
-import SwipeableBillCard from './SwipeableBillCard.tsx';
-import SwipeableParticipantCard from './SwipeableParticipantCard.tsx';
-import AdBillCard from './AdBillCard.tsx';
-import SwipeableImportedBillCard from './SwipeableImportedBillCard.tsx';
-import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
+import type { Bill, Settings, ImportedBill } from '../types';
+import type { SubscriptionStatus } from '../hooks/useAuth';
+import SwipeableBillCard from './SwipeableBillCard';
+import SwipeableParticipantCard from './SwipeableParticipantCard';
+import AdBillCard from './AdBillCard';
+import SwipeableImportedBillCard from './SwipeableImportedBillCard';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
 interface DashboardProps {
   bills: Bill[];

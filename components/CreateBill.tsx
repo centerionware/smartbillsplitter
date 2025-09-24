@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Bill, Participant, ReceiptItem, Settings, RecurringBill, RecurrenceRule, SplitMode } from '../types.ts';
-import type { RequestConfirmationFn } from '../App.tsx';
-import ReceiptScanner from './ReceiptScanner.tsx';
-import ItemEditor from './ItemEditor.tsx';
-import RecurrenceSelector from './RecurrenceSelector.tsx';
-import AdditionalInfoEditor from './AdditionalInfoEditor.tsx';
+import type { Bill, Participant, ReceiptItem, Settings, RecurringBill, RecurrenceRule, SplitMode } from './types';
+import type { RequestConfirmationFn } from '../App';
+import ReceiptScanner from './ReceiptScanner';
+import ItemEditor from './ItemEditor';
+import RecurrenceSelector from './RecurrenceSelector';
+import AdditionalInfoEditor from './AdditionalInfoEditor';
 
 interface CreateBillProps {
   onSave: (bill: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => void;
@@ -213,7 +213,7 @@ export const CreateBill: React.FC<CreateBillProps> = ({
         const recurringBillData = {
             description,
             totalAmount: totalAmount || undefined,
-            // FIX: Ensure template participants conform to the Participant type by setting amountOwed and paid to default values.
+            // When saving a template, we reset the paid status and owed amounts.
             participants: finalParticipants.map(({ amountOwed, paid, ...rest }) => ({ ...rest, amountOwed: 0, paid: false })),
             items: items.map(({ price, ...rest }) => ({...rest, price: isEditing ? price : 0})),
             splitMode,

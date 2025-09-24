@@ -1,30 +1,32 @@
+export enum View {
+  Dashboard = 'dashboard',
+  CreateBill = 'createBill',
+  BillDetails = 'billDetails',
+  ImportedBillDetails = 'importedBillDetails',
+  Settings = 'settings',
+  Sync = 'sync',
+  Disclaimer = 'disclaimer',
+  RecurringBills = 'recurringBills',
+  ViewSharedBill = 'viewSharedBill',
+}
+
 export type Theme = 'light' | 'dark' | 'system';
 
-export enum View {
-  Dashboard = 'DASHBOARD',
-  CreateBill = 'CREATE_BILL',
-  BillDetails = 'BILL_DETAILS',
-  ImportedBillDetails = 'IMPORTED_BILL_DETAILS',
-  Settings = 'SETTINGS',
-  Sync = 'SYNC',
-  Disclaimer = 'DISCLAIMER',
-  RecurringBills = 'RECURRING_BILLS',
-  ViewSharedBill = 'VIEW_SHARED_BILL',
-}
+export type SplitMode = 'equally' | 'amount' | 'percentage' | 'item';
 
 export interface Participant {
   id: string;
   name: string;
   amountOwed: number;
   paid: boolean;
-  splitValue?: number; // Used for amount/percentage split modes during creation
+  splitValue?: number; // Used for amount/percentage splits in CreateBill
 }
 
 export interface ReceiptItem {
-  id: string;
-  name:string;
+  id:string;
+  name: string;
   price: number;
-  assignedTo: string[]; // array of participant IDs
+  assignedTo: string[]; // array of participant ids
 }
 
 export interface Bill {
@@ -35,33 +37,30 @@ export interface Bill {
   participants: Participant[];
   status: 'active' | 'archived';
   items?: ReceiptItem[];
-  receiptImage?: string; // base64 data URL
+  receiptImage?: string; // base64 data url
   additionalInfo?: Record<string, string>;
 }
 
-export type SplitMode = 'equally' | 'amount' | 'percentage' | 'item';
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface RecurrenceRule {
-    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
-    interval: number;
-    dayOfWeek?: number; // 0 for Sunday, 6 for Saturday
-    dayOfMonth?: number; // 1-31
+  frequency: RecurrenceFrequency;
+  interval: number;
+  dayOfWeek?: number; // 0 (Sun) to 6 (Sat)
+  dayOfMonth?: number; // 1 to 31
 }
 
-// A template for creating bills that recur.
 export interface RecurringBill {
     id: string;
     description: string;
-    totalAmount?: number; // Optional, can be filled in when creating the bill.
-    // Participants are stored with default values that are recalculated on creation.
+    totalAmount?: number; // Optional for templates
     participants: Participant[];
-    // Items can have a price of 0 if it varies each time.
-    items?: ReceiptItem[];
+    status: 'active' | 'archived';
+    items?: ReceiptItem[]; 
+    additionalInfo?: Record<string, string>;
     splitMode: SplitMode;
     recurrenceRule: RecurrenceRule;
-    nextDueDate: string; // ISO string for the next time a bill should be generated.
-    status: 'active' | 'archived';
-    additionalInfo?: Record<string, string>;
+    nextDueDate: string; // ISO string
 }
 
 export interface PaymentDetails {
@@ -73,34 +72,35 @@ export interface PaymentDetails {
 }
 
 export interface Settings {
-  paymentDetails: PaymentDetails;
   myDisplayName: string;
+  paymentDetails: PaymentDetails;
   shareTemplate: string;
   notificationsEnabled: boolean;
   notificationDays: number;
 }
 
-// For sharing bills end-to-end encrypted
+// For sharing bills
 export interface SharedBillPayload {
-    bill: Bill;
-    creatorName: string; // The display name of the person sharing.
-    publicKey: JsonWebKey; // Creator's public key for signature verification
-    signature: string; // Signature of the bill data
+  bill: Bill;
+  creatorName: string;
+  publicKey: JsonWebKey; // Public key of the creator for signature verification
+  signature: string; // Signature of the bill data
 }
 
+// For bills imported from other users
 export interface ImportedBill {
-    id: string; // This will be the original bill ID from the creator
-    creatorName: string; // The display name of the person who shared the bill.
-    status: 'active' | 'archived'; // Local status (archived by receiver)
-    sharedData: {
-        bill: Bill;
-        creatorPublicKey: JsonWebKey; // The public key of the person who shared the bill
-        signature: string;
-    };
-    shareId: string; // The ID for the share session on the server
-    shareEncryptionKey: JsonWebKey; // The symmetric key to decrypt updates
-    lastUpdatedAt: number; // Timestamp of the last data fetch
-    localStatus: {
-        myPortionPaid: boolean;
-    };
+  id: string; // This will be the same as the original bill.id
+  creatorName: string;
+  status: 'active' | 'archived';
+  sharedData: {
+    bill: Bill;
+    creatorPublicKey: JsonWebKey;
+    signature: string;
+  };
+  shareId: string; // The ID from the /share/:shareId endpoint
+  shareEncryptionKey: JsonWebKey; // The symmetric key used to decrypt this bill
+  lastUpdatedAt: number; // Timestamp of the last successful fetch
+  localStatus: {
+    myPortionPaid: boolean;
+  };
 }
