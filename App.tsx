@@ -434,7 +434,12 @@ const App: React.FC = () => {
           />
         ) : ( <div /> );
        case View.ViewSharedBill:
-        return <ViewSharedBill onImportComplete={handleImportComplete} settings={settings} />;
+        return <ViewSharedBill 
+            onImportComplete={handleImportComplete} 
+            settings={settings} 
+            addImportedBill={addImportedBill}
+            importedBills={importedBills}
+        />;
       case View.RecurringBills:
         return <RecurringBillsList
             recurringBills={recurringBills}

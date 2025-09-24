@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import type { SharedBillPayload, Bill, ImportedBill } from '../types.ts';
+import type { SharedBillPayload, Bill, ImportedBill, Settings } from '../types.ts';
 import * as cryptoService from '../services/cryptoService.ts';
-import { useImportedBills } from '../hooks/useImportedBills.ts';
 
 interface ViewSharedBillProps {
   onImportComplete: () => void;
-  settings: { myDisplayName: string };
+  settings: Settings;
+  addImportedBill: (bill: ImportedBill) => Promise<void>;
+  importedBills: ImportedBill[];
 }
 
 type Status = 'loading' | 'verifying' | 'verified' | 'imported' | 'error' | 'expired';
 
-const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings }) => {
+const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills }) => {
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState<string | null>(null);
   const [sharedData, setSharedData] = useState<SharedBillPayload | null>(null);
   const [encryptionKey, setEncryptionKey] = useState<JsonWebKey | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(0);
-  const { addImportedBill, importedBills } = useImportedBills();
 
   const isAlreadyImported = sharedData ? importedBills.some(b => b.id === sharedData.bill.id) : false;
 

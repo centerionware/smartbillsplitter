@@ -72,19 +72,24 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, onClose, settings, onUpda
       
       const { shareId } = result;
       
-      // 9. Store session info for live updates
-      sessionStorage.setItem(`share-session-${bill.id}`, JSON.stringify({
-          shareId,
-          key: encryptionKeyJwk,
-          creatorName
-      }));
-      
-      // 10. Construct the shareable URL
+      // 9. Construct the shareable URL
       const keyString = btoa(JSON.stringify(encryptionKeyJwk)); // Base64 encode the key for the URL
       const url = new URL(window.location.href);
       url.hash = `#/view-bill?shareId=${shareId}&key=${keyString}`;
+      
+      const newShareLink = url.toString();
+      const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
 
-      setShareLink(url.toString());
+      // 10. Store session info for live updates and link caching
+      sessionStorage.setItem(`share-session-${bill.id}`, JSON.stringify({
+          shareId,
+          key: encryptionKeyJwk,
+          creatorName,
+          shareLink: newShareLink,
+          expiry: expiryTime,
+      }));
+
+      setShareLink(newShareLink);
 
     } catch (err: any) {
       console.error("Error generating share link:", err);
@@ -95,12 +100,28 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, onClose, settings, onUpda
   }, [bill, keyPair]);
 
   useEffect(() => {
+    const ONE_HOUR = 60 * 60 * 1000;
+    const sessionDataString = sessionStorage.getItem(`share-session-${bill.id}`);
+
+    if (sessionDataString) {
+      try {
+        const sessionData = JSON.parse(sessionDataString);
+        // Reuse the link if it exists and is not expiring within the next hour
+        if (sessionData.shareLink && sessionData.expiry && sessionData.expiry > Date.now() + ONE_HOUR) {
+          setShareLink(sessionData.shareLink);
+          setIsLoading(false);
+          return; // Found a valid cached link, we're done.
+        }
+      } catch (e) {
+        console.warn("Could not parse cached share session, generating new link.", e);
+      }
+    }
+
+    // If no cached link, or it's expiring soon, generate a new one.
     if (!keysLoading) {
-      // If the user hasn't set a display name, we still proceed but it will show as 'Myself'.
-      // They can change this in the new Settings field.
       generateShareLink(settings.myDisplayName);
     }
-  }, [settings.myDisplayName, keysLoading, generateShareLink]);
+  }, [bill.id, settings.myDisplayName, keysLoading, generateShareLink]);
 
 
   const handleCopy = () => {
