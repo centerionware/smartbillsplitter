@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Bill, Settings, Participant } from '../types.ts';
 import { useKeys } from '../hooks/useKeys.ts';
 import { generateShareLinksForParticipants } from '../services/shareService.ts';
+import { ShareLinkMenu } from './ShareLinkMenu.tsx';
 
 interface ShareModalProps {
   bill: Bill;
@@ -22,6 +23,8 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
 
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<Set<string>>(() => new Set(shareableParticipants.map(p => p.id)));
   const [generatedLinks, setGeneratedLinks] = useState<Map<string, string>>(new Map());
+  const [activeShareMenuId, setActiveShareMenuId] = useState<string | null>(null);
+  const [lastCopiedId, setLastCopiedId] = useState<string | null>(null);
 
   const handleToggleParticipant = (id: string) => {
     setSelectedParticipantIds(prev => {
@@ -33,6 +36,13 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
       }
       return newSet;
     });
+  };
+  
+  const handleCopied = (participantId: string) => {
+    setLastCopiedId(participantId);
+    setTimeout(() => {
+      setLastCopiedId(null);
+    }, 2000);
   };
 
   const handleGenerateLinks = useCallback(async () => {
@@ -70,18 +80,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
       setView('error');
     }
   }, [bill, settings, keyPair, onUpdateBill, selectedParticipantIds]);
-
-  const handleCopy = (url: string, participantId: string) => {
-    navigator.clipboard.writeText(url).then(() => {
-      // Simple feedback: maybe change button text or show a toast
-      const button = document.getElementById(`copy-btn-${participantId}`);
-      if(button) {
-          const originalText = button.innerHTML;
-          button.innerText = 'Copied!';
-          setTimeout(() => { button.innerHTML = originalText; }, 2000);
-      }
-    });
-  };
 
   const renderSelectionView = () => (
     <>
@@ -132,18 +130,34 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
             const p = bill.participants.find(p => p.id === participantId);
             if(!p) return null;
 
-            const message = `Here is your unique link for our bill "${bill.description}": ${url}`;
-
             return (
                 <div key={p.id} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                    <p className="font-semibold text-slate-800 dark:text-slate-100 mb-2">{p.name}</p>
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="font-semibold text-slate-800 dark:text-slate-100">{p.name}</p>
+                      {lastCopiedId === p.id && <span className="text-xs font-semibold text-emerald-500">Copied!</span>}
+                    </div>
                     <div className="flex items-center gap-2">
                         <input type="text" readOnly value={url} className="w-full text-xs px-2 py-1 border border-slate-300 rounded-md bg-slate-200 dark:bg-slate-600 dark:border-slate-500 text-slate-500 dark:text-slate-400"/>
-                        <button id={`copy-btn-${p.id}`} onClick={() => handleCopy(url, p.id)} className="p-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 rounded-md" title="Copy link">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-600 dark:text-slate-200" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" /><path d="M4 3a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H4z" /></svg>
-                        </button>
-                        {p.phone && <a href={`sms:${p.phone}?&body=${encodeURIComponent(message)}`} className="p-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 rounded-md" title="Send SMS"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-600 dark:text-slate-200" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clipRule="evenodd" /></svg></a>}
-                        {p.email && <a href={`mailto:${p.email}?subject=${encodeURIComponent(`Bill: ${bill.description}`)}&body=${encodeURIComponent(message)}`} className="p-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 rounded-md" title="Send Email"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-600 dark:text-slate-200" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg></a>}
+                        <div className="relative">
+                            <button
+                                onClick={() => setActiveShareMenuId(activeShareMenuId === p.id ? null : p.id)}
+                                className="p-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 rounded-md"
+                                title="Share link"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-700 dark:text-slate-200" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                                </svg>
+                            </button>
+                            {activeShareMenuId === p.id && (
+                                <ShareLinkMenu
+                                    url={url}
+                                    billDescription={bill.description}
+                                    participant={p}
+                                    onClose={() => setActiveShareMenuId(null)}
+                                    onCopy={() => handleCopied(p.id)}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
             )
@@ -159,7 +173,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
   
    const renderErrorView = () => (
         <div className="p-8 text-center min-h-64">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-red-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-red-500" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
             <h3 className="text-xl font-bold mt-4 text-slate-800 dark:text-slate-100">Failed to Share</h3>
             <p className="mt-2 text-slate-600 dark:text-slate-300 bg-red-50 dark:bg-red-900/30 p-3 rounded-md">{error}</p>
              <div className="p-4 mt-4">
