@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import type { RecurringBill } from '../types.ts';
 import RecurringBillCard from './RecurringBillCard.tsx';
@@ -16,40 +17,85 @@ const ACTION_BUTTON_WIDTH = 70;
 const SwipeableRecurringBillCard: React.FC<SwipeableRecurringBillCardProps> = ({ bill, onClick, onEdit, onArchive, onUnarchive, onDelete }) => {
   const [translateX, setTranslateX] = useState(0);
   const dragStartX = useRef(0);
+  const dragStartY = useRef(0);
   const dragInitialTranslateX = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+  const isScrolling = useRef(false);
   const dragStartTime = useRef(0);
 
   const isArchived = bill.status === 'archived';
   const maxTranslateX = -(ACTION_BUTTON_WIDTH * (isArchived ? 2 : 3));
 
-  const handleDragStart = (clientX: number) => {
+  const handleDragStart = (clientX: number, clientY: number) => {
     isDragging.current = true;
+    isScrolling.current = false;
     dragStartX.current = clientX;
+    dragStartY.current = clientY;
     dragInitialTranslateX.current = translateX;
     dragStartTime.current = Date.now();
-    if (cardRef.current) cardRef.current.style.transition = 'none';
+    if (cardRef.current) {
+        cardRef.current.style.transition = 'none';
+    }
   };
 
-  const handleDragMove = (clientX: number) => {
+  const handleDragMove = (clientX: number, clientY: number) => {
     if (!isDragging.current) return;
+    if (isScrolling.current) return;
+
     const deltaX = clientX - dragStartX.current;
+    const deltaY = clientY - dragStartY.current;
+
+    if (Math.abs(deltaY) > 5 || Math.abs(deltaX) > 5) {
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+            isScrolling.current = true;
+            // This is a scroll. Stop tracking it as a drag for the swipeable component.
+            isDragging.current = false;
+            // If we started to drag a bit horizontally, snap back immediately.
+            if (translateX !== 0) {
+                if (cardRef.current) {
+                    cardRef.current.style.transition = 'transform 0.2s ease-out';
+                }
+                setTranslateX(0);
+            }
+            return;
+        }
+    }
+
     const newTranslateX = dragInitialTranslateX.current + deltaX;
     const newClampedTranslateX = Math.min(20, Math.max(maxTranslateX - 20, newTranslateX));
     setTranslateX(newClampedTranslateX);
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e?: React.TouchEvent | React.MouseEvent) => {
     if (!isDragging.current) return;
-    isDragging.current = false;
     
-    if (cardRef.current) cardRef.current.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    const wasScrolling = isScrolling.current;
+    isDragging.current = false;
+    isScrolling.current = false;
+    
+    if (cardRef.current) {
+        cardRef.current.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    }
+
+    if (wasScrolling) {
+        setTranslateX(0);
+        return;
+    }
+    
     const dragDuration = Date.now() - dragStartTime.current;
     const dragDistance = translateX - dragInitialTranslateX.current;
     
     if (dragDuration < 250 && Math.abs(dragDistance) < 10) {
-      if (dragInitialTranslateX.current !== 0) { setTranslateX(0); } else { onClick(); }
+      if (dragInitialTranslateX.current !== 0) { 
+        setTranslateX(0); 
+      } else { 
+        // This is a tap. Prevent the ghost click for touch events.
+        if (e && e.type === 'touchend') {
+            e.preventDefault();
+        }
+        onClick(); 
+      }
       return;
     }
     
@@ -80,7 +126,18 @@ const SwipeableRecurringBillCard: React.FC<SwipeableRecurringBillCardProps> = ({
         </button>
       </div>
 
-      <div ref={cardRef} className="relative z-10 h-full" style={{ transform: `translateX(${translateX}px)` }} onTouchStart={e => handleDragStart(e.touches[0].clientX)} onTouchMove={e => handleDragMove(e.touches[0].clientX)} onTouchEnd={handleDragEnd} onMouseDown={e => handleDragStart(e.clientX)} onMouseMove={e => handleDragMove(e.clientX)} onMouseUp={handleDragEnd} onMouseLeave={handleDragEnd}>
+      <div 
+        ref={cardRef} 
+        className="relative z-10 h-full" 
+        style={{ transform: `translateX(${translateX}px)`, touchAction: 'pan-y' }} 
+        onTouchStart={e => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)} 
+        onTouchMove={e => handleDragMove(e.touches[0].clientX, e.touches[0].clientY)} 
+        onTouchEnd={e => handleDragEnd(e)} 
+        onMouseDown={e => handleDragStart(e.clientX, e.clientY)} 
+        onMouseMove={e => handleDragMove(e.clientX, e.clientY)} 
+        onMouseUp={e => handleDragEnd(e)} 
+        onMouseLeave={() => handleDragEnd()}
+      >
         <RecurringBillCard bill={bill} onClick={() => { /* Click handled in dragEnd */ }} />
       </div>
     </div>

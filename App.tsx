@@ -9,7 +9,8 @@ import { useRecurringBills, calculateNextDueDate } from './hooks/useRecurringBil
 import * as notificationService from './services/notificationService.ts';
 import Header from './components/Header.tsx';
 import Dashboard from './components/Dashboard.tsx';
-import CreateBill from './components/CreateBill.tsx';
+// FIX: Changed to a named import for the 'CreateBill' component as it doesn't have a default export.
+import { CreateBill } from './components/CreateBill.tsx';
 import BillDetails from './components/BillDetails.tsx';
 import SettingsComponent from './components/Settings.tsx';
 import SyncComponent from './components/Sync.tsx';

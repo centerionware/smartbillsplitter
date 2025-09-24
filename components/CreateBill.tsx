@@ -12,515 +12,364 @@ interface CreateBillProps {
   onUpdateRecurring: (bill: RecurringBill) => void;
   onCancel: () => void;
   requestConfirmation: RequestConfirmationFn;
-  settings: Settings;
+  settings: Settings | null;
   billTemplate: RecurringBill | { forEditing: RecurringBill } | null;
 }
 
-const CreateBill: React.FC<CreateBillProps> = ({
-  onSave,
-  onSaveRecurring,
-  onUpdateRecurring,
-  onCancel,
-  requestConfirmation,
-  settings,
-  billTemplate,
-}) => {
-  const { mode, initialData } = useMemo(() => {
-    if (billTemplate) {
-      if ('forEditing' in billTemplate) return { mode: 'edit-recurring' as const, initialData: billTemplate.forEditing };
-      return { mode: 'create-from-recurring' as const, initialData: billTemplate };
+const getTemplateData = (templateProp: RecurringBill | { forEditing: RecurringBill } | null) => {
+    if (!templateProp) return { template: null, isEditing: false, fromTemplateId: null };
+    if ('forEditing' in templateProp) {
+        return { template: templateProp.forEditing, isEditing: true, fromTemplateId: null };
     }
-    return { mode: 'create' as const, initialData: null };
-  }, [billTemplate]);
+    return { template: templateProp, isEditing: false, fromTemplateId: templateProp.id };
+}
+
+export const CreateBill: React.FC<CreateBillProps> = ({
+  onSave, onSaveRecurring, onUpdateRecurring, onCancel, requestConfirmation, settings, billTemplate: templateProp
+}) => {
+  const { template, isEditing, fromTemplateId } = getTemplateData(templateProp);
 
   // --- State Initialization ---
-  const [description, setDescription] = useState(initialData?.description || '');
-  const [totalAmount, setTotalAmount] = useState<string>(
-    (mode === 'edit-recurring' && initialData?.totalAmount) 
-      ? initialData.totalAmount.toString() 
-      : ''
-  );
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [participants, setParticipants] = useState<Participant[]>(
-      initialData?.participants || [{ id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: true, splitValue: 0 }]
-  );
-  const [items, setItems] = useState<ReceiptItem[]>(initialData?.items || []);
-  const [receiptImage, setReceiptImage] = useState<string | null>(null);
-  
-  const [additionalInfo, setAdditionalInfo] = useState<{ id: string; key: string; value: string }[]>(() => {
-    if (initialData?.additionalInfo) {
-      return Object.entries(initialData.additionalInfo).map(([key, value], index) => ({
-        id: `info-initial-${index}`,
-        key,
-        value,
-      }));
+  const [description, setDescription] = useState(template?.description || '');
+  const [totalAmount, setTotalAmount] = useState<number | undefined>(template?.totalAmount);
+  const [date, setDate] = useState(template?.nextDueDate || new Date().toISOString().split('T')[0]);
+  const [participants, setParticipants] = useState<Participant[]>(() => {
+    const initialParticipants = template?.participants ? JSON.parse(JSON.stringify(template.participants)) : [];
+    if (initialParticipants.length === 0 && settings?.myDisplayName) {
+        return [{ id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: true }];
     }
-    return [];
+    return initialParticipants;
+  });
+  const [items, setItems] = useState<ReceiptItem[]>(() => template?.items ? JSON.parse(JSON.stringify(template.items)) : []);
+  const [receiptImage, setReceiptImage] = useState<string | undefined>(undefined);
+  const [additionalInfo, setAdditionalInfo] = useState(() => {
+    const info = template?.additionalInfo;
+    return info ? Object.entries(info).map(([key, value], i) => ({ id: `info-template-${i}`, key, value: String(value) })) : [];
   });
 
+  // --- Bill Logic State ---
+  const [splitMode, setSplitMode] = useState<SplitMode>(template?.splitMode || 'equally');
+  const [isRecurring, setIsRecurring] = useState(isEditing || !!template?.recurrenceRule);
+  const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>(template?.recurrenceRule || {
+    frequency: 'monthly', interval: 1, dayOfMonth: new Date().getDate()
+  });
+
+  // --- UI State ---
   const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
   const [isInfoEditorOpen, setIsInfoEditorOpen] = useState(false);
-  const [splitMode, setSplitMode] = useState<SplitMode>(initialData?.splitMode || 'equally');
-
-  const [isRecurring, setIsRecurring] = useState(mode === 'edit-recurring');
-  const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>(initialData?.recurrenceRule || {
-    frequency: 'monthly', interval: 1, dayOfMonth: new Date().getDate(),
-  });
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [isContactPickerSupported, setIsContactPickerSupported] = useState(false);
-  useEffect(() => { 'contacts' in navigator && 'ContactsManager' in window && setIsContactPickerSupported(true); }, []);
+  // --- Derived State ---
+  const myNameLower = settings?.myDisplayName.toLowerCase().trim();
 
-  const isDirty = useMemo(() => description !== '' || totalAmount !== '' || participants.length > 1 || items.length > 0 || additionalInfo.length > 0, [description, totalAmount, participants, items, additionalInfo]);
-  
-  useEffect(() => {
-    if (mode === 'create-from-recurring' && initialData) {
-      setDescription(initialData.description);
-      setParticipants(initialData.participants.map(p => ({ ...p, id: `p-${Date.now()}-${Math.random()}` })));
-      setItems(initialData.items.map(i => ({...i, id: `i-${Date.now()}-${Math.random()}`, price: 0})));
-      setSplitMode(initialData.splitMode || (initialData.items.length > 0 ? 'item' : 'equally'));
-      setIsRecurring(false); // We are creating a regular bill, not a template.
-       if (initialData.totalAmount) {
-        setTotalAmount(initialData.totalAmount.toString());
-      }
-      if (initialData.nextDueDate) {
-        setDate(initialData.nextDueDate.split('T')[0]);
-      }
-    }
-    if (mode === 'edit-recurring') {
-      setIsRecurring(true);
-    }
-  }, [mode, initialData]);
-
-  const itemizedTotal = useMemo(() => items.reduce((sum, item) => sum + item.price, 0), [items]);
-  const hasPricedItems = useMemo(() => items.some(i => i.price > 0), [items]);
-  const effectiveTotal = useMemo(() => hasPricedItems ? itemizedTotal : parseFloat(totalAmount) || 0, [hasPricedItems, itemizedTotal, totalAmount]);
-  
-  useEffect(() => { if (hasPricedItems) setTotalAmount(itemizedTotal.toFixed(2)); }, [itemizedTotal, hasPricedItems]);
-
-  const handleAddParticipant = () => setParticipants(prev => [...prev, { id: `p-${Date.now()}`, name: '', amountOwed: 0, paid: false, splitValue: 0 }]);
-  const handleRemoveParticipant = (id: string) => { if (participants.length > 1) setParticipants(prev => prev.filter(p => p.id !== id)); };
-
-  const isMyselfInList = useMemo(() => 
-    participants.some(p => p.name.trim().toLowerCase() === settings.myDisplayName.trim().toLowerCase()),
-    [participants, settings.myDisplayName]
-  );
-  
-  const handleAddMyself = () => {
-    if (isMyselfInList) return;
-    setParticipants(prev => [...prev, { id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: true, splitValue: 0 }]);
-  };
-
-  const handleParticipantChange = (id: string, field: 'name' | 'splitValue', value: string) => {
-    setParticipants(prev => prev.map(p => {
-        if (p.id === id) {
-            if (field === 'name') return { ...p, name: value };
-            if (field === 'splitValue') return { ...p, splitValue: parseFloat(value) || 0 };
-        }
-        return p;
-    }));
-  };
-  
-  const handleToggleAssignment = (itemId: string, participantId: string) => {
-    setItems(currentItems => currentItems.map(item => {
-        if (item.id === itemId) {
-            const assignedTo = item.assignedTo.includes(participantId)
-              ? item.assignedTo.filter(id => id !== participantId)
-              : [...item.assignedTo, participantId];
-            return { ...item, assignedTo };
-        }
-        return item;
-    }));
-  };
-
-  const handleSelectContact = async (participantId: string) => {
-    if (!isContactPickerSupported) return;
-    try {
-        // @ts-ignore
-        const contacts = await navigator.contacts.select(['name'], { multiple: true });
-        if (contacts.length === 0) return;
-
-        setParticipants(prev => {
-            let newParticipants = [...prev];
-            const triggeringParticipantIndex = newParticipants.findIndex(p => p.id === participantId);
-            let contactIndex = 0;
-            if (triggeringParticipantIndex !== -1 && newParticipants[triggeringParticipantIndex].name.trim() === '' && contacts[0]?.name?.length > 0) {
-                newParticipants[triggeringParticipantIndex].name = contacts[0].name[0];
-                contactIndex = 1;
-            }
-            const participantsToAdd = contacts.slice(contactIndex).map((c, i) => ({
-                id: `p-${Date.now()}-${i}`, name: c.name[0], amountOwed: 0, paid: false, splitValue: 0
-            }));
-            return [...newParticipants, ...participantsToAdd];
-        });
-    } catch (ex) { console.error("Error selecting contacts:", ex); }
-  };
-  
-  const handleSplitModeChange = (newMode: SplitMode) => {
-    setSplitMode(newMode);
-    setParticipants(prev => prev.map(p => ({ ...p, splitValue: 0 })));
-    if(newMode === 'item' && items.length === 0) {
-        setIsItemEditorOpen(true);
-    }
-  };
-
-  const participantsDeps = useMemo(() => JSON.stringify(
-    participants.map(({ id, name, splitValue }) => ({ id, name, splitValue }))
-  ), [participants]);
-  
-  const itemsDeps = useMemo(() => JSON.stringify(
-      items.map(({ price, assignedTo }) => ({ price, assignedTo }))
-  ), [items]);
-
+  // --- Effects ---
   useEffect(() => {
     const activeParticipants = participants.filter(p => p.name.trim() !== '');
-    if (activeParticipants.length === 0 || isRecurring) return;
+    if (activeParticipants.length === 0 || !totalAmount || splitMode === 'item') return;
 
-    let newAmounts = new Map<string, number>();
+    let newParticipants = JSON.parse(JSON.stringify(participants));
 
-    switch(splitMode) {
-      case 'equally':
-        const amountPerPerson = activeParticipants.length > 0 ? effectiveTotal / activeParticipants.length : 0;
-        activeParticipants.forEach(p => newAmounts.set(p.id, amountPerPerson));
-        break;
-      case 'amount':
-        participants.forEach(p => newAmounts.set(p.id, p.splitValue || 0));
-        break;
-      case 'percentage':
-        participants.forEach(p => newAmounts.set(p.id, (effectiveTotal * (p.splitValue || 0)) / 100));
-        break;
-      case 'item':
-        participants.forEach(p => newAmounts.set(p.id, 0));
-        items.forEach(item => {
-            const assignees = item.assignedTo.filter(pid => participants.some(p => p.id === pid && p.name.trim() !== ''));
-            if (assignees.length > 0) {
-                const amountPerAssignee = item.price / assignees.length;
-                assignees.forEach(pid => {
-                    newAmounts.set(pid, (newAmounts.get(pid) || 0) + amountPerAssignee);
-                });
+    switch (splitMode) {
+        case 'equally':
+            const amountPerPerson = totalAmount / activeParticipants.length;
+            newParticipants.forEach((p: Participant) => {
+                p.amountOwed = p.name.trim() ? amountPerPerson : 0;
+            });
+            break;
+        case 'amount':
+            const totalSplit = newParticipants.reduce((sum: number, p: Participant) => sum + (p.splitValue || 0), 0);
+            if (Math.abs(totalSplit - totalAmount) > 0.01) {
+                setErrors(prev => ({ ...prev, split: `Amounts must add up to $${totalAmount.toFixed(2)}. Current total: $${totalSplit.toFixed(2)}` }));
+            } else {
+                setErrors(prev => ({ ...prev, split: '' }));
             }
-        });
-        break;
+            newParticipants.forEach((p: Participant) => p.amountOwed = p.splitValue || 0);
+            break;
+        case 'percentage':
+            const totalPercent = newParticipants.reduce((sum: number, p: Participant) => sum + (p.splitValue || 0), 0);
+             if (Math.abs(totalPercent - 100) > 0.1) {
+                setErrors(prev => ({ ...prev, split: `Percentages must add up to 100%. Current total: ${totalPercent.toFixed(2)}%`}));
+            } else {
+                setErrors(prev => ({ ...prev, split: '' }));
+            }
+            newParticipants.forEach((p: Participant) => p.amountOwed = (totalAmount * (p.splitValue || 0)) / 100);
+            break;
     }
+    
+    setParticipants(newParticipants);
 
-    setParticipants(current => current.map(p => ({...p, amountOwed: newAmounts.get(p.id) || 0 })));
-  }, [effectiveTotal, participantsDeps, splitMode, itemsDeps, isRecurring]);
+  }, [totalAmount, splitMode, participants.length, participants.map(p => p.splitValue).join(',')]);
+  
+  useEffect(() => {
+    if (splitMode !== 'item' || items.length === 0) return;
+    
+    const newParticipants = JSON.parse(JSON.stringify(participants));
+    let newTotal = 0;
 
-  const handleTotalAmountBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const newTotal = parseFloat(e.target.value);
-    const canDistribute = !isRecurring && newTotal > 0 && items.length > 0 && !hasPricedItems;
-    if (!canDistribute) return;
-
-    const totalInCents = Math.round(newTotal * 100);
-    const numItems = items.length;
-    const basePriceInCents = Math.floor(totalInCents / numItems);
-    let remainderInCents = totalInCents % numItems;
-    const updatedItems = items.map(item => {
-        let finalPriceInCents = basePriceInCents;
-        if (remainderInCents > 0) { finalPriceInCents++; remainderInCents--; }
-        return { ...item, price: finalPriceInCents / 100 };
+    newParticipants.forEach((p: Participant) => p.amountOwed = 0);
+    
+    items.forEach(item => {
+        newTotal += item.price;
+        if (item.assignedTo.length > 0) {
+            const pricePerPerson = item.price / item.assignedTo.length;
+            item.assignedTo.forEach(participantId => {
+                const participant = newParticipants.find((p: Participant) => p.id === participantId);
+                if (participant) {
+                    participant.amountOwed += pricePerPerson;
+                }
+            });
+        }
     });
-    setItems(updatedItems);
+    setParticipants(newParticipants);
+    setTotalAmount(newTotal);
+
+  }, [items, splitMode]);
+  
+  // --- Handlers ---
+  const handleAddParticipant = () => {
+    setParticipants([...participants, { id: `p-${Date.now()}`, name: '', amountOwed: 0, paid: false, splitValue: 0 }]);
   };
 
-  const handleItemsScanned = (data: { description: string; date?: string; items: { name: string; price: number }[]; additionalInfo?: { key: string; value: string }[] }) => {
-    if (data.description) setDescription(prev => prev || data.description);
-    if (data.date) setDate(data.date);
-    if (data.additionalInfo) {
-      const infoArray = data.additionalInfo.map(({ key, value }, index) => ({
-        id: `info-scan-${Date.now()}-${index}`,
-        key,
-        value,
-      }));
-      setAdditionalInfo(infoArray);
+  const handleRemoveParticipant = (id: string) => {
+    if (participants.length > 1) {
+        setParticipants(participants.filter(p => p.id !== id));
     }
-    
-    // Find 'myself' to auto-assign items
-    const myself = participants.find(p => p.name.trim().toLowerCase() === settings.myDisplayName.trim().toLowerCase());
-    const myselfId = myself ? [myself.id] : [];
-
-    const newItems: ReceiptItem[] = data.items.map((item, index) => ({ 
-      id: `item-scan-${Date.now()}-${index}`, 
-      name: item.name, 
-      price: item.price, 
-      assignedTo: myselfId 
-    }));
-    
-    setItems(newItems);
-    setSplitMode('item');
   };
   
+  const handleParticipantChange = (id: string, field: 'name' | 'splitValue', value: string) => {
+    const newParticipants = participants.map(p => {
+        if (p.id === id) {
+            if (field === 'name') {
+                return { ...p, name: value };
+            }
+            const numericValue = parseFloat(value) || 0;
+            return { ...p, splitValue: numericValue };
+        }
+        return p;
+    });
+    setParticipants(newParticipants);
+  };
+
+  const handleItemsScanned = (data: any) => {
+    setDescription(data.description || '');
+    if (data.date) setDate(data.date);
+    if (data.total) setTotalAmount(data.total);
+
+    const newItems = data.items.map((item: any, index: number) => ({
+      id: `item-scan-${Date.now()}-${index}`,
+      name: item.name,
+      price: item.price,
+      assignedTo: [],
+    }));
+    setItems(newItems);
+
+    const newInfo = data.additionalInfo?.map((info: any, index: number) => ({
+      id: `info-scan-${Date.now()}-${index}`,
+      key: info.key,
+      value: info.value,
+    })) || [];
+    setAdditionalInfo(newInfo);
+    
+    setSplitMode('item');
+  };
+
   const handleSaveItems = (updatedItems: ReceiptItem[]) => {
     setItems(updatedItems);
     setIsItemEditorOpen(false);
-    if (!isRecurring && updatedItems.some(i => i.price > 0)) {
-        setSplitMode('item');
-    }
   };
   
   const handleSaveInfo = (updatedInfo: { id: string; key: string; value: string }[]) => {
     setAdditionalInfo(updatedInfo);
     setIsInfoEditorOpen(false);
   };
-
-  const { splitTotal, splitRemainder, isSplitValid } = useMemo(() => {
-    if (isRecurring) return { splitTotal: 0, splitRemainder: 0, isSplitValid: true };
-
-    if (splitMode === 'amount') {
-        const total = participants.reduce((sum, p) => sum + (p.splitValue || 0), 0);
-        const remainder = effectiveTotal - total;
-        return { splitTotal: total, splitRemainder: remainder, isSplitValid: Math.abs(remainder) < 0.01 };
-    }
-    if (splitMode === 'percentage') {
-        const total = participants.reduce((sum, p) => sum + (p.splitValue || 0), 0);
-        return { splitTotal: total, splitRemainder: 0, isSplitValid: Math.abs(total - 100) < 0.01 };
-    }
-    return { splitTotal: 0, splitRemainder: 0, isSplitValid: true };
-  }, [splitMode, participants, effectiveTotal, isRecurring]);
-
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    setValidationError(null); // Clear previous errors
+  
+  const validate = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!description.trim()) newErrors.description = "Description is required.";
+    if (!isRecurring && (!totalAmount || totalAmount <= 0)) newErrors.totalAmount = "Total amount must be greater than zero.";
+    if (isRecurring && totalAmount && totalAmount < 0) newErrors.totalAmount = "Total amount cannot be negative.";
+    if (participants.filter(p => p.name.trim()).length < 1) newErrors.participants = "At least one participant is required.";
+    if (errors.split) newErrors.split = errors.split;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  const handleSaveClick = () => {
+    if (!validate()) return;
     
+    const finalParticipants = participants
+      .filter(p => p.name.trim() !== '')
+      .map(p => ({
+          ...p,
+          paid: p.name.toLowerCase().trim() === myNameLower
+      }));
+    
+    const additionalInfoObject = additionalInfo.reduce((acc, info) => {
+      if (info.key.trim()) acc[info.key.trim()] = info.value;
+      return acc;
+    }, {} as Record<string, string>);
+      
     if (isRecurring) {
-        const finalParticipants = participants.filter(p => p.name.trim() !== '').map(p => ({
-            id: p.id,
-            name: p.name,
-            amountOwed: 0,
-            paid: false,
-            splitValue: (splitMode === 'amount' || splitMode === 'percentage') ? p.splitValue || 0 : undefined,
-        }));
-        
-        const finalItems = items.map(({ price, ...i }) => ({
-            ...i,
-            price: 0,
-            assignedTo: splitMode === 'item' ? i.assignedTo : [],
-        })).filter(i => i.name.trim() !== '');
-
-        // FIX: Calculate and include additionalInfo when saving a recurring bill.
-        const finalAdditionalInfo = additionalInfo
-            .filter(info => info.key.trim() !== '' && info.value.trim() !== '')
-            .reduce((acc, { key, value }) => {
-                acc[key.trim()] = value.trim();
-                return acc;
-            }, {} as Record<string, string>);
-
         const recurringBillData = {
             description,
-            participants: finalParticipants,
-            items: finalItems,
-            recurrenceRule,
+            totalAmount: totalAmount || undefined,
+            // FIX: Ensure template participants conform to the Participant type by setting amountOwed and paid to default values.
+            participants: finalParticipants.map(({ amountOwed, paid, ...rest }) => ({ ...rest, amountOwed: 0, paid: false })),
+            items: items.map(({ price, ...rest }) => ({...rest, price: isEditing ? price : 0})),
             splitMode,
-            totalAmount: totalAmount ? parseFloat(totalAmount) : undefined,
-            additionalInfo: Object.keys(finalAdditionalInfo).length > 0 ? finalAdditionalInfo : undefined,
+            recurrenceRule,
+            additionalInfo: additionalInfoObject,
         };
-        if (mode === 'edit-recurring' && initialData) {
-            onUpdateRecurring({ ...recurringBillData, id: initialData.id, status: initialData.status, nextDueDate: initialData.nextDueDate });
+        if (isEditing && template) {
+            onUpdateRecurring({ ...template, ...recurringBillData });
         } else {
             onSaveRecurring(recurringBillData);
         }
     } else {
-        const activeParticipants = participants.filter(p => p.name.trim() !== '');
-        
-        // --- VALIDATION LOGIC ---
-        if (effectiveTotal > 0 && activeParticipants.length === 0) {
-            setValidationError("Please add at least one participant to the bill.");
-            return;
-        }
-
-        const totalOwedByParticipants = activeParticipants.reduce((sum, p) => sum + p.amountOwed, 0);
-        const discrepancy = effectiveTotal - totalOwedByParticipants;
-
-        if (Math.abs(discrepancy) > 0.01) {
-            let errorMessage = `The participant totals ($${totalOwedByParticipants.toFixed(2)}) do not add up to the bill total ($${effectiveTotal.toFixed(2)}).`;
-            if (splitMode === 'item') {
-                errorMessage += " Please ensure every item is assigned to at least one participant.";
-            } else if (splitMode === 'amount') {
-                errorMessage += ` The amounts entered are off by $${(splitRemainder).toFixed(2)}.`;
-            } else if (splitMode === 'percentage') {
-                errorMessage += ` The percentages add up to ${splitTotal.toFixed(0)}%, not 100%.`;
-            }
-            setValidationError(errorMessage);
-            return;
-        }
-        
-        const finalParticipants = activeParticipants.map(({ splitValue, ...p }) => p);
-        const finalAdditionalInfo = additionalInfo
-            .filter(info => info.key.trim() !== '' && info.value.trim() !== '')
-            .reduce((acc, { key, value }) => {
-                acc[key.trim()] = value.trim();
-                return acc;
-            }, {} as Record<string, string>);
-        
         const billData: Omit<Bill, 'id' | 'status'> = {
-            description, totalAmount: effectiveTotal, date, participants: finalParticipants, items, receiptImage,
-            additionalInfo: Object.keys(finalAdditionalInfo).length > 0 ? finalAdditionalInfo : undefined
+            description,
+            totalAmount: totalAmount || 0,
+            date,
+            participants: finalParticipants,
+            items,
+            receiptImage,
+            additionalInfo: additionalInfoObject,
         };
-        onSave(billData, mode === 'create-from-recurring' ? initialData?.id : undefined);
+        onSave(billData, fromTemplateId || undefined);
     }
   };
-  
-  const handleCancel = () => {
-    if (isDirty) {
-      requestConfirmation('Discard Changes?', 'Are you sure? All entered data will be lost.', onCancel, { confirmText: 'Discard', confirmVariant: 'danger' });
-    } else { onCancel(); }
-  };
-  
-  const saveButtonText = useMemo(() => {
-    if (mode === 'edit-recurring') return 'Save Template';
-    if (isRecurring) return 'Create Template';
-    return 'Save Bill';
-  }, [mode, isRecurring]);
 
-  const splitOptions: { id: SplitMode, label: string }[] = [
-    { id: 'equally', label: 'Equally' }, { id: 'amount', label: 'By Amount' }, { id: 'percentage', label: 'By %' }, { id: 'item', label: 'By Item' }
-  ];
+  const handleBack = () => {
+     requestConfirmation('Discard Changes?', 'Are you sure you want to discard this new bill?', onCancel);
+  };
+
+  // --- Render Logic ---
+  const renderParticipantInputs = () => (
+    <div className="space-y-3">
+        {participants.map((p, index) => (
+            <div key={p.id} className="flex items-center gap-2">
+                <input type="text" value={p.name} onChange={e => handleParticipantChange(p.id, 'name', e.target.value)} placeholder={`Participant ${index + 1}`} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
+                {(splitMode === 'amount' || splitMode === 'percentage') && (
+                    <div className="relative w-32">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">{splitMode === 'amount' ? '$' : '%'}</span>
+                        <input type="number" step="0.01" value={p.splitValue || ''} onChange={e => handleParticipantChange(p.id, 'splitValue', e.target.value)} className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
+                    </div>
+                )}
+                <button onClick={() => handleRemoveParticipant(p.id)} disabled={participants.length <= 1} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg></button>
+            </div>
+        ))}
+        <button onClick={handleAddParticipant} className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" /></svg>
+            <span>Add Participant</span>
+        </button>
+        {errors.participants && <p className="text-sm text-red-500">{errors.participants}</p>}
+    </div>
+  );
 
   return (
+    <>
+    {isItemEditorOpen && <ItemEditor initialItems={items} participants={participants} onSave={handleSaveItems} onCancel={() => setIsItemEditorOpen(false)} isRecurring={isRecurring}/>}
+    {isInfoEditorOpen && <AdditionalInfoEditor initialInfo={additionalInfo} onSave={handleSaveInfo} onCancel={() => setIsInfoEditorOpen(false)} />}
     <div className="max-w-2xl mx-auto">
-      <button onClick={handleCancel} className="flex items-center gap-2 mb-6 text-teal-600 dark:text-teal-400 font-semibold hover:text-teal-800 dark:hover:text-teal-300">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-        Back
-      </button>
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
+        <h2 className="text-3xl font-bold text-slate-700 dark:text-slate-200 mb-6">{isEditing ? 'Edit Template' : (fromTemplateId ? 'Create Bill from Template' : 'Create New Bill')}</h2>
 
-      {isItemEditorOpen && <ItemEditor initialItems={items} participants={participants} onSave={handleSaveItems} onCancel={() => setIsItemEditorOpen(false)} isRecurring={isRecurring} />}
-      {isInfoEditorOpen && <AdditionalInfoEditor initialInfo={additionalInfo} onSave={handleSaveInfo} onCancel={() => setIsInfoEditorOpen(false)} />}
+        <div className="flex items-center justify-end mb-6">
+            <label htmlFor="isRecurring" className="mr-3 font-medium text-slate-700 dark:text-slate-200">
+                {isEditing ? 'This is a recurring template' : 'Save as recurring template?'}
+            </label>
+            <button
+                id="isRecurring"
+                type="button"
+                onClick={() => setIsRecurring(!isRecurring)}
+                disabled={isEditing}
+                className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${isEditing ? 'opacity-50 cursor-not-allowed' : ''} ${isRecurring ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+            >
+                <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${isRecurring ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+        </div>
 
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
-        <h2 className="text-3xl font-bold text-slate-700 dark:text-slate-200 mb-6">{mode === 'edit-recurring' ? 'Edit Recurring Bill' : (mode === 'create-from-recurring' ? 'Create Bill from Template' : 'Create New Bill')}</h2>
-
-        {!isRecurring && <ReceiptScanner onItemsScanned={handleItemsScanned} onImageSelected={setReceiptImage} onImageCleared={() => setReceiptImage(null)} />}
-
+        {!isRecurring && (
+            <ReceiptScanner 
+                onItemsScanned={handleItemsScanned}
+                onImageSelected={setReceiptImage}
+                onImageCleared={() => setReceiptImage(undefined)}
+            />
+        )}
+        
         <div className="space-y-6">
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Description</label>
-            <input id="description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="e.g., Monthly Rent" />
+            <input id="description" type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
+            {errors.description && <p className="text-sm text-red-500 mt-1">{errors.description}</p>}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="totalAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
-                {isRecurring ? 'Default Total (Optional)' : 'Total Amount'}
-              </label>
-              <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
-                <input 
-                  id="totalAmount" 
-                  type="number" 
-                  step="0.01" 
-                  value={totalAmount} 
-                  onChange={(e) => setTotalAmount(e.target.value)} 
-                  onBlur={handleTotalAmountBlur} 
-                  disabled={!isRecurring && hasPricedItems} 
-                  required={!isRecurring}
-                  className="w-full pl-7 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 disabled:bg-slate-100 dark:disabled:bg-slate-700/50" 
-                  placeholder="0.00" 
-                />
-              </div>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className={`flex-1 ${isRecurring ? 'w-full' : 'sm:w-1/2'}`}>
+                <label htmlFor="totalAmount" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Total Amount {isRecurring && '(Optional)'}</label>
+                <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
+                    <input id="totalAmount" type="number" step="0.01" value={totalAmount === undefined ? '' : totalAmount} onChange={e => setTotalAmount(e.target.value === '' ? undefined : parseFloat(e.target.value))} disabled={splitMode === 'item'} className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 disabled:bg-slate-100 dark:disabled:bg-slate-600" />
+                </div>
+                 {errors.totalAmount && <p className="text-sm text-red-500 mt-1">{errors.totalAmount}</p>}
             </div>
             {!isRecurring && (
-              <div>
-                <label htmlFor="date" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label>
-                <input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
-              </div>
+                <div className="flex-1 sm:w-1/2">
+                    <label htmlFor="date" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label>
+                    <input id="date" type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
+                </div>
             )}
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button type="button" onClick={() => setIsItemEditorOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM5 11a1 1 0 100 2h4a1 1 0 100-2H5z" /></svg>
-                <span>{items.length > 0 ? `Edit ${items.length} Items` : 'Itemize Bill'}</span>
-            </button>
-            <button type="button" onClick={() => setIsInfoEditorOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
-                <span>{additionalInfo.length > 0 ? `Edit ${additionalInfo.length} Details` : 'Add Details'}</span>
-            </button>
+          {isRecurring && <RecurrenceSelector value={recurrenceRule} onChange={setRecurrenceRule} />}
+
+          <div>
+            <h3 className="text-lg font-semibold mb-3 text-slate-700 dark:text-slate-200">Split Method</h3>
+            <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg">
+                <button type="button" onClick={() => setSplitMode('equally')} className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${splitMode === 'equally' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Equally</button>
+                <button type="button" onClick={() => setSplitMode('amount')} className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${splitMode === 'amount' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>By Amount</button>
+                <button type="button" onClick={() => setSplitMode('percentage')} className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${splitMode === 'percentage' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>By %</button>
+                <button type="button" onClick={() => setSplitMode('item')} className={`flex-1 px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${splitMode === 'item' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>By Item</button>
+            </div>
+            {errors.split && <p className="text-sm text-red-500 mt-2">{errors.split}</p>}
           </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200">Participants</h3>
-              <div className="flex items-center gap-2">
-                {!isMyselfInList && <button type="button" onClick={handleAddMyself} className="text-sm font-semibold text-teal-600 dark:text-teal-400 hover:underline">Add Myself</button>}
-                {isContactPickerSupported && <button type="button" onClick={() => handleSelectContact(`p-${Date.now()}`)} className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-teal-600 dark:text-teal-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1zm12 0a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1zM5.414 9.414a1 1 0 00-1.414 1.414V12a1 1 0 002 0v-.586a1 1 0 00-1.414-1.414zM16 11.414a1 1 0 00-1.414-1.414 1 1 0 00-1.414 1.414V12a1 1 0 002 0v-.586zM8 9a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" /><path d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h14a1 1 0 001-1V4a1 1 0 00-1-1H3zm12 1a1 1 0 011 1v1a1 1 0 11-2 0V5a1 1 0 011-1zM5 4a1 1 0 011-1h1a1 1 0 110 2H6a1 1 0 01-1-1zm11 9.414a1 1 0 01-1.414 1.414V16a1 1 0 11-2 0v-.586a1 1 0 01-1.414-1.414 1 1 0 011.414-1.414V12a1 1 0 112 0v.586a1 1 0 011.414 1.414zM5 11.414a1 1 0 01-1.414 1.414V16a1 1 0 11-2 0v-.586a1 1 0 01-1.414-1.414 1 1 0 011.414-1.414V12a1 1 0 112 0v.586a1 1 0 011.414 1.414zM8 13a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" /></svg></button>}
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-                {participants.map((p, index) => (
-                    <div key={p.id} className="flex items-center gap-3">
-                        <input type="text" value={p.name} onChange={(e) => handleParticipantChange(p.id, 'name', e.target.value)} placeholder={`Participant ${index + 1}`} className="flex-grow px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
-                        {participants.length > 1 && <button type="button" onClick={() => handleRemoveParticipant(p.id)} className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500" aria-label={`Remove ${p.name}`}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg></button>}
-                    </div>
-                ))}
-            </div>
-            <button type="button" onClick={handleAddParticipant} className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg>
-              Add Participant
-            </button>
+          <div>
+            <h3 className="text-lg font-semibold mb-3 text-slate-700 dark:text-slate-200">Participants</h3>
+            {renderParticipantInputs()}
           </div>
           
           <div>
-              <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2">Split Method</h3>
-               <div className="flex flex-wrap items-center gap-2 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
-                {splitOptions.map(opt => (
-                    <button type="button" key={opt.id} onClick={() => handleSplitModeChange(opt.id)}
-                    className={`flex-1 px-3 py-2 text-sm font-semibold rounded-md transition-colors ${splitMode === opt.id ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>
-                    {opt.label}
-                    </button>
-                ))}
-              </div>
-          </div>
-          
-          {(splitMode === 'amount' || splitMode === 'percentage') && (
-            <div className="space-y-3 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                {participants.filter(p => p.name.trim() !== '').map(p => (
-                    <div key={p.id} className="flex items-center justify-between gap-3">
-                        <label htmlFor={`split-${p.id}`} className="text-slate-700 dark:text-slate-200">{p.name}</label>
-                        <div className="relative w-32">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">{splitMode === 'amount' ? '$' : '%'}</span>
-                           <input id={`split-${p.id}`} type="number" step="0.01" value={p.splitValue || ''} onChange={(e) => handleParticipantChange(p.id, 'splitValue', e.target.value)} className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
-                        </div>
-                    </div>
-                ))}
-                 {!isSplitValid && !isRecurring && (
-                  <p className="text-xs text-center font-semibold text-red-600 dark:text-red-400 pt-2">
-                    {splitMode === 'amount' ? `Total does not match bill. Off by $${splitRemainder.toFixed(2)}.` : `Total percentage is ${splitTotal.toFixed(2)}%, not 100%.`}
-                  </p>
-                )}
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200">{isRecurring ? 'Default Items' : 'Itemization'}</h3>
+                <button type="button" onClick={() => setIsItemEditorOpen(true)} className="text-sm font-semibold text-teal-600 dark:text-teal-400 hover:underline">Edit Items ({items.length})</button>
             </div>
-          )}
-          
-          {mode !== 'create-from-recurring' && (
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                  <div>
-                      <h4 className="font-semibold text-slate-700 dark:text-slate-200">
-                          {mode === 'edit-recurring' ? 'Make this a recurring bill template?' : 'Save as a recurring bill?'}
-                      </h4>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">Automatically generate this bill on a schedule.</p>
-                  </div>
-                  <button type="button" onClick={() => setIsRecurring(prev => !prev)} className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${isRecurring ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                      <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${isRecurring ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-              </div>
-          )}
-
-          {isRecurring && <RecurrenceSelector value={recurrenceRule} onChange={setRecurrenceRule} />}
-
-        </div>
-        
-        {validationError && (
-          <div className="mt-6 p-3 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-900/40 dark:text-red-300" role="alert">
-             <span className="font-medium">Validation Error:</span> {validationError}
+            <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg text-sm text-slate-600 dark:text-slate-300">
+                {items.length > 0 ? (
+                    <ul className="list-disc pl-5 space-y-1">
+                        {items.slice(0, 3).map(item => <li key={item.id}>{item.name}{!isRecurring && ` ($${item.price.toFixed(2)})`}</li>)}
+                        {items.length > 3 && <li>...and {items.length - 3} more.</li>}
+                    </ul>
+                ) : 'No items added yet.'}
+            </div>
           </div>
-        )}
+          
+          <div>
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200">Additional Details</h3>
+                <button type="button" onClick={() => setIsInfoEditorOpen(true)} className="text-sm font-semibold text-teal-600 dark:text-teal-400 hover:underline">Edit Details ({additionalInfo.length})</button>
+            </div>
+          </div>
 
-        <div className="mt-8 flex justify-end gap-4">
-          <button type="button" onClick={handleCancel} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Cancel</button>
-          <button type="submit" className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">{saveButtonText}</button>
         </div>
-      </form>
+
+        <div className="mt-8 flex justify-end space-x-4">
+          <button onClick={handleBack} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Cancel</button>
+          <button onClick={handleSaveClick} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">{isEditing ? 'Update Template' : 'Save'}</button>
+        </div>
+
+      </div>
     </div>
+    </>
   );
 };
-
-export default CreateBill;
