@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Bill, Settings, Participant } from './types.ts';
+import type { Bill, Settings, Participant } from '../types.ts';
 import { generateShareLinksForParticipants } from '../services/shareService.ts';
-import { ShareLinkMenu } from './ShareLinkMenu.tsx';
+// FIX: Changed to a named import to match the updated export in ShareLinkActionSheet.tsx.
+import { ShareLinkActionSheet } from './ShareLinkActionSheet.tsx';
 
 interface ShareModalProps {
   bill: Bill;
@@ -21,7 +22,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
 
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<Set<string>>(() => new Set(shareableParticipants.map(p => p.id)));
   const [generatedLinks, setGeneratedLinks] = useState<Map<string, string>>(new Map());
-  const [activeShareMenuId, setActiveShareMenuId] = useState<string | null>(null);
+  const [actionSheetParticipant, setActionSheetParticipant] = useState<Participant | null>(null);
   const [lastCopiedId, setLastCopiedId] = useState<string | null>(null);
 
   const handleToggleParticipant = (id: string) => {
@@ -136,26 +137,15 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
                     </div>
                     <div className="flex items-center gap-2">
                         <input type="text" readOnly value={url} className="w-full text-xs px-2 py-1 border border-slate-300 rounded-md bg-slate-200 dark:bg-slate-600 dark:border-slate-500 text-slate-500 dark:text-slate-400"/>
-                        <div className="relative">
-                            <button
-                                onClick={() => setActiveShareMenuId(activeShareMenuId === p.id ? null : p.id)}
-                                className="p-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 rounded-md"
-                                title="Share link"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-700 dark:text-slate-200" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                                </svg>
-                            </button>
-                            {activeShareMenuId === p.id && (
-                                <ShareLinkMenu
-                                    url={url}
-                                    billDescription={bill.description}
-                                    participant={p}
-                                    onClose={() => setActiveShareMenuId(null)}
-                                    onCopy={() => handleCopied(p.id)}
-                                />
-                            )}
-                        </div>
+                        <button
+                            onClick={() => setActionSheetParticipant(p)}
+                            className="p-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 rounded-md"
+                            title="Share link"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-700 dark:text-slate-200" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
             )
@@ -193,11 +183,23 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-        {renderContent()}
+    <>
+      <div className="fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose} role="dialog" aria-modal="true">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+          {renderContent()}
+        </div>
       </div>
-    </div>
+      
+      {actionSheetParticipant && generatedLinks.has(actionSheetParticipant.id) && (
+        <ShareLinkActionSheet
+            participant={actionSheetParticipant}
+            url={generatedLinks.get(actionSheetParticipant.id)!}
+            billDescription={bill.description}
+            onClose={() => setActionSheetParticipant(null)}
+            onCopy={() => handleCopied(actionSheetParticipant.id)}
+        />
+      )}
+    </>
   );
 };
 
