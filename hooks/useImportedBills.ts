@@ -9,14 +9,10 @@ export const useImportedBills = () => {
   const [importedBills, setImportedBills] = useState<ImportedBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const updateImportedBill = useCallback(async (updatedBill: ImportedBill) => {
-    await updateDB(updatedBill);
-    setImportedBills(prev => {
-        const updated = prev.map(bill => (bill.id === updatedBill.id ? updatedBill : bill));
-        updated.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
-        return updated;
-    });
-  }, []);
+  const sortAndSet = (bills: ImportedBill[]) => {
+    bills.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
+    setImportedBills(bills);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -33,6 +29,12 @@ export const useImportedBills = () => {
     };
     loadData();
   }, []);
+
+  const updateImportedBill = useCallback(async (updatedBill: ImportedBill) => {
+    await updateDB(updatedBill);
+    const updated = importedBills.map(bill => (bill.id === updatedBill.id ? updatedBill : bill));
+    sortAndSet(updated);
+  }, [importedBills]);
   
   // Effect for background polling of updates
   useEffect(() => {
@@ -91,15 +93,14 @@ export const useImportedBills = () => {
 
 
   const addImportedBill = useCallback(async (newBill: ImportedBill) => {
+    // Check against the current state to prevent duplicates
+    if (importedBills.some(b => b.id === newBill.id)) {
+        return;
+    }
     await addDB(newBill);
-    setImportedBills(prev => {
-        // Avoid adding duplicates
-        if (prev.some(b => b.id === newBill.id)) return prev;
-        const updated = [...prev, newBill];
-        updated.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
-        return updated;
-    });
-  }, []);
+    const updated = [...importedBills, newBill];
+    sortAndSet(updated);
+  }, [importedBills]);
 
   const deleteImportedBill = useCallback(async (billId: string) => {
     await deleteImportedBillDB(billId);
