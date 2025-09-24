@@ -45,6 +45,7 @@ export interface Bill {
   shareInfo?: {
     shareId: string;
     encryptionKey: JsonWebKey;
+    signingPublicKey: JsonWebKey; // Public key for this specific bill's signing pair
   };
 }
 

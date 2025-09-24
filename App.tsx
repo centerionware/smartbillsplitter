@@ -3,7 +3,6 @@ import type { Bill, Settings, RecurringBill, Participant, ReceiptItem, ImportedB
 import { View } from './types.ts';
 import { useBills } from './hooks/useBills.ts';
 import { useImportedBills } from './hooks/useImportedBills.ts';
-import { useKeys } from './hooks/useKeys.ts';
 import { useSettings } from './hooks/useSettings.ts';
 import { useTheme } from './hooks/useTheme.ts';
 import { useAuth } from './hooks/useAuth.ts';
@@ -49,7 +48,6 @@ const App: React.FC = () => {
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
   const { theme, setTheme, isLoading: themeLoading } = useTheme();
   const { subscriptionStatus, logout } = useAuth();
-  useKeys(); // Initialize cryptographic keys on app load.
   
   // --- Navigation & View State ---
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);

@@ -23,8 +23,19 @@ export const DisclaimerContent: React.FC = () => (
                 <li>The data is <strong>end-to-end encrypted</strong> on your device before it is sent. This means we, the server operators, cannot read its contents.</li>
                 <li>This encrypted data is stored temporarily <strong>in-memory</strong> on our server and is never written to a permanent database.</li>
                 <li>"Sync" data expires and is deleted after <strong>5 minutes</strong>.</li>
-                <li>"Share Bill" data expires and is deleted after <strong>30 days</strong>, and the one-time keys to access it are deleted immediately after use.</li>
+                <li>"Share Bill" encrypted data expires and is deleted after <strong>30 days</strong>.</li>
             </ul>
+            <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <h4 className="font-semibold text-slate-700 dark:text-slate-200">How Secure Bill Sharing Works</h4>
+                <p className="text-sm mt-1">
+                    To allow someone to view a shared bill via a link, we must provide them with a way to decrypt it. To do this securely, we temporarily store a one-time use <strong>decryption key</strong> on our server, separate from the encrypted bill data itself. The link you share contains a unique ID to fetch this key.
+                </p>
+                <ul className="list-disc list-inside space-y-1 mt-2 pl-2 text-sm">
+                    <li>This key is "consumable" - it is <strong>permanently deleted</strong> from our server immediately after it is accessed for the first time.</li>
+                    <li>If unused, the key is automatically deleted after <strong>24 hours</strong>.</li>
+                    <li>This process ensures that only the intended recipient with the unique link can decrypt the bill information, and only for a limited time. The sender's public key, used for verifying the bill's authenticity, is part of the encrypted data and is not stored separately.</li>
+                </ul>
+            </div>
         </div>
 
         <div>

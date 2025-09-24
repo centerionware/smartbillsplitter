@@ -3,9 +3,9 @@ import type { Bill, Settings, Participant } from './types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import ShareModal from './ShareModal.tsx';
 import ShareActionSheet from './ShareActionSheet.tsx';
-import { useKeys } from '../hooks/useKeys.ts';
-import { generateShareText, generateShareLink } from '../services/shareService.ts';
+import { generateShareText, generateShareLink, encryptAndSignPayload } from '../services/shareService.ts';
 import * as cryptoService from '../services/cryptoService.ts';
+import { getBillSigningKey } from '../services/db.ts';
 
 interface BillDetailsProps {
   bill: Bill;
@@ -22,23 +22,26 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareMenuParticipant, setShareMenuParticipant] = useState<Participant | null>(null);
-  const { keyPair } = useKeys();
 
   const pushShareUpdate = useCallback(async (updatedBill: Bill) => {
-    if (!updatedBill.shareInfo || !keyPair) return;
+    if (!updatedBill.shareInfo) return;
 
     try {
-        const key = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
-        const signature = await cryptoService.sign(JSON.stringify(updatedBill), keyPair.privateKey);
-        const publicKeyJwk = await cryptoService.exportKey(keyPair.publicKey);
+        const keyRecord = await getBillSigningKey(updatedBill.id);
+        if (!keyRecord) {
+            console.error("Signing key not found for shared bill:", updatedBill.id);
+            return;
+        }
         
-        const payload = {
-            bill: updatedBill,
-            creatorName: settings.myDisplayName,
-            publicKey: publicKeyJwk,
-            signature,
-        };
-        const encryptedData = await cryptoService.encrypt(JSON.stringify(payload), key);
+        const encryptionKey = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
+
+        const encryptedData = await encryptAndSignPayload(
+            updatedBill, 
+            settings, 
+            keyRecord.privateKey, 
+            updatedBill.shareInfo.signingPublicKey, 
+            encryptionKey
+        );
 
         await fetch(`/share/${updatedBill.shareInfo.shareId}`, {
             method: 'POST',
@@ -50,7 +53,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
         console.error("Failed to push share update:", error);
         // This is a background task, so we don't show a blocking UI error.
     }
-  }, [keyPair, settings.myDisplayName]);
+  }, [settings]);
 
   const handleParticipantPaidToggle = (participantId: string) => {
     const updatedParticipants = bill.participants.map(p =>
@@ -100,13 +103,8 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
   };
 
   const handleShareLink = useCallback(async (participant: Participant, method: 'sms' | 'email' | 'generic') => {
-    if (!keyPair) {
-      alert("Cryptographic keys not loaded. Cannot generate share link.");
-      return;
-    }
-
     // This re-uses the existing share info if available, or generates a new one.
-    const { url: shareUrl, shareInfo } = await generateShareLink(bill, settings, keyPair);
+    const { url: shareUrl, shareInfo } = await generateShareLink(bill, settings);
     
     // If new share info was created, persist it to the bill
     if (shareInfo && !bill.shareInfo) {
@@ -136,7 +134,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
     } finally {
         setShareMenuParticipant(null);
     }
-  }, [keyPair, bill, settings, onUpdateBill]);
+  }, [bill, settings, onUpdateBill]);
 
   return (
     <>

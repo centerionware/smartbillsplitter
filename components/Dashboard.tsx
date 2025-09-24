@@ -9,7 +9,6 @@ import AdBillCard from './AdBillCard.tsx';
 import SwipeableImportedBillCard from './SwipeableImportedBillCard.tsx';
 import ShareActionSheet from './ShareActionSheet.tsx';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
-import { useKeys } from '../hooks/useKeys.ts';
 import { generateShareText, generateAggregateBill, generateShareLink } from '../services/shareService.ts';
 
 interface DashboardProps {
@@ -62,7 +61,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [visibleCount, setVisibleCount] = useState(BILLS_PER_PAGE);
   const [shareSheetParticipant, setShareSheetParticipant] = useState<ParticipantData | null>(null);
   const [archivingBillIds, setArchivingBillIds] = useState<string[]>([]);
-  const { keyPair } = useKeys();
 
   // --- Calculations for Summary & Participant View ---
   const activeBills = useMemo(() => bills.filter(b => b.status === 'active'), [bills]);
@@ -339,19 +337,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleShareLink = useCallback(async (participantName: string, method: 'sms' | 'email' | 'generic') => {
-    if (!keyPair) {
-      alert("Cryptographic keys not loaded. Cannot generate share link.");
-      return;
-    }
-    
     const participantUnpaidBills = bills.filter(b => 
         b.participants.some(p => p.name === participantName && !p.paid && p.amountOwed > 0)
     );
 
     const summaryBill = generateAggregateBill(participantName, participantUnpaidBills, settings);
-    const shareUrl = await generateShareLink(summaryBill, settings, keyPair);
+    const { url: shareUrl } = await generateShareLink(summaryBill, settings);
 
-    const message = `Here is a link to view a summary of your outstanding bills with me. This link will expire in 24 hours:\n\n${shareUrl}`;
+    const message = `Here is a link to view a summary of your outstanding bills with me. This link will expire after it's used once or after 24 hours:\n\n${shareUrl}`;
 
     try {
         if (method === 'sms') {
@@ -376,7 +369,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     } finally {
         setShareSheetParticipant(null);
     }
-  }, [keyPair, bills, settings, participantsData]);
+  }, [bills, settings, participantsData]);
 
 
   const handleMarkParticipantAsPaid = async (participantName: string) => {

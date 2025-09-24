@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Bill, Settings, Participant } from '../types.ts';
-import { useKeys } from '../hooks/useKeys.ts';
+import type { Bill, Settings, Participant } from './types.ts';
 import { generateShareLinksForParticipants } from '../services/shareService.ts';
 import { ShareLinkMenu } from './ShareLinkMenu.tsx';
 
@@ -16,7 +15,6 @@ type View = 'selection' | 'generating' | 'links' | 'error';
 const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpdateBill }) => {
   const [view, setView] = useState<View>('selection');
   const [error, setError] = useState<string | null>(null);
-  const { keyPair, isLoading: keysLoading } = useKeys();
   
   const myNameLower = settings.myDisplayName.toLowerCase().trim();
   const shareableParticipants = bill.participants.filter(p => p.name.toLowerCase().trim() !== myNameLower);
@@ -46,7 +44,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
   };
 
   const handleGenerateLinks = useCallback(async () => {
-    if (!keyPair || selectedParticipantIds.size === 0) {
+    if (selectedParticipantIds.size === 0) {
       return;
     }
 
@@ -58,7 +56,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
             .map(id => bill.participants.find(p => p.id === id)?.name)
             .filter((name): name is string => !!name);
 
-      const { links, shareInfo } = await generateShareLinksForParticipants(bill, selectedNames, settings, keyPair);
+      const { links, shareInfo } = await generateShareLinksForParticipants(bill, selectedNames, settings);
       
       const linksMap = new Map<string, string>();
       links.forEach((url, name) => {
@@ -79,7 +77,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
       setError(err.message || "An unknown error occurred while creating share links.");
       setView('error');
     }
-  }, [bill, settings, keyPair, onUpdateBill, selectedParticipantIds]);
+  }, [bill, settings, onUpdateBill, selectedParticipantIds]);
 
   const renderSelectionView = () => (
     <>

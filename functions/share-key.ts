@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import redisClient from '../services/redisClient.ts';
 
-const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
+const EXPIRATION_SECONDS = 24 * 60 * 60; // 24 hours
 
 export const shareKeyHandler = async (req: Request, res: Response) => {
   // CORS Preflight

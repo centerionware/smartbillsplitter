@@ -2,7 +2,7 @@ import type { Bill, Settings, Theme, RecurringBill, ImportedBill } from '../type
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 4; // Incremented version for new stores
+const DB_VERSION = 5; // Incremented version for new stores
 
 // Object Store Names
 const STORES = {
@@ -13,8 +13,9 @@ const STORES = {
   THEME: 'theme',
   SUBSCRIPTION: 'subscription',
   SUBSCRIPTION_DETAILS: 'subscription_details',
-  CRYPTO_KEYS: 'crypto_keys',
+  CRYPTO_KEYS: 'crypto_keys', // Note: This is now legacy and unused.
   SHARE_KEYS: 'share_keys',
+  BILL_SIGNING_KEYS: 'bill_signing_keys',
 };
 
 // Singleton key for settings, theme, subscription stores
@@ -75,6 +76,11 @@ export function initDB(): Promise<void> {
       if (event.oldVersion < 4) {
         if (!dbInstance.objectStoreNames.contains(STORES.SHARE_KEYS)) {
           dbInstance.createObjectStore(STORES.SHARE_KEYS, { keyPath: 'shareId' });
+        }
+      }
+      if (event.oldVersion < 5) {
+        if (!dbInstance.objectStoreNames.contains(STORES.BILL_SIGNING_KEYS)) {
+            dbInstance.createObjectStore(STORES.BILL_SIGNING_KEYS, { keyPath: 'billId' });
         }
       }
     };
@@ -149,9 +155,15 @@ export const saveSettings = (settings: Settings) => set(STORES.SETTINGS, setting
 export const getTheme = () => get<Theme>(STORES.THEME, SINGLE_KEY);
 export const saveTheme = (theme: Theme) => set(STORES.THEME, theme, SINGLE_KEY);
 
-// --- Crypto Keys ---
-export const getKeyPair = () => get<{id: string, keyPair: CryptoKeyPair}>(STORES.CRYPTO_KEYS, MY_KEY_PAIR_ID);
-export const saveKeyPair = (keyPair: CryptoKeyPair) => set(STORES.CRYPTO_KEYS, { id: MY_KEY_PAIR_ID, keyPair });
+// --- Bill Signing Keys (Per-Bill Private Keys) ---
+interface BillSigningKeyRecord {
+  billId: string;
+  privateKey: CryptoKey;
+}
+export const saveBillSigningKey = (billId: string, privateKey: CryptoKey) => set(STORES.BILL_SIGNING_KEYS, { billId, privateKey });
+export const getBillSigningKey = (billId: string) => get<BillSigningKeyRecord>(STORES.BILL_SIGNING_KEYS, billId);
+export const deleteBillSigningKeyDB = (billId: string) => del(STORES.BILL_SIGNING_KEYS, billId);
+
 
 // --- Share Keys ---
 interface ShareKeyRecord {
@@ -227,20 +239,13 @@ export async function exportData(): Promise<object> {
       STORES.THEME, 
       STORES.SUBSCRIPTION, 
       STORES.SUBSCRIPTION_DETAILS, 
-      STORES.CRYPTO_KEYS,
       STORES.SHARE_KEYS,
+      // Note: BILL_SIGNING_KEYS and the legacy CRYPTO_KEYS are intentionally omitted
+      // for security, as private keys should never be exported.
     ];
     for (const storeName of storesToExport) {
         if ([STORES.BILLS, STORES.RECURRING_BILLS, STORES.IMPORTED_BILLS, STORES.SHARE_KEYS].includes(storeName)) {
              data[storeName] = await getAll(storeName);
-        } else if (storeName === STORES.CRYPTO_KEYS) {
-             // Special handling for non-extractable private keys
-             const keyPairData = await get<{id: string, keyPair: CryptoKeyPair}>(storeName, MY_KEY_PAIR_ID);
-             if (keyPairData) {
-                // We only export the public key for safety. The private key is never exported.
-                const publicKeyJwk = await crypto.subtle.exportKey('jwk', keyPairData.keyPair.publicKey);
-                data[storeName] = [{id: MY_KEY_PAIR_ID, publicKey: publicKeyJwk }];
-             }
         } else {
              data[storeName] = await get(storeName, SINGLE_KEY);
         }
@@ -266,13 +271,15 @@ export async function importData(data: { [key: string]: any }): Promise<void> {
             // 1. Always clear the store first.
             store.clear(); 
 
+            // Security: Never import private keys from a backup file.
+            // New keys will be generated as needed when bills are re-shared.
+            if (storeName === STORES.BILL_SIGNING_KEYS || storeName === STORES.CRYPTO_KEYS) {
+                return;
+            }
+
             const storeData = data[storeName];
             // 2. If data for this store exists in the import object, add it.
             if (storeData !== null && storeData !== undefined) {
-                // Skip importing crypto keys as private keys are not exportable.
-                // A new key pair will be generated on next app load.
-                if (storeName === STORES.CRYPTO_KEYS) return;
-
                 if (Array.isArray(storeData)) {
                     // For stores like 'bills'
                     storeData.forEach(item => store.add(item));

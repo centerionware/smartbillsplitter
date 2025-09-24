@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Bill } from '../types.ts';
-import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB } from '../services/db.ts';
+import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB, deleteBillSigningKeyDB } from '../services/db.ts';
 
 const initialBills: Bill[] = [
   {
@@ -97,6 +97,7 @@ export const useBills = () => {
 
   const deleteBill = useCallback(async (billId: string) => {
     await deleteBillDB(billId);
+    await deleteBillSigningKeyDB(billId); // Also delete the associated signing key
     setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
   }, []);
 
