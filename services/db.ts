@@ -2,7 +2,7 @@ import type { Bill, Settings, Theme, RecurringBill, ImportedBill } from '../type
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 3; // Incremented version for new stores
+const DB_VERSION = 4; // Incremented version for new stores
 
 // Object Store Names
 const STORES = {
@@ -14,6 +14,7 @@ const STORES = {
   SUBSCRIPTION: 'subscription',
   SUBSCRIPTION_DETAILS: 'subscription_details',
   CRYPTO_KEYS: 'crypto_keys',
+  SHARE_KEYS: 'share_keys',
 };
 
 // Singleton key for settings, theme, subscription stores
@@ -69,6 +70,11 @@ export function initDB(): Promise<void> {
         }
         if (!dbInstance.objectStoreNames.contains(STORES.IMPORTED_BILLS)) {
           dbInstance.createObjectStore(STORES.IMPORTED_BILLS, { keyPath: 'id' });
+        }
+      }
+      if (event.oldVersion < 4) {
+        if (!dbInstance.objectStoreNames.contains(STORES.SHARE_KEYS)) {
+          dbInstance.createObjectStore(STORES.SHARE_KEYS, { keyPath: 'shareId' });
         }
       }
     };
@@ -147,6 +153,15 @@ export const saveTheme = (theme: Theme) => set(STORES.THEME, theme, SINGLE_KEY);
 export const getKeyPair = () => get<{id: string, keyPair: CryptoKeyPair}>(STORES.CRYPTO_KEYS, MY_KEY_PAIR_ID);
 export const saveKeyPair = (keyPair: CryptoKeyPair) => set(STORES.CRYPTO_KEYS, { id: MY_KEY_PAIR_ID, keyPair });
 
+// --- Share Keys ---
+interface ShareKeyRecord {
+  shareId: string;
+  key: JsonWebKey;
+}
+export const getShareKey = (shareId: string) => get<ShareKeyRecord>(STORES.SHARE_KEYS, shareId);
+export const saveShareKey = (shareId: string, key: JsonWebKey) => set(STORES.SHARE_KEYS, { shareId, key });
+
+
 // --- Subscription ---
 export const getSubscriptionDetails = () => get<SubscriptionDetails>(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
 export const saveSubscriptionDetails = (details: SubscriptionDetails) => set(STORES.SUBSCRIPTION_DETAILS, details, SINGLE_KEY);
@@ -212,10 +227,11 @@ export async function exportData(): Promise<object> {
       STORES.THEME, 
       STORES.SUBSCRIPTION, 
       STORES.SUBSCRIPTION_DETAILS, 
-      STORES.CRYPTO_KEYS
+      STORES.CRYPTO_KEYS,
+      STORES.SHARE_KEYS,
     ];
     for (const storeName of storesToExport) {
-        if ([STORES.BILLS, STORES.RECURRING_BILLS, STORES.IMPORTED_BILLS].includes(storeName)) {
+        if ([STORES.BILLS, STORES.RECURRING_BILLS, STORES.IMPORTED_BILLS, STORES.SHARE_KEYS].includes(storeName)) {
              data[storeName] = await getAll(storeName);
         } else if (storeName === STORES.CRYPTO_KEYS) {
              // Special handling for non-extractable private keys

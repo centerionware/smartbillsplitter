@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import type { Bill, Settings, SharedBillPayload, Participant } from './types.ts';
+import type { Bill, Settings, Participant } from './types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import ShareModal from './ShareModal.tsx';
 import ShareActionSheet from './ShareActionSheet.tsx';
 import { useKeys } from '../hooks/useKeys.ts';
-import * as cryptoService from '../services/cryptoService.ts';
 import { generateShareText, generateShareLink } from '../services/shareService.ts';
+import * as cryptoService from '../services/cryptoService.ts';
 
 interface BillDetailsProps {
   bill: Bill;
@@ -24,39 +24,33 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
   const [shareMenuParticipant, setShareMenuParticipant] = useState<Participant | null>(null);
   const { keyPair } = useKeys();
 
-  const pushShareUpdate = async (billToUpdate: Bill) => {
-    // Check if there's valid, active share info and we have the keys
-    if (!billToUpdate.shareInfo || billToUpdate.shareInfo.expiresAt < Date.now() || !keyPair) {
-      return;
-    }
+  const pushShareUpdate = useCallback(async (updatedBill: Bill) => {
+    if (!updatedBill.shareInfo || !keyPair) return;
+
     try {
-      const { shareId, encryptionKey: encryptionKeyJwk } = billToUpdate.shareInfo;
-      const encryptionKey = await cryptoService.importEncryptionKey(encryptionKeyJwk);
-      const publicKeyJwk = await cryptoService.exportKey(keyPair.publicKey);
+        const key = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
+        const signature = await cryptoService.sign(JSON.stringify(updatedBill), keyPair.privateKey);
+        const publicKeyJwk = await cryptoService.exportKey(keyPair.publicKey);
+        
+        const payload = {
+            bill: updatedBill,
+            creatorName: settings.myDisplayName,
+            publicKey: publicKeyJwk,
+            signature,
+        };
+        const encryptedData = await cryptoService.encrypt(JSON.stringify(payload), key);
 
-      // We sign the bill *without* the shareInfo to keep the signature consistent
-      const { shareInfo, ...billToSign } = billToUpdate;
-      const signature = await cryptoService.sign(JSON.stringify(billToSign), keyPair.privateKey);
-
-      const payload: SharedBillPayload = {
-        bill: billToSign as Bill,
-        creatorName: settings.myDisplayName,
-        publicKey: publicKeyJwk,
-        signature,
-      };
-      const encryptedData = await cryptoService.encrypt(JSON.stringify(payload), encryptionKey);
-      
-      // POST to the server with the existing shareId to update
-      await fetch(`/share`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ encryptedData, shareId }), 
-      });
-      console.log(`Pushed live update for shared bill: ${shareId}`);
+        await fetch(`/share/${updatedBill.shareInfo.shareId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ encryptedData }),
+        });
+        console.log(`Pushed update for shared bill: ${updatedBill.id}`);
     } catch (error) {
-      console.error("Failed to push live update for shared bill:", error);
+        console.error("Failed to push share update:", error);
+        // This is a background task, so we don't show a blocking UI error.
     }
-  };
+  }, [keyPair, settings.myDisplayName]);
 
   const handleParticipantPaidToggle = (participantId: string) => {
     const updatedParticipants = bill.participants.map(p =>
@@ -64,7 +58,6 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
     );
     const updatedBill = { ...bill, participants: updatedParticipants };
     onUpdateBill(updatedBill);
-    // Push the update for anyone watching the share link
     pushShareUpdate(updatedBill);
   };
   
@@ -112,8 +105,15 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
       return;
     }
 
-    const shareUrl = await generateShareLink(bill, settings, keyPair);
-    const message = `Here is a link to view our bill for "${bill.description}". This link will expire in 24 hours:\n\n${shareUrl}`;
+    // This re-uses the existing share info if available, or generates a new one.
+    const { url: shareUrl, shareInfo } = await generateShareLink(bill, settings, keyPair);
+    
+    // If new share info was created, persist it to the bill
+    if (shareInfo && !bill.shareInfo) {
+      onUpdateBill({ ...bill, shareInfo });
+    }
+    
+    const message = `Here is a link to view our bill for "${bill.description}". This link is live and will update if I make changes:\n\n${shareUrl}`;
 
     try {
         if (method === 'sms') {
@@ -136,7 +136,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
     } finally {
         setShareMenuParticipant(null);
     }
-  }, [keyPair, bill, settings]);
+  }, [keyPair, bill, settings, onUpdateBill]);
 
   return (
     <>

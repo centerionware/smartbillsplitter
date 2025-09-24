@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import redisClient from '../services/redisClient.ts';
 
-const EXPIRATION_SECONDS = 24 * 60 * 60; // 24 hours
+const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 export const shareHandler = async (req: Request, res: Response) => {
   if (req.method === "OPTIONS") {
@@ -14,35 +14,41 @@ export const shareHandler = async (req: Request, res: Response) => {
 
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Content-Type", "application/json");
+  
+  const { shareId } = req.params;
 
-  // --- CREATE/UPDATE A SHARED BILL (POST) ---
+  // --- CREATE OR UPDATE A SHARED BILL (POST) ---
   if (req.method === "POST") {
     try {
-      const { encryptedData, shareId: idToUpdate } = req.body;
+      const { encryptedData } = req.body;
       if (!encryptedData || typeof encryptedData !== 'string') {
         return res.status(400).json({ error: "Invalid payload. 'encryptedData' string is required." });
       }
 
       const now = Date.now();
-      const id = idToUpdate || randomUUID();
-      const key = `share:${id}`;
       
-      const sessionData = {
-        data: encryptedData,
-        lastUpdatedAt: now,
-      };
-
-      if (idToUpdate) {
-        const exists = await redisClient.exists(key);
-        if (!exists) {
-          return res.status(404).json({ error: "Share ID not found for update." });
+      if (shareId) { // This is an UPDATE
+        const key = `share:${shareId}`;
+        const existingSession = await redisClient.get(key);
+        if (!existingSession) {
+            return res.status(404).json({ error: "Cannot update. Share session not found or expired." });
         }
+        
+        const sessionData = { data: encryptedData, lastUpdatedAt: now };
+        await redisClient.set(key, JSON.stringify(sessionData), 'EX', EXPIRATION_SECONDS);
+        
+        console.log(`Updated shared bill ${shareId}.`);
+        return res.status(200).json({ shareId, lastUpdatedAt: now });
+
+      } else { // This is a CREATE
+        const id = randomUUID();
+        const key = `share:${id}`;
+        const sessionData = { data: encryptedData, lastUpdatedAt: now };
+        await redisClient.set(key, JSON.stringify(sessionData), 'EX', EXPIRATION_SECONDS);
+        
+        console.log(`Created shared bill ${id}.`);
+        return res.status(201).json({ shareId: id });
       }
-
-      await redisClient.set(key, JSON.stringify(sessionData), 'EX', EXPIRATION_SECONDS);
-
-      console.log(`Created/Updated shared bill ${id}.`);
-      return res.status(201).json({ shareId: id });
 
     } catch (e) {
       console.error('Share POST error:', e);
@@ -52,7 +58,6 @@ export const shareHandler = async (req: Request, res: Response) => {
 
   // --- RETRIEVE A SHARED BILL (GET) ---
   if (req.method === "GET") {
-    const { shareId } = req.params;
     if (!shareId) {
       return res.status(400).json({ error: "Missing 'shareId' in path." });
     }
@@ -65,11 +70,6 @@ export const shareHandler = async (req: Request, res: Response) => {
     }
     
     const session = JSON.parse(sessionJson);
-    const lastCheckedAt = req.query.lastCheckedAt ? parseInt(req.query.lastCheckedAt as string, 10) : 0;
-
-    if (lastCheckedAt && lastCheckedAt >= session.lastUpdatedAt) {
-        return res.status(304).send();
-    }
 
     return res.status(200).json({
         encryptedData: session.data,

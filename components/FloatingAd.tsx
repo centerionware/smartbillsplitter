@@ -1,7 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { AD_IFRAME_CONTENT } from '../services/adService.ts';
 
 const FloatingAd: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (iframe) {
+      const doc = iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(AD_IFRAME_CONTENT);
+        doc.close();
+      }
+    }
+  }, []);
+
 
   const handleClose = (e: React.MouseEvent) => {
     // Prevent the click from bubbling up or triggering any other default action.
@@ -32,7 +47,7 @@ const FloatingAd: React.FC = () => {
         </button>
         
         <iframe
-          src="/ad.html"
+          ref={iframeRef}
           title="Advertisement"
           style={{
             width: '100%',

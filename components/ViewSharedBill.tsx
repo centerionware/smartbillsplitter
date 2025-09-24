@@ -1,7 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import type { SharedBillPayload, ImportedBill, Settings } from '../types.ts';
 import * as cryptoService from '../services/cryptoService.ts';
+import { getShareKey, saveShareKey } from '../services/db.ts';
+import PrivacyConsent from './PrivacyConsent.tsx';
 
 interface ViewSharedBillProps {
   onImportComplete: () => void;
@@ -10,14 +11,17 @@ interface ViewSharedBillProps {
   importedBills: ImportedBill[];
 }
 
-type Status = 'loading' | 'verifying' | 'verified' | 'imported' | 'error' | 'expired';
+type Status = 'loading' | 'fetching_key' | 'fetching_data' | 'verifying' | 'verified' | 'imported' | 'error' | 'expired';
 
 const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills }) => {
+  const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(
+    () => typeof window !== 'undefined' && localStorage.getItem('privacyConsentAccepted') === 'true'
+  );
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState<string | null>(null);
   const [sharedData, setSharedData] = useState<SharedBillPayload | null>(null);
-  const [encryptionKey, setEncryptionKey] = useState<JsonWebKey | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(0);
+  const [encryptionKey, setEncryptionKey] = useState<JsonWebKey | null>(null);
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -25,14 +29,41 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
   const isAlreadyImported = sharedData ? importedBills.some(b => b.id === sharedData.bill.id) : false;
 
   useEffect(() => {
+    if (!hasAcceptedPrivacy) return;
+
     const processShareLink = async () => {
       try {
         const params = new URLSearchParams(window.location.hash.split('?')[1]);
         const shareId = params.get('shareId');
-        const keyString = params.get('key');
+        const keyId = params.get('keyId');
 
-        if (!shareId || !keyString) throw new Error("Invalid or incomplete share link.");
+        if (!shareId) throw new Error("Invalid or incomplete share link (missing Share ID).");
         
+        // 1. Get the encryption key
+        let keyToUse: JsonWebKey;
+        const cachedKeyRecord = await getShareKey(shareId);
+
+        if (cachedKeyRecord) {
+            keyToUse = cachedKeyRecord.key;
+        } else {
+            if (!keyId) throw new Error("This link requires a key to unlock. Please use the full original link provided.");
+            setStatus('fetching_key');
+            const keyResponse = await fetch(`/share-key/${keyId}`);
+            if (!keyResponse.ok) {
+                const err = await keyResponse.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to retrieve the encryption key. It may have expired or been used already.");
+            }
+            const keyData = await keyResponse.json();
+            if (keyData.shareId !== shareId) {
+                throw new Error("Key/Share ID mismatch. This key is for a different bill.");
+            }
+            keyToUse = keyData.key;
+            await saveShareKey(shareId, keyToUse);
+        }
+        setEncryptionKey(keyToUse);
+
+        // 2. Fetch the encrypted data
+        setStatus('fetching_data');
         const response = await fetch(`/share/${shareId}`);
         if (response.status === 404) {
           setStatus('expired');
@@ -45,10 +76,9 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
         const { encryptedData, lastUpdatedAt: serverTimestamp } = await response.json();
         setLastUpdatedAt(serverTimestamp);
 
+        // 3. Decrypt and verify
         setStatus('verifying');
-        const keyJwk = JSON.parse(atob(keyString));
-        setEncryptionKey(keyJwk);
-        const symmetricKey = await cryptoService.importEncryptionKey(keyJwk);
+        const symmetricKey = await cryptoService.importEncryptionKey(keyToUse);
         const decryptedJson = await cryptoService.decrypt(encryptedData, symmetricKey);
         const data: SharedBillPayload = JSON.parse(decryptedJson);
 
@@ -65,10 +95,10 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
       }
     };
     processShareLink();
-  }, []);
+  }, [hasAcceptedPrivacy]);
 
   const handleImport = async () => {
-    if (!sharedData || !encryptionKey || !selectedParticipantId) return;
+    if (!sharedData || !selectedParticipantId || !encryptionKey) return;
 
     const imported: ImportedBill = {
         id: sharedData.bill.id,
@@ -93,12 +123,27 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
     setTimeout(onImportComplete, 1500);
   };
 
+  const handleAcceptPrivacy = () => {
+    localStorage.setItem('privacyConsentAccepted', 'true');
+    setHasAcceptedPrivacy(true);
+  };
+
+  if (!hasAcceptedPrivacy) {
+    return <PrivacyConsent onAccept={handleAcceptPrivacy} />;
+  }
+
   const renderContent = () => {
-    if (status === 'loading' || status === 'verifying') {
+    if (['loading', 'fetching_key', 'fetching_data', 'verifying'].includes(status)) {
+        const messages = {
+            loading: 'Loading bill...',
+            fetching_key: 'Retrieving encryption key...',
+            fetching_data: 'Downloading bill data...',
+            verifying: 'Verifying signature...'
+        };
         return (
              <div className="flex flex-col items-center justify-center p-8">
                 <svg className="animate-spin h-12 w-12 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <p className="mt-4 text-slate-500 dark:text-slate-400">{status === 'loading' ? 'Loading bill...' : 'Verifying signature...'}</p>
+                <p className="mt-4 text-slate-500 dark:text-slate-400">{messages[status as keyof typeof messages]}</p>
             </div>
         );
     }
@@ -126,7 +171,7 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
             <div className="p-6">
                 <div className="p-3 mb-6 bg-emerald-50 dark:bg-emerald-900/40 border-l-4 border-emerald-500 rounded-r-lg flex items-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-600 dark:text-emerald-300 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><p className="text-sm text-emerald-800 dark:text-emerald-200">This bill has been cryptographically verified.</p></div>
                 <div className="flex justify-between items-start mb-2"><div><h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">{bill.description}</h2><p className="text-slate-500 dark:text-slate-400 mt-1">Shared by {sharedData.creatorName} on {new Date(bill.date).toLocaleDateString()}</p></div><div className="text-2xl font-extrabold text-slate-900 dark:text-slate-50">${bill.totalAmount.toFixed(2)}</div></div>
-                <div className="my-2 flex flex-wrap gap-x-4 gap-y-2">{bill.receiptImage && (<button onClick={() => setIsReceiptModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>View Scanned Receipt</button>)}{bill.additionalInfo && Object.keys(bill.additionalInfo).length > 0 && (<button onClick={() => setIsInfoModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>View Additional Info</button>)}</div>
+                <div className="my-2 flex flex-wrap gap-x-4 gap-y-2">{bill.receiptImage && (<button onClick={() => setIsReceiptModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>View Scanned Receipt</button>)}{bill.additionalInfo && Object.keys(bill.additionalInfo).length > 0 && (<button onClick={() => setIsInfoModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>View Additional Info</button>)}</div>
                 <div className="my-6 border-t border-slate-200 dark:border-slate-700" />
                 <h3 className="text-lg font-semibold mb-3 text-slate-700 dark:text-slate-200">Participants</h3>
                 <ul className="mb-6 space-y-2">{bill.participants.map(p => (<li key={p.id} className="flex justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg text-sm"><span className="font-semibold text-slate-700 dark:text-slate-200">{p.name}</span><span className={`font-semibold ${p.paid ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>{p.paid ? 'Paid' : 'Owes'} ${p.amountOwed.toFixed(2)}</span></li>))}</ul>

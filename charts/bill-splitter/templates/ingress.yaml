@@ -43,6 +43,13 @@ spec:
                 name: {{ include "bill-splitter.fullname" . }}-backend
                 port:
                   number: {{ .Values.backend.service.port }}
+          - path: /share-key
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "bill-splitter.fullname" . }}-backend
+                port:
+                  number: {{ .Values.backend.service.port }}
           - path: /create-checkout-session
             pathType: Prefix
             backend:

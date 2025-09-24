@@ -1,5 +1,4 @@
-
-
+// FIX: Removed self-import of 'Participant' which was causing a declaration conflict.
 export enum View {
   Dashboard = 'dashboard',
   CreateBill = 'createBill',
@@ -46,7 +45,6 @@ export interface Bill {
   shareInfo?: {
     shareId: string;
     encryptionKey: JsonWebKey;
-    expiresAt: number; // Timestamp
   };
 }
 
@@ -107,7 +105,7 @@ export interface ImportedBill {
     signature: string;
   };
   shareId: string; // The ID from the /share/:shareId endpoint
-  shareEncryptionKey: JsonWebKey; // The symmetric key used to decrypt this bill
+  shareEncryptionKey?: JsonWebKey; // The symmetric key for decrypting this bill, now stored by the recipient
   lastUpdatedAt: number; // Timestamp of the last successful fetch
   myParticipantId: string; // The ID of the participant who is the local user
   localStatus: {
