@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
@@ -116,6 +117,28 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const participantsData = useMemo(() => {
     const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
+    const participantContactInfo = new Map<string, { phone?: string; email?: string }>();
+    
+    bills.forEach(bill => {
+        bill.participants.forEach(p => {
+            if (p.name.trim().toLowerCase() === myDisplayNameLower) return;
+            
+            const existing = participantContactInfo.get(p.name) || {};
+            let updated = false;
+            if (p.phone && !existing.phone) {
+                existing.phone = p.phone;
+                updated = true;
+            }
+            if (p.email && !existing.email) {
+                existing.email = p.email;
+                updated = true;
+            }
+            if (updated) {
+                participantContactInfo.set(p.name, existing);
+            }
+        });
+    });
+
     if (dashboardStatusFilter === 'active') {
         const debtMap = new Map<string, number>();
         // An "active" participant owes money on ANY bill, regardless of bill status.
@@ -128,7 +151,16 @@ const Dashboard: React.FC<DashboardProps> = ({
             });
         });
         return Array.from(debtMap.entries())
-            .map(([name, amount]) => ({ name, amount, type: 'owed' as const }))
+            .map(([name, amount]) => {
+                const contactInfo = participantContactInfo.get(name);
+                return { 
+                    name, 
+                    amount, 
+                    type: 'owed' as const,
+                    phone: contactInfo?.phone,
+                    email: contactInfo?.email
+                };
+            })
             .sort((a, b) => b.amount - a.amount);
     } else { // 'archived'
         // An "archived" participant is someone with no outstanding debt across ALL bills.
@@ -150,10 +182,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         const paidUpParticipants = [];
         for (const [name, stats] of participantStats.entries()) {
             if (stats.outstandingDebt < 0.01 && stats.totalBilled > 0 && name.trim().toLowerCase() !== myDisplayNameLower) {
+                 const contactInfo = participantContactInfo.get(name);
                 paidUpParticipants.push({
                     name,
                     amount: stats.totalBilled,
-                    type: 'paid' as const
+                    type: 'paid' as const,
+                    phone: contactInfo?.phone,
+                    email: contactInfo?.email,
                 });
             }
         }
@@ -232,9 +267,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { ref: loadMoreRef } = useIntersectionObserver({ onIntersect: loadMore });
 
   // --- Action Handlers ---
-  const handleShareWithParticipant = async (participantName: string) => {
+  const getShareTextForParticipant = useCallback((participantName: string): string => {
     const participantData = participantsData.find(p => p.name === participantName && p.type === 'owed');
-    if (!participantData) return;
+    if (!participantData) return "No outstanding bills found.";
 
     const participantUnpaidBills = activeBills.filter(b => 
       b.participants.some(p => p.name === participantName && !p.paid && p.amountOwed > 0)
@@ -270,13 +305,16 @@ const Dashboard: React.FC<DashboardProps> = ({
       promoText = `\n\nCreated with SharedBills: ${appUrl}`;
     }
     
-    let shareText = settings.shareTemplate
+    return settings.shareTemplate
       .replace('{participantName}', participantName)
       .replace('{totalOwed}', `$${participantData.amount.toFixed(2)}`)
       .replace('{billList}', billList)
       .replace('{paymentInfo}', paymentInfo)
       .replace('{promoText}', promoText);
-    
+  }, [participantsData, activeBills, settings, subscriptionStatus]);
+
+  const handleShareWithParticipant = async (participantName: string) => {
+    const shareText = getShareTextForParticipant(participantName);
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Bill Split Reminder', text: shareText });
@@ -293,6 +331,17 @@ const Dashboard: React.FC<DashboardProps> = ({
         alert("An error occurred while trying to share. Please try again.");
       }
     }
+  };
+  
+  const handleShareViaSms = (participantName: string, phone: string) => {
+    const text = getShareTextForParticipant(participantName);
+    window.location.href = `sms:${phone}?&body=${encodeURIComponent(text)}`;
+  };
+    
+  const handleShareViaEmail = (participantName: string, email: string) => {
+    const text = getShareTextForParticipant(participantName);
+    const subject = "Shared Bill Reminder";
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
   };
 
   const handleMarkParticipantAsPaid = async (participantName: string) => {
@@ -387,6 +436,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 participant={p}
                 onClick={() => onSelectParticipant(p.name)}
                 onShare={() => handleShareWithParticipant(p.name)}
+                onShareSms={handleShareViaSms}
+                onShareEmail={handleShareViaEmail}
                 onPaidInFull={() => handleMarkParticipantAsPaid(p.name)}
                 isCopied={copiedParticipantName === p.name}
               />

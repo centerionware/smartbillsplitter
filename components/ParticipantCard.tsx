@@ -1,16 +1,28 @@
 import React from 'react';
 
 interface ParticipantCardProps {
-  data: { name: string; amount: number; type: 'owed' | 'paid' };
+  data: { name: string; amount: number; type: 'owed' | 'paid'; phone?: string; email?: string; };
   onClick: () => void;
   onShare: () => void;
+  onShareSms: () => void;
+  onShareEmail: () => void;
   isCopied: boolean;
 }
 
-const ParticipantCard: React.FC<ParticipantCardProps> = ({ data, onClick, onShare, isCopied }) => {
+const ParticipantCard: React.FC<ParticipantCardProps> = ({ data, onClick, onShare, onShareSms, onShareEmail, isCopied }) => {
   const handleShareClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent the click from bubbling up to the parent div's onClick
     onShare();
+  };
+
+  const handleShareSmsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onShareSms();
+  };
+
+  const handleShareEmailClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onShareEmail();
   };
 
   return (
@@ -26,6 +38,35 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({ data, onClick, onShar
             <p className="text-lg font-bold text-slate-800 dark:text-slate-100 break-words">{data.name}</p>
         </div>
         <div className="flex items-center gap-2">
+           {data.type === 'owed' && data.phone && (
+              <button
+                onClick={handleShareSmsClick}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                title="Share via Text"
+                className="p-2 rounded-full font-semibold text-sm transition-colors bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                aria-label={`Share reminder via text with ${data.name}`}
+              >
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clipRule="evenodd" />
+                  </svg>
+              </button>
+           )}
+            {data.type === 'owed' && data.email && (
+              <button
+                onClick={handleShareEmailClick}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                title="Share via Email"
+                className="p-2 rounded-full font-semibold text-sm transition-colors bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                aria-label={`Share reminder via email with ${data.name}`}
+              >
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                  </svg>
+              </button>
+           )}
            {data.type === 'owed' && (
             <button
                 onClick={handleShareClick}

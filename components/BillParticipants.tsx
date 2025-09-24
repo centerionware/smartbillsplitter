@@ -43,14 +43,17 @@ const BillParticipants: React.FC<BillParticipantsProps> = ({ participants, setPa
   
   const handleAddFromContacts = async () => {
     try {
-      const contacts = await (navigator as any).contacts.select(['name'], { multiple: true });
+      const contacts = await (navigator as any).contacts.select(['name', 'email', 'tel'], { multiple: true });
       if (contacts.length === 0) return;
 
       const existingNamesLower = new Set(participants.map(p => p.name.toLowerCase().trim()));
       
       const newParticipantsFromContacts: Participant[] = contacts
-        .map((contact: { name: string[] }) => {
+        .map((contact: { name: string[], email: string[], tel: string[] }) => {
           const name = contact.name && contact.name.length > 0 ? contact.name[0] : null;
+          const email = contact.email && contact.email.length > 0 ? contact.email[0] : null;
+          const phone = contact.tel && contact.tel.length > 0 ? contact.tel[0] : null;
+
           if (name && name.trim() && !existingNamesLower.has(name.toLowerCase().trim())) {
             existingNamesLower.add(name.toLowerCase().trim()); // Prevent adding duplicates from the same selection
             return {
@@ -59,6 +62,8 @@ const BillParticipants: React.FC<BillParticipantsProps> = ({ participants, setPa
               amountOwed: 0,
               paid: false,
               splitValue: 0,
+              email: email || undefined,
+              phone: phone || undefined,
             };
           }
           return null;
@@ -107,7 +112,7 @@ const BillParticipants: React.FC<BillParticipantsProps> = ({ participants, setPa
               </button>
               {isContactsApiSupported && (
                   <button type="button" onClick={handleAddFromContacts} className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-teal-500/50 dark:border-teal-400/50 rounded-lg text-teal-600 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/40 bg-teal-50/50 dark:bg-teal-900/20 transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor">
                         <path d="M8 9a3 3 0 100-6 3 3 0 000 6z" />
                         <path fillRule="evenodd" d="M1.5 14.5a3 3 0 013-3h7a3 3 0 013 3v1a2 2 0 01-2 2H3.5a2 2 0 01-2-2v-1zM5 14a1 1 0 00-1 1v1a1 1 0 001 1h7a1 1 0 001-1v-1a1 1 0 00-1-1H5z" clipRule="evenodd" />
                       </svg>

@@ -1,4 +1,5 @@
 
+
 export enum View {
   Dashboard = 'dashboard',
   CreateBill = 'createBill',
@@ -21,6 +22,8 @@ export interface Participant {
   amountOwed: number;
   paid: boolean;
   splitValue?: number; // Used for amount/percentage splits in CreateBill
+  phone?: string;
+  email?: string;
 }
 
 export interface ReceiptItem {

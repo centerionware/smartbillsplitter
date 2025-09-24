@@ -1,18 +1,21 @@
 
+
 import React, { useRef, useState } from 'react';
 import ParticipantCard from './ParticipantCard.tsx';
 
 interface SwipeableParticipantCardProps {
-  participant: { name: string; amount: number; type: 'owed' | 'paid' };
+  participant: { name: string; amount: number; type: 'owed' | 'paid'; phone?: string; email?: string; };
   onClick: () => void;
   onShare: () => void;
+  onShareSms: (name: string, phone: string) => void;
+  onShareEmail: (name: string, email: string) => void;
   onPaidInFull: () => void;
   isCopied: boolean;
 }
 
 const ACTION_BUTTON_WIDTH = 90; // Width for the "Paid in Full" button
 
-const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ participant, onClick, onShare, onPaidInFull, isCopied }) => {
+const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ participant, onClick, onShare, onShareSms, onShareEmail, onPaidInFull, isCopied }) => {
   const [translateX, setTranslateX] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
   const dragStartX = useRef(0);
@@ -155,6 +158,8 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
           data={participant}
           onClick={() => { /* Click is now handled in dragEnd */ }}
           onShare={onShare}
+          onShareSms={() => participant.phone && onShareSms(participant.name, participant.phone)}
+          onShareEmail={() => participant.email && onShareEmail(participant.name, participant.email)}
           isCopied={isCopied}
         />
       </div>
