@@ -1,18 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const FloatingAd: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);
-
-  useEffect(() => {
-    if (isVisible) {
-      try {
-        // @ts-ignore
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        console.error("AdSense push error: ", e);
-      }
-    }
-  }, [isVisible]);
 
   const handleClose = (e: React.MouseEvent) => {
     // Prevent the click from bubbling up or triggering any other default action.
@@ -42,13 +31,18 @@ const FloatingAd: React.FC = () => {
           </svg>
         </button>
         
-        {/* Google AdSense Ad Unit */}
-        <ins className="adsbygoogle"
-             style={{ display: 'block', minHeight: '100px' }}
-             data-ad-client="ca-pub-7626920066448337"
-             data-ad-slot="8267308457"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
+        <iframe
+          src="/ad.html"
+          title="Advertisement"
+          style={{
+            width: '100%',
+            height: '100px',
+            border: '0',
+            overflow: 'hidden',
+          }}
+          sandbox="allow-scripts allow-same-origin"
+          aria-label="Advertisement Content"
+        ></iframe>
 
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-2">
             Upgrade to Pro to remove ads!

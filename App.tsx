@@ -191,19 +191,6 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
-    if (subscriptionStatus === 'free') {
-      const adsenseScriptId = 'adsense-script';
-      if (document.getElementById(adsenseScriptId)) return;
-      const script = document.createElement('script');
-      script.id = adsenseScriptId;
-      script.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7626920066448337";
-      script.async = true;
-      script.crossOrigin = "anonymous";
-      document.head.appendChild(script);
-    }
-  }, [subscriptionStatus]);
-
-  useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 5000);
       return () => clearTimeout(timer);

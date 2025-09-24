@@ -1,8 +1,9 @@
-const CACHE_NAME = 'smart-bill-splitter-cache-v6';
+const CACHE_NAME = 'smart-bill-splitter-cache-v7';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/icon.svg'
+  '/icon.svg',
+  '/ad.html'
 ];
 
 // Install event: open a cache, add app shell files, and skip waiting.
