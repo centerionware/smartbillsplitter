@@ -39,6 +39,11 @@ export interface Bill {
   items?: ReceiptItem[];
   receiptImage?: string; // base64 data url
   additionalInfo?: Record<string, string>;
+  shareInfo?: {
+    shareId: string;
+    encryptionKey: JsonWebKey;
+    expiresAt: number; // Timestamp
+  };
 }
 
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';

@@ -7,17 +7,21 @@ interface ShareModalProps {
   bill: Bill;
   settings: Settings;
   onClose: () => void;
+  onUpdateBill: (bill: Bill) => void;
 }
 
 type Status = 'generating' | 'ready' | 'error' | 'copied';
 
-const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose }) => {
+const EXPIRATION_WINDOW = 24 * 60 * 60 * 1000; // 24 hours
+const RENEWAL_THRESHOLD = 60 * 60 * 1000; // 1 hour
+
+const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpdateBill }) => {
   const [status, setStatus] = useState<Status>('generating');
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { keyPair, isLoading: keysLoading } = useKeys();
 
-  const generateShareLink = useCallback(async () => {
+  const generateAndStoreShareLink = useCallback(async () => {
     if (!keyPair) {
       setError("Cryptographic keys are not available. Cannot share bill.");
       setStatus('error');
@@ -28,27 +32,22 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose }) => {
     setError(null);
 
     try {
-      // 1. Generate a new symmetric key for this share session
       const encryptionKey = await cryptoService.generateEncryptionKey();
       
-      // 2. Sign the bill data
-      const signature = await cryptoService.sign(JSON.stringify(bill), keyPair.privateKey);
+      const { shareInfo, ...billToSign } = bill;
+      const signature = await cryptoService.sign(JSON.stringify(billToSign), keyPair.privateKey);
       
-      // 3. Export the user's public signing key
       const publicKeyJwk = await cryptoService.exportKey(keyPair.publicKey);
 
-      // 4. Create the payload
       const payload: SharedBillPayload = {
-        bill,
+        bill: billToSign as Bill,
         creatorName: settings.myDisplayName,
         publicKey: publicKeyJwk,
         signature,
       };
 
-      // 5. Encrypt the payload
       const encryptedData = await cryptoService.encrypt(JSON.stringify(payload), encryptionKey);
 
-      // 6. POST to the server to get a share ID
       const response = await fetch('/share', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,12 +60,17 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose }) => {
       }
       
       const { shareId } = result;
-      
-      // 7. Construct the final shareable URL
       const exportedEncryptionKey = await cryptoService.exportKey(encryptionKey);
-      const keyString = btoa(JSON.stringify(exportedEncryptionKey));
       
-      // Construct URL carefully to avoid extra slashes or incorrect paths
+      const newShareInfo = {
+          shareId,
+          encryptionKey: exportedEncryptionKey,
+          expiresAt: Date.now() + EXPIRATION_WINDOW,
+      };
+
+      onUpdateBill({ ...bill, shareInfo: newShareInfo });
+
+      const keyString = btoa(JSON.stringify(exportedEncryptionKey));
       const url = new URL(window.location.href);
       url.hash = `#/view-bill?shareId=${shareId}&key=${keyString}`;
 
@@ -78,13 +82,30 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose }) => {
       setError(err.message || "An unknown error occurred while creating the share link.");
       setStatus('error');
     }
-  }, [bill, settings.myDisplayName, keyPair]);
+  }, [bill, settings.myDisplayName, keyPair, onUpdateBill]);
+
+  const processShareRequest = useCallback(async () => {
+    if (keysLoading) return;
+
+    const currentShareInfo = bill.shareInfo;
+    const isExpired = !currentShareInfo || currentShareInfo.expiresAt < (Date.now() + RENEWAL_THRESHOLD);
+
+    if (isExpired) {
+        await generateAndStoreShareLink();
+    } else {
+        const { shareId, encryptionKey } = currentShareInfo;
+        const keyString = btoa(JSON.stringify(encryptionKey));
+        const url = new URL(window.location.href);
+        url.hash = `#/view-bill?shareId=${shareId}&key=${keyString}`;
+        setShareUrl(url.toString());
+        setStatus('ready');
+    }
+
+  }, [bill.shareInfo, keysLoading, generateAndStoreShareLink]);
   
   useEffect(() => {
-    if (!keysLoading) {
-      generateShareLink();
-    }
-  }, [keysLoading, generateShareLink]);
+    processShareRequest();
+  }, [processShareRequest]);
   
   const handleCopy = () => {
     if (shareUrl) {
