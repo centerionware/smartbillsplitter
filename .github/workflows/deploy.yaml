@@ -37,7 +37,16 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
+        with:
+          driver: kubernetes
+          driver-opts: |
+            namespace=buildkit
+          use: true
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["https://harbor.centerionware.com/dockerhub"]
+            [registry."ghcr.io"]
+              mirrors = ["https://harbor.centerionware.com/github"]
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
