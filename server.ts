@@ -1,5 +1,4 @@
-// FIX: Changed express import to use the default export and explicitly reference express.Request and express.Response types. This resolves type inference issues where methods like .status() were not found on the response object.
-import express, { Express } from 'express';
+import express, { Express, Request, Response } from 'express';
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
 import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler } from './functions/stripe';
@@ -20,7 +19,7 @@ app.post('/create-customer-portal-session', createCustomerPortalSessionHandler);
 
 
 // Health check endpoint
-app.get('/health', (req: express.Request, res: express.Response) => {
+app.get('/health', (req: Request, res: Response) => {
   res.status(200).send('OK');
 });
 

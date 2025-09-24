@@ -9,7 +9,6 @@ import { useRecurringBills, calculateNextDueDate } from './hooks/useRecurringBil
 import * as notificationService from './services/notificationService.ts';
 import Header from './components/Header.tsx';
 import Dashboard from './components/Dashboard.tsx';
-// FIX: Changed to a named import for the 'CreateBill' component as it doesn't have a default export.
 import { CreateBill } from './components/CreateBill.tsx';
 import BillDetails from './components/BillDetails.tsx';
 import SettingsComponent from './components/Settings.tsx';
@@ -19,6 +18,10 @@ import FloatingAd from './components/FloatingAd.tsx';
 import ConfirmationDialog from './components/ConfirmationDialog.tsx';
 import Disclaimer from './components/Disclaimer.tsx';
 import RecurringBillsList from './components/RecurringBillsList.tsx';
+
+// Determine if the app is running in an iframe.
+// This is used to disable URL-based navigation for a smoother sandbox experience.
+const isInIframe = window.self !== window.top;
  
 export type RequestConfirmationOptions = {
   confirmText?: string;
@@ -41,11 +44,17 @@ const App: React.FC = () => {
   const { theme, setTheme, isLoading: themeLoading } = useTheme();
   const { subscriptionStatus, logout } = useAuth();
   
-  // Navigation & View State
+  // --- Navigation & View State ---
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [dashboardView, setDashboardView] = useState<'bills' | 'participants'>('bills');
   const [dashboardParticipant, setDashboardParticipant] = useState<string | null>(null);
+  
+  // A single source of truth for the current logical path of the application.
+  // On initial load, it reads from the URL hash if not in an iframe, otherwise defaults to the dashboard.
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    return isInIframe ? '#/' : (window.location.hash || '#/');
+  });
 
   const [billCreationTemplate, setBillCreationTemplate] = useState<RecurringBill | { forEditing: RecurringBill } | null>(null);
   const [confirmation, setConfirmation] = useState<{
@@ -58,10 +67,44 @@ const App: React.FC = () => {
   const initRef = useRef(false);
 
   // --- Navigation ---
-  const handleNavigation = useCallback(() => {
+  
+  // Main navigation function. Updates the app's logical path and, if not in an iframe, the browser's URL hash.
+  const navigate = useCallback((hash: string, options?: { replace?: boolean }) => {
+    // 1. Update the internal state, which will trigger a re-render and view update.
+    setCurrentPath(hash);
+
+    // 2. Conditionally update the browser's history if not in a sandboxed environment.
+    if (!isInIframe) {
+      const method = options?.replace ? 'replaceState' : 'pushState';
+      const currentHash = window.location.hash || '#/';
+      if (method === 'pushState' && currentHash === hash) {
+        return; // Avoid pushing identical history entries.
+      }
+      window.history[method](null, '', hash);
+    }
+  }, [isInIframe]);
+
+  // Effect to handle browser back/forward buttons (popstate).
+  // It listens for URL changes and updates the app's internal path to match.
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.hash || '#/');
+    };
+
+    if (!isInIframe) {
+      window.addEventListener('popstate', handlePopState);
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isInIframe]);
+
+  // This core effect translates the `currentPath` state into the actual view being displayed.
+  // It runs on initial load and whenever `currentPath` changes.
+  useEffect(() => {
     if (billsLoading || recurringBillsLoading) return;
 
-    const hash = window.location.hash || '#/';
+    const hash = currentPath; // Use state as the single source of truth
     const [path, queryString] = hash.split('?');
     const params = new URLSearchParams(queryString || '');
 
@@ -77,7 +120,7 @@ const App: React.FC = () => {
         setSelectedBill(bill);
         setCurrentView(View.BillDetails);
       } else {
-        window.history.replaceState(null, '', '#/'); // Bill not found, go home
+        navigate('#/', { replace: true }); // Bill not found, go home
       }
     } else if (path === '#/create') {
       const fromTemplateId = params.get('fromTemplate');
@@ -112,33 +155,8 @@ const App: React.FC = () => {
       setDashboardView('bills');
       setCurrentView(View.Dashboard);
     }
-  }, [bills, recurringBills, billsLoading, recurringBillsLoading]);
+  }, [currentPath, bills, recurringBills, billsLoading, recurringBillsLoading, navigate]);
 
-  // Effect to set up navigation listeners
-  useEffect(() => {
-    // Call handler on initial load
-    handleNavigation(); 
-    // Listen for back/forward browser actions
-    window.addEventListener('popstate', handleNavigation);
-    return () => window.removeEventListener('popstate', handleNavigation);
-  }, [handleNavigation]);
-
-
-  const navigate = useCallback((hash: string, options?: { replace?: boolean }) => {
-    const method = options?.replace ? 'replaceState' : 'pushState';
-    const currentHash = window.location.hash || '#/';
-
-    // For `pushState`, we only want to add a new entry if the URL is different.
-    // For `replaceState`, we always want to execute to replace the current state.
-    if (method === 'pushState' && currentHash === hash) {
-      return;
-    }
-
-    window.history[method](null, '', hash);
-    // Manually trigger the navigation handler to update the view,
-    // since pushState/replaceState don't fire popstate events.
-    handleNavigation();
-  }, [handleNavigation]);
 
   useEffect(() => {
     if (subscriptionStatus === 'free') {
@@ -269,7 +287,13 @@ const App: React.FC = () => {
   };
 
   const handleBack = () => {
-    window.history.back();
+    if (!isInIframe) {
+      window.history.back();
+    } else {
+      // In iframe mode, 'back' is simplified to 'go home' as there's no history stack.
+      // This covers all current use cases (from settings, details, create, etc.).
+      navigate('#/');
+    }
   };
 
   const handleCreateNewBill = () => navigate('#/create');

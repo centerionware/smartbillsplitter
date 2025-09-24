@@ -1,5 +1,4 @@
-// FIX: Changed express import to use the default export and explicitly reference express.Request and express.Response types. This resolves type inference issues where methods like .status() and properties like .body were not found.
-import express from 'express';
+import type { Request, Response } from 'express';
 
 // In-memory store for sync sessions. This is suitable for the ephemeral nature
 // of serverless functions for short-lived data.
@@ -26,7 +25,7 @@ setInterval(() => {
   }
 }, 60 * 1000); // Run cleanup every minute
 
-export const syncHandler = async (req: express.Request, res: express.Response) => {
+export const syncHandler = async (req: Request, res: Response) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");

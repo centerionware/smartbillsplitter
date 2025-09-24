@@ -1,5 +1,4 @@
-// FIX: Changed express import to use the default export and explicitly reference express.Request and express.Response types. This resolves type inference issues where methods like .status() and properties like .body were not found.
-import express from 'express';
+import type { Request, Response } from 'express';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
@@ -14,7 +13,7 @@ if (!STRIPE_SECRET_KEY || !STRIPE_PRICE_ID_MONTHLY || !STRIPE_PRICE_ID_YEARLY) {
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
 // Helper function to check for Stripe configuration at runtime.
-const checkStripeConfig = (res: express.Response): boolean => {
+const checkStripeConfig = (res: Response): boolean => {
     if (!stripe || !STRIPE_PRICE_ID_MONTHLY || !STRIPE_PRICE_ID_YEARLY) {
         res.status(500).json({ error: "Stripe integration is not configured on the server." });
         return false;
@@ -22,7 +21,7 @@ const checkStripeConfig = (res: express.Response): boolean => {
     return true;
 }
 
-export const createCheckoutSessionHandler = async (req: express.Request, res: express.Response) => {
+export const createCheckoutSessionHandler = async (req: Request, res: Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { plan, origin } = req.body;
@@ -54,7 +53,7 @@ export const createCheckoutSessionHandler = async (req: express.Request, res: ex
     }
 };
 
-export const verifySessionHandler = async (req: express.Request, res: express.Response) => {
+export const verifySessionHandler = async (req: Request, res: Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { sessionId } = req.body;
@@ -97,7 +96,7 @@ export const verifySessionHandler = async (req: express.Request, res: express.Re
     }
 };
 
-export const createCustomerPortalSessionHandler = async (req: express.Request, res: express.Response) => {
+export const createCustomerPortalSessionHandler = async (req: Request, res: Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { customerId, origin } = req.body;
