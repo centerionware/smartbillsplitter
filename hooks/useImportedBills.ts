@@ -9,11 +9,6 @@ export const useImportedBills = () => {
   const [importedBills, setImportedBills] = useState<ImportedBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const sortAndSet = (bills: ImportedBill[]) => {
-    bills.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
-    setImportedBills(bills);
-  };
-
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -30,12 +25,72 @@ export const useImportedBills = () => {
     loadData();
   }, []);
 
+  const addImportedBill = useCallback(async (newBill: ImportedBill) => {
+    // The 'put' operation in IndexedDB is idempotent (it acts as an insert or update).
+    // This means we can safely write to the DB first without worrying about creating duplicates.
+    await addDB(newBill);
+    
+    // Then, use a functional state update to guarantee we're working with the latest state.
+    setImportedBills(prevBills => {
+      // If the bill is already present in the current state, do nothing to avoid re-renders.
+      if (prevBills.some(b => b.id === newBill.id)) {
+        return prevBills;
+      }
+      
+      // Otherwise, add the new bill and re-sort the array.
+      const updated = [newBill, ...prevBills];
+      updated.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
+      return updated;
+    });
+  }, []);
+
   const updateImportedBill = useCallback(async (updatedBill: ImportedBill) => {
     await updateDB(updatedBill);
-    const updated = importedBills.map(bill => (bill.id === updatedBill.id ? updatedBill : bill));
-    sortAndSet(updated);
-  }, [importedBills]);
+    setImportedBills(prevBills => {
+      const updated = prevBills.map(bill => (bill.id === updatedBill.id ? updatedBill : bill));
+      // Sorting is not strictly necessary on update, but maintains order if the date were editable.
+      updated.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
+      return updated;
+    });
+  }, []);
+
+  const deleteImportedBill = useCallback(async (billId: string) => {
+    await deleteImportedBillDB(billId);
+    setImportedBills(prev => prev.filter(bill => bill.id !== billId));
+  }, []);
   
+  const archiveImportedBill = useCallback(async (billId: string) => {
+    let billToUpdate: ImportedBill | undefined;
+    setImportedBills(prevBills => 
+        prevBills.map(bill => {
+            if (bill.id === billId) {
+                billToUpdate = { ...bill, status: 'archived' };
+                return billToUpdate;
+            }
+            return bill;
+        })
+    );
+    if (billToUpdate) {
+        await updateDB(billToUpdate);
+    }
+  }, []);
+  
+  const unarchiveImportedBill = useCallback(async (billId: string) => {
+    let billToUpdate: ImportedBill | undefined;
+     setImportedBills(prevBills => 
+        prevBills.map(bill => {
+            if (bill.id === billId) {
+                billToUpdate = { ...bill, status: 'active' };
+                return billToUpdate;
+            }
+            return bill;
+        })
+    );
+    if (billToUpdate) {
+        await updateDB(billToUpdate);
+    }
+  }, []);
+
   // Effect for background polling of updates
   useEffect(() => {
     const checkForUpdates = async () => {
@@ -43,40 +98,36 @@ export const useImportedBills = () => {
         const twentyFourHours = 24 * 60 * 60 * 1000;
 
         for (const bill of importedBills) {
-            // Stop polling for bills that were shared more than 24 hours ago
-            if (now - bill.lastUpdatedAt > twentyFourHours) {
+            if (bill.status !== 'active' || (now - bill.lastUpdatedAt > twentyFourHours)) {
                 continue;
             }
 
             try {
                 const response = await fetch(`/share/${bill.shareId}?lastCheckedAt=${bill.lastUpdatedAt}`);
-                if (response.status === 304) continue;
-                if (response.status === 404) continue; // Expired on server
-                if (!response.ok) continue;
+                if (response.status === 304 || response.status === 404 || !response.ok) continue;
 
                 const { encryptedData, lastUpdatedAt } = await response.json();
 
-                // Decrypt and verify the new payload
                 const encryptionKey = await cryptoService.importEncryptionKey(bill.shareEncryptionKey);
                 const decryptedJson = await cryptoService.decrypt(encryptedData, encryptionKey);
                 const newData: SharedBillPayload = JSON.parse(decryptedJson);
 
-                // Use the creator's public key that we stored during import
                 const publicKey = await cryptoService.importPublicKey(bill.sharedData.creatorPublicKey);
                 const isVerified = await cryptoService.verify(JSON.stringify(newData.bill), newData.signature, publicKey);
 
                 if (isVerified) {
                     const updatedBill: ImportedBill = {
                         ...bill,
-                        creatorName: newData.creatorName, // Update name in case it changed
+                        creatorName: newData.creatorName,
                         sharedData: {
                            bill: newData.bill,
-                           creatorPublicKey: bill.sharedData.creatorPublicKey, // Keep original public key
+                           creatorPublicKey: bill.sharedData.creatorPublicKey,
                            signature: newData.signature,
                         },
                         lastUpdatedAt,
                     };
-                    await updateImportedBill(updatedBill);
+                    // Use the safe update function
+                    updateImportedBill(updatedBill);
                 } else {
                     console.warn(`Signature verification failed for update of bill ${bill.id}`);
                 }
@@ -89,38 +140,6 @@ export const useImportedBills = () => {
     const intervalId = setInterval(checkForUpdates, POLLING_INTERVAL);
     return () => clearInterval(intervalId);
 
-  }, [importedBills, updateImportedBill]);
-
-
-  const addImportedBill = useCallback(async (newBill: ImportedBill) => {
-    // Check against the current state to prevent duplicates
-    if (importedBills.some(b => b.id === newBill.id)) {
-        return;
-    }
-    await addDB(newBill);
-    const updated = [...importedBills, newBill];
-    sortAndSet(updated);
-  }, [importedBills]);
-
-  const deleteImportedBill = useCallback(async (billId: string) => {
-    await deleteImportedBillDB(billId);
-    setImportedBills(prev => prev.filter(bill => bill.id !== billId));
-  }, []);
-  
-  const archiveImportedBill = useCallback(async (billId: string) => {
-    const billToUpdate = importedBills.find(b => b.id === billId);
-    if (billToUpdate) {
-      const updatedBill = { ...billToUpdate, status: 'archived' as const };
-      await updateImportedBill(updatedBill);
-    }
-  }, [importedBills, updateImportedBill]);
-  
-  const unarchiveImportedBill = useCallback(async (billId: string) => {
-    const billToUpdate = importedBills.find(b => b.id === billId);
-    if (billToUpdate) {
-      const updatedBill = { ...billToUpdate, status: 'active' as const };
-      await updateImportedBill(updatedBill);
-    }
   }, [importedBills, updateImportedBill]);
 
   return { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, isLoading };
