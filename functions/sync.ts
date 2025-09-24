@@ -1,32 +1,22 @@
 import type { Request, Response } from 'express';
+import redisClient from '../services/redisClient.ts';
 
-// In-memory store for sync sessions. This is suitable for the ephemeral nature
-// of serverless functions for short-lived data.
-const sessions = new Map<string, { data: string; expires: number }>();
-const EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+const EXPIRATION_SECONDS = 5 * 60; // 5 minutes
 
-// Generates a unique 6-digit code for a session.
-const generateCode = (): string => {
+/**
+ * Generates a unique 6-digit code, ensuring it doesn't already exist in Redis.
+ */
+const generateCode = async (): Promise<string> => {
   let code: string;
+  let exists: number;
   do {
     code = Math.floor(100000 + Math.random() * 900000).toString();
-  } while (sessions.has(code)); // Ensure code is unique in the current instance
+    exists = await redisClient.exists(`sync:${code}`);
+  } while (exists);
   return code;
 };
 
-// Periodically clean up expired sessions to prevent memory leaks.
-setInterval(() => {
-  const now = Date.now();
-  for (const [code, session] of sessions.entries()) {
-    if (now > session.expires) {
-      sessions.delete(code);
-      console.log(`Expired session ${code} cleaned up.`);
-    }
-  }
-}, 60 * 1000); // Run cleanup every minute
-
 export const syncHandler = async (req: Request, res: Response) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -34,7 +24,6 @@ export const syncHandler = async (req: Request, res: Response) => {
     return res.status(204).send();
   }
 
-  // Set standard headers for actual requests
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Content-Type", "application/json");
 
@@ -46,17 +35,16 @@ export const syncHandler = async (req: Request, res: Response) => {
         return res.status(400).json({ error: "Invalid payload. 'encryptedData' string is required." });
       }
 
-      const code = generateCode();
-      sessions.set(code, {
-        data: encryptedData,
-        expires: Date.now() + EXPIRATION_MS,
-      });
+      const code = await generateCode();
+      // Store the data in Redis with a 5-minute expiration
+      await redisClient.set(`sync:${code}`, encryptedData, 'EX', EXPIRATION_SECONDS);
 
-      console.log(`Created session ${code}. Total sessions: ${sessions.size}`);
+      console.log(`Created sync session ${code}.`);
       return res.status(201).json({ code });
 
     } catch (e) {
-      return res.status(400).json({ error: "Invalid JSON body." });
+      console.error('Sync POST error:', e);
+      return res.status(400).json({ error: "Invalid JSON body or Redis error." });
     }
   }
 
@@ -67,21 +55,20 @@ export const syncHandler = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Missing 'code' query parameter." });
     }
 
-    const session = sessions.get(code);
+    const key = `sync:${code}`;
+    const encryptedData = await redisClient.get(key);
 
-    if (!session || Date.now() > session.expires) {
-      if (session) sessions.delete(code); // Clean up expired session on access
+    if (!encryptedData) {
       return res.status(404).json({ error: "Invalid or expired code." });
     }
 
-    // Critical security step: data is for one-time use only.
-    sessions.delete(code);
-    console.log(`Session ${code} retrieved and deleted. Total sessions: ${sessions.size}`);
+    // Data is for one-time use. Delete it immediately after retrieval.
+    await redisClient.del(key);
+    console.log(`Sync session ${code} retrieved and deleted.`);
     
-    return res.status(200).json({ encryptedData: session.data });
+    return res.status(200).json({ encryptedData });
   }
 
-  // --- Fallback for other HTTP methods ---
   res.setHeader('Allow', 'GET, POST, OPTIONS');
   return res.status(405).json({ error: "Method Not Allowed" });
 };

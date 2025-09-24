@@ -1,24 +1,10 @@
 import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
+import redisClient from '../services/redisClient.ts';
 
-// In-memory store for shared bills. This is suitable for the ephemeral nature
-// of serverless functions for short-lived data.
-const sharedBills = new Map<string, { data: string; lastUpdatedAt: number; expires: number }>();
-const EXPIRATION_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-// Periodically clean up expired sessions to prevent memory leaks.
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, session] of sharedBills.entries()) {
-    if (now > session.expires) {
-      sharedBills.delete(id);
-      console.log(`Expired shared bill ${id} cleaned up.`);
-    }
-  }
-}, 5 * 60 * 1000); // Run cleanup every 5 minutes
+const EXPIRATION_SECONDS = 24 * 60 * 60; // 24 hours
 
 export const shareHandler = async (req: Request, res: Response) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -39,22 +25,28 @@ export const shareHandler = async (req: Request, res: Response) => {
 
       const now = Date.now();
       const id = idToUpdate || randomUUID();
+      const key = `share:${id}`;
       
-      if (idToUpdate && !sharedBills.has(idToUpdate)) {
-        return res.status(404).json({ error: "Share ID not found for update." });
-      }
-
-      sharedBills.set(id, {
+      const sessionData = {
         data: encryptedData,
         lastUpdatedAt: now,
-        expires: now + EXPIRATION_MS,
-      });
+      };
 
-      console.log(`Created/Updated shared bill ${id}. Total shares: ${sharedBills.size}`);
+      if (idToUpdate) {
+        const exists = await redisClient.exists(key);
+        if (!exists) {
+          return res.status(404).json({ error: "Share ID not found for update." });
+        }
+      }
+
+      await redisClient.set(key, JSON.stringify(sessionData), 'EX', EXPIRATION_SECONDS);
+
+      console.log(`Created/Updated shared bill ${id}.`);
       return res.status(201).json({ shareId: id });
 
     } catch (e) {
-      return res.status(400).json({ error: "Invalid JSON body." });
+      console.error('Share POST error:', e);
+      return res.status(400).json({ error: "Invalid JSON body or Redis error." });
     }
   }
 
@@ -64,16 +56,17 @@ export const shareHandler = async (req: Request, res: Response) => {
     if (!shareId) {
       return res.status(400).json({ error: "Missing 'shareId' in path." });
     }
+    
+    const key = `share:${shareId}`;
+    const sessionJson = await redisClient.get(key);
 
-    const session = sharedBills.get(shareId);
-
-    // If the session doesn't exist or is expired, return an error.
-    // The background cleanup task will handle the actual deletion.
-    if (!session || Date.now() > session.expires) {
+    if (!sessionJson) {
       return res.status(404).json({ error: "Invalid or expired share ID." });
     }
     
+    const session = JSON.parse(sessionJson);
     const lastCheckedAt = req.query.lastCheckedAt ? parseInt(req.query.lastCheckedAt as string, 10) : 0;
+
     if (lastCheckedAt && lastCheckedAt >= session.lastUpdatedAt) {
         return res.status(304).send();
     }
@@ -84,7 +77,6 @@ export const shareHandler = async (req: Request, res: Response) => {
     });
   }
 
-  // --- Fallback for other HTTP methods ---
   res.setHeader('Allow', 'GET, POST, OPTIONS');
   return res.status(405).json({ error: "Method Not Allowed" });
 };

@@ -40,3 +40,15 @@ ingress:
   #   - secretName: sharedbills-tls-secret
   #     hosts:
   #       - YOUR_DOMAIN_HERE
+
+# Redis subchart configuration
+# See https://github.com/bitnami/charts/tree/main/bitnami/redis for all available options
+redis:
+  enabled: true
+  auth:
+    enabled: false # Keep it simple for now, no password
+  master:
+    persistence:
+      enabled: false # Data is ephemeral, no persistence needed
+  replica:
+    replicaCount: 0 # We don't need replicas for this use case
