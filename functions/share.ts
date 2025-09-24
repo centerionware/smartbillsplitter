@@ -67,8 +67,9 @@ export const shareHandler = async (req: Request, res: Response) => {
 
     const session = sharedBills.get(shareId);
 
+    // If the session doesn't exist or is expired, return an error.
+    // The background cleanup task will handle the actual deletion.
     if (!session || Date.now() > session.expires) {
-      if (session) sharedBills.delete(shareId); // Clean up expired session on access
       return res.status(404).json({ error: "Invalid or expired share ID." });
     }
     
