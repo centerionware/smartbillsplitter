@@ -303,13 +303,12 @@ export const CreateBill: React.FC<CreateBillProps> = ({
         />
 
         <div className="space-y-6">
-          {!isRecurring && (
-            <ReceiptScanner
-              onItemsScanned={handleItemsScanned}
-              onImageSelected={setReceiptImage}
-              onImageCleared={() => setReceiptImage(undefined)}
-            />
-          )}
+          <ReceiptScanner
+            onItemsScanned={handleItemsScanned}
+            onImageSelected={isRecurring ? () => {} : setReceiptImage}
+            onImageCleared={() => setReceiptImage(undefined)}
+            isForTemplate={isRecurring}
+          />
 
           <BillPrimaryDetails
             description={description}

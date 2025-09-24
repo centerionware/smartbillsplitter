@@ -11,6 +11,7 @@ interface ReceiptScannerProps {
   onItemsScanned: (data: ScannedData) => void;
   onImageSelected: (imageDataUrl: string) => void;
   onImageCleared: () => void;
+  isForTemplate?: boolean;
 }
 
 // --- Flash Icons ---
@@ -37,7 +38,7 @@ const FlashAutoIcon = () => (
 );
 
 
-const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImageSelected, onImageCleared }) => {
+const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImageSelected, onImageCleared, isForTemplate }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -254,8 +255,12 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
         </div>
       )}
       <div className="mb-6 p-6 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-center bg-slate-50 dark:bg-slate-700/30">
-        <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Scan a Receipt (Optional)</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Let AI extract the items and prices for you.</p>
+        <h3 className="text-lg font-semibold mb-2 text-slate-700 dark:text-slate-200">Scan a Receipt {isForTemplate ? '(to populate template)' : '(Optional)'}</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+          {isForTemplate
+            ? "Use an image to quickly fill out the template fields below. The image itself will not be saved."
+            : "Let AI extract the items and prices for you."}
+        </p>
         
         {!previewUrl && (
           <div className="flex justify-center gap-4">
