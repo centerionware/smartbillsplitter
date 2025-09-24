@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import type { Bill, Settings, SharedBillPayload } from './types.ts';
+import type { Bill, Settings, SharedBillPayload, Participant } from './types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import ShareModal from './ShareModal.tsx';
+import ShareActionSheet from './ShareActionSheet.tsx';
 import { useKeys } from '../hooks/useKeys.ts';
 import * as cryptoService from '../services/cryptoService.ts';
+import { generateShareText } from '../services/shareService.ts';
 
 interface BillDetailsProps {
   bill: Bill;
@@ -15,10 +17,11 @@ interface BillDetailsProps {
   subscriptionStatus: SubscriptionStatus;
 }
 
-const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill, onBack }) => {
+const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill, onBack, subscriptionStatus }) => {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareMenuParticipant, setShareMenuParticipant] = useState<Participant | null>(null);
   const { keyPair } = useKeys();
 
   const pushShareUpdate = async (billToUpdate: Bill) => {
@@ -63,6 +66,44 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
     onUpdateBill(updatedBill);
     // Push the update for anyone watching the share link
     pushShareUpdate(updatedBill);
+  };
+  
+  // --- Share Handlers ---
+  const handleShareGeneric = async (participant: Participant) => {
+    const billsInfo = [{ description: bill.description, amountOwed: participant.amountOwed }];
+    const text = generateShareText(participant.name, participant.amountOwed, billsInfo, settings, subscriptionStatus);
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Bill Split Reminder', text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        alert('Share text copied to clipboard!');
+      }
+    } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error("Error sharing:", err);
+        }
+    } finally {
+        setShareMenuParticipant(null);
+    }
+  };
+
+  const handleShareSms = (participant: Participant) => {
+    if (!participant.phone) return;
+    const billsInfo = [{ description: bill.description, amountOwed: participant.amountOwed }];
+    const text = generateShareText(participant.name, participant.amountOwed, billsInfo, settings, subscriptionStatus);
+    window.location.href = `sms:${participant.phone}?&body=${encodeURIComponent(text)}`;
+    setShareMenuParticipant(null);
+  };
+    
+  const handleShareEmail = (participant: Participant) => {
+    if (!participant.email) return;
+    const billsInfo = [{ description: bill.description, amountOwed: participant.amountOwed }];
+    const text = generateShareText(participant.name, participant.amountOwed, billsInfo, settings, subscriptionStatus);
+    const subject = "Shared Bill Reminder";
+    window.location.href = `mailto:${participant.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    setShareMenuParticipant(null);
   };
 
   return (
@@ -120,12 +161,12 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
             <ul className="space-y-3">
               {bill.participants.map(p => (
                 <li key={p.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                  <div className="flex items-center">
+                  <button onClick={() => setShareMenuParticipant(p)} className="flex items-center text-left hover:opacity-80 transition-opacity">
                     <div className="flex-shrink-0 h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold text-xs">
                       {p.name.charAt(0)}
                     </div>
                     <p className="ml-3 font-semibold text-slate-800 dark:text-slate-100">{p.name}</p>
-                  </div>
+                  </button>
                   <div className="flex items-center gap-4">
                     <span className="font-semibold text-slate-700 dark:text-slate-200">${p.amountOwed.toFixed(2)}</span>
                     <button 
@@ -147,6 +188,16 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
           settings={settings}
           onClose={() => setIsShareModalOpen(false)}
           onUpdateBill={onUpdateBill}
+        />
+      )}
+      
+      {shareMenuParticipant && (
+        <ShareActionSheet 
+            participant={shareMenuParticipant}
+            onClose={() => setShareMenuParticipant(null)}
+            onShareSms={handleShareSms}
+            onShareEmail={handleShareEmail}
+            onShareGeneric={handleShareGeneric}
         />
       )}
 

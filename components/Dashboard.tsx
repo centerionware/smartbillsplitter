@@ -8,6 +8,7 @@ import SwipeableParticipantCard from './SwipeableParticipantCard';
 import AdBillCard from './AdBillCard';
 import SwipeableImportedBillCard from './SwipeableImportedBillCard';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
+import { generateShareText } from '../services/shareService.ts';
 
 interface DashboardProps {
   bills: Bill[];
@@ -275,42 +276,21 @@ const Dashboard: React.FC<DashboardProps> = ({
       b.participants.some(p => p.name === participantName && !p.paid && p.amountOwed > 0)
     );
 
-    const billList = participantUnpaidBills.map(b => {
+    const billsInfo = participantUnpaidBills.map(b => {
       const pInBill = b.participants.find(p => p.name === participantName);
-      return `- "${b.description}": $${(pInBill?.amountOwed || 0).toFixed(2)}`;
-    }).join('\n');
+      return {
+        description: b.description,
+        amountOwed: pInBill?.amountOwed || 0,
+      };
+    });
 
-    const { paymentDetails } = settings;
-    let paymentInfo = '';
-    const paymentMethods = [];
-    if (paymentDetails.venmo) paymentMethods.push(`Venmo: @${paymentDetails.venmo}`);
-    if (paymentDetails.paypal) paymentMethods.push(`PayPal: ${paymentDetails.paypal}`);
-    if (paymentDetails.cashApp) paymentMethods.push(`Cash App: $${paymentDetails.cashApp}`);
-    if (paymentDetails.zelle) paymentMethods.push(`Zelle: ${paymentDetails.zelle}`);
-    
-    if (paymentMethods.length > 0) {
-      paymentInfo = `\n\nYou can pay me via ${paymentMethods.join(' or ')}.`;
-    }
-    if (paymentDetails.customMessage) {
-      paymentInfo += paymentInfo ? `\n\n${paymentDetails.customMessage}` : `\n\n${paymentDetails.customMessage}`;
-    }
-
-    let promoText = '';
-    if (subscriptionStatus === 'free') {
-      let appUrl = 'https://sharedbills.app';
-      try {
-        const constructedUrl = new URL('/', window.location.href).href;
-        appUrl = constructedUrl.endsWith('/') ? constructedUrl.slice(0, -1) : constructedUrl;
-      } catch (e) { console.warn("Could not determine app URL from context."); }
-      promoText = `\n\nCreated with SharedBills: ${appUrl}`;
-    }
-    
-    return settings.shareTemplate
-      .replace('{participantName}', participantName)
-      .replace('{totalOwed}', `$${participantData.amount.toFixed(2)}`)
-      .replace('{billList}', billList)
-      .replace('{paymentInfo}', paymentInfo)
-      .replace('{promoText}', promoText);
+    return generateShareText(
+      participantName,
+      participantData.amount,
+      billsInfo,
+      settings,
+      subscriptionStatus
+    );
   }, [participantsData, activeBills, settings, subscriptionStatus]);
 
   const handleShareWithParticipant = async (participantName: string) => {
@@ -534,7 +514,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         </div>
                         {hasMore && (
                             <div ref={loadMoreRef} className="flex justify-center items-center p-8">
-                                <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
