@@ -53,7 +53,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
     
     const { reloadApp } = useAppControl();
 
-    // FIX: Refactored to resolve a circular dependency where `handleScan` needed `stopScanner`
+    // Refactored to resolve a circular dependency where `handleScan` needed `stopScanner`
     // before `stopScanner` was defined by the `useQrScanner` hook.
     // Now, `handleScan` just updates the state, and a `useEffect` handles stopping the scanner.
     const handleScan = useCallback(async (data: string) => {
@@ -83,7 +83,6 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
 
             // 2. Decrypt data
             setReceiveStatus('decrypting');
-            // FIX: Corrected function call from importKey to importEncryptionKey.
             const key = await cryptoService.importEncryptionKey(keyJwk);
             const decryptedJson = await cryptoService.decrypt(result.encryptedData, key);
             const importedData = JSON.parse(decryptedJson);
@@ -130,7 +129,6 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
         setSyncPayload(null);
         
         try {
-            // FIX: Corrected function call from generateKey to generateEncryptionKey.
             const key = await cryptoService.generateEncryptionKey();
             const exportedKey = await cryptoService.exportKey(key);
             const dataToExport = await exportData();
@@ -162,7 +160,6 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
     }, []);
 
     const startReceiving = () => {
-        // FIX: Ensure status is reset to 'scanning' to allow the process to restart correctly.
         setReceiveStatus('scanning');
         setMode('receiving');
         startScanner();

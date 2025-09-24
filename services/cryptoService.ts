@@ -12,6 +12,20 @@ const SIGNING_KEY_OPTIONS: EcKeyGenParams = { name: 'ECDSA', namedCurve: 'P-384'
 const SIGNING_KEY_EXTRACTABLE = true; // Allow exporting the public key
 const SIGNING_KEY_USAGES: KeyUsage[] = ['sign', 'verify'];
 
+/**
+ * A robust, chunk-based method to convert a Uint8Array to a binary string for btoa,
+ * preventing "Maximum call stack size exceeded" errors with large inputs.
+ * @param arr The Uint8Array to convert.
+ */
+const uint8ArrayToBinaryString = (arr: Uint8Array): string => {
+  const CHUNK_SIZE = 8192;
+  let binary = '';
+  for (let i = 0; i < arr.length; i += CHUNK_SIZE) {
+    binary += String.fromCharCode.apply(null, arr.subarray(i, i + CHUNK_SIZE) as unknown as number[]);
+  }
+  return binary;
+};
+
 
 /**
  * Generates a new AES-GCM cryptographic key for symmetric encryption.
@@ -59,7 +73,7 @@ export const encrypt = async (data: string, key: CryptoKey): Promise<string> => 
   combined.set(encryptedBytes, iv.length);
 
   // Convert the combined ArrayBuffer to a base64 string for easy transport
-  return btoa(String.fromCharCode(...combined));
+  return btoa(uint8ArrayToBinaryString(combined));
 };
 
 /**
@@ -99,30 +113,29 @@ export const generateSigningKeyPair = async (): Promise<CryptoKeyPair> => {
  */
 export const importPublicKey = async (jwk: JsonWebKey): Promise<CryptoKey> => {
     return crypto.subtle.importKey('jwk', jwk, SIGNING_KEY_OPTIONS, true, ['verify']);
-}
+};
 
 /**
- * Signs a string of data with a private key.
- * @param data The string data to sign.
- * @param privateKey The private CryptoKey for signing.
- * @returns A base64 encoded signature.
+ * Creates a digital signature for a given data string.
+ * @param data The data to sign.
+ * @param privateKey The private key to sign with.
+ * @returns A base64 encoded signature string.
  */
 export const sign = async (data: string, privateKey: CryptoKey): Promise<string> => {
   const encodedData = new TextEncoder().encode(data);
   const signatureBuffer = await crypto.subtle.sign(SIGNING_ALGORITHM, privateKey, encodedData);
-  const signatureBytes = new Uint8Array(signatureBuffer);
-  return btoa(String.fromCharCode(...signatureBytes));
+  return btoa(uint8ArrayToBinaryString(new Uint8Array(signatureBuffer)));
 };
 
 /**
- * Verifies a signature against data using a public key.
- * @param data The original string data that was signed.
- * @param signatureB64 The base64 encoded signature.
- * @param publicKey The public CryptoKey for verification.
+ * Verifies a digital signature against the original data.
+ * @param data The original data that was signed.
+ * @param signature The base64 encoded signature.
+ * @param publicKey The public key to verify with.
  * @returns A boolean indicating if the signature is valid.
  */
-export const verify = async (data: string, signatureB64: string, publicKey: CryptoKey): Promise<boolean> => {
+export const verify = async (data: string, signature: string, publicKey: CryptoKey): Promise<boolean> => {
   const encodedData = new TextEncoder().encode(data);
-  const signatureBytes = Uint8Array.from(atob(signatureB64), c => c.charCodeAt(0));
+  const signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
   return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes, encodedData);
 };
