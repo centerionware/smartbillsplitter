@@ -27,6 +27,26 @@ export interface Bill {
   additionalInfo?: Record<string, string>; // Extra details from receipt scanning as key-value pairs
 }
 
+export interface ImportedBill {
+  id: string; // The ID of the original bill
+  sharedData: {
+    bill: Bill;
+    creatorPublicKey: JsonWebKey;
+    signature: string;
+  };
+  shareId: string; // The ephemeral ID for polling updates
+  lastUpdatedAt: number;
+  localStatus: {
+    myPortionPaid: boolean;
+  };
+}
+
+export interface SharedBillPayload {
+  bill: Bill;
+  publicKey: JsonWebKey;
+  signature: string;
+}
+
 export interface RecurrenceRule {
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
   interval: number; // e.g., frequency: 'weekly' & interval: 2 means every 2 weeks.
@@ -74,4 +94,5 @@ export enum View {
   Disclaimer = 'DISCLAIMER',
   Sync = 'SYNC',
   RecurringBills = 'RECURRING_BILLS',
+  ViewSharedBill = 'VIEW_SHARED_BILL',
 }

@@ -1,21 +1,25 @@
-import type { Bill, Settings, Theme, RecurringBill } from '../types.ts';
+import type { Bill, Settings, Theme, RecurringBill, ImportedBill } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 2; // Incremented version for new store
+const DB_VERSION = 3; // Incremented version for new stores
 
 // Object Store Names
 const STORES = {
   BILLS: 'bills',
   RECURRING_BILLS: 'recurring_bills',
+  IMPORTED_BILLS: 'imported_bills',
   SETTINGS: 'settings',
   THEME: 'theme',
   SUBSCRIPTION: 'subscription',
   SUBSCRIPTION_DETAILS: 'subscription_details',
+  CRYPTO_KEYS: 'crypto_keys',
 };
 
 // Singleton key for settings, theme, subscription stores
 const SINGLE_KEY = 'current';
+const MY_KEY_PAIR_ID = 'myKeyPair';
+
 
 let db: IDBDatabase;
 
@@ -58,6 +62,14 @@ export function initDB(): Promise<void> {
       }
       if (!dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION_DETAILS)) {
         dbInstance.createObjectStore(STORES.SUBSCRIPTION_DETAILS);
+      }
+       if (event.oldVersion < 3) {
+        if (!dbInstance.objectStoreNames.contains(STORES.CRYPTO_KEYS)) {
+          dbInstance.createObjectStore(STORES.CRYPTO_KEYS, { keyPath: 'id' });
+        }
+        if (!dbInstance.objectStoreNames.contains(STORES.IMPORTED_BILLS)) {
+          dbInstance.createObjectStore(STORES.IMPORTED_BILLS, { keyPath: 'id' });
+        }
       }
     };
 
@@ -111,6 +123,12 @@ export const addBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const updateBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const deleteBillDB = (billId: string) => del(STORES.BILLS, billId);
 
+// --- Imported Bills ---
+export const getImportedBills = () => getAll<ImportedBill>(STORES.IMPORTED_BILLS);
+export const addImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS, bill);
+export const updateImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS, bill);
+export const deleteImportedBillDB = (billId: string) => del(STORES.IMPORTED_BILLS, billId);
+
 // --- Recurring Bills ---
 export const getRecurringBills = () => getAll<RecurringBill>(STORES.RECURRING_BILLS);
 export const addRecurringBill = (bill: RecurringBill) => set(STORES.RECURRING_BILLS, bill);
@@ -124,6 +142,10 @@ export const saveSettings = (settings: Settings) => set(STORES.SETTINGS, setting
 // --- Theme ---
 export const getTheme = () => get<Theme>(STORES.THEME, SINGLE_KEY);
 export const saveTheme = (theme: Theme) => set(STORES.THEME, theme, SINGLE_KEY);
+
+// --- Crypto Keys ---
+export const getKeyPair = () => get<{id: string, keyPair: CryptoKeyPair}>(STORES.CRYPTO_KEYS, MY_KEY_PAIR_ID);
+export const saveKeyPair = (keyPair: CryptoKeyPair) => set(STORES.CRYPTO_KEYS, { id: MY_KEY_PAIR_ID, keyPair });
 
 // --- Subscription ---
 export const getSubscriptionDetails = () => get<SubscriptionDetails>(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
@@ -182,9 +204,27 @@ export const saveSubscriptionStatus = (status: SubscriptionStatus) => {
 // --- Data Management ---
 export async function exportData(): Promise<object> {
     const data: { [key: string]: any } = {};
-    for (const storeName of Object.values(STORES)) {
-        if ([STORES.BILLS, STORES.RECURRING_BILLS].includes(storeName)) {
+    const storesToExport = [
+      STORES.BILLS, 
+      STORES.RECURRING_BILLS, 
+      STORES.IMPORTED_BILLS, 
+      STORES.SETTINGS, 
+      STORES.THEME, 
+      STORES.SUBSCRIPTION, 
+      STORES.SUBSCRIPTION_DETAILS, 
+      STORES.CRYPTO_KEYS
+    ];
+    for (const storeName of storesToExport) {
+        if ([STORES.BILLS, STORES.RECURRING_BILLS, STORES.IMPORTED_BILLS].includes(storeName)) {
              data[storeName] = await getAll(storeName);
+        } else if (storeName === STORES.CRYPTO_KEYS) {
+             // Special handling for non-extractable private keys
+             const keyPairData = await get<{id: string, keyPair: CryptoKeyPair}>(storeName, MY_KEY_PAIR_ID);
+             if (keyPairData) {
+                // We only export the public key for safety. The private key is never exported.
+                const publicKeyJwk = await crypto.subtle.exportKey('jwk', keyPairData.keyPair.publicKey);
+                data[storeName] = [{id: MY_KEY_PAIR_ID, publicKey: publicKeyJwk }];
+             }
         } else {
              data[storeName] = await get(storeName, SINGLE_KEY);
         }
@@ -213,6 +253,10 @@ export async function importData(data: { [key: string]: any }): Promise<void> {
             const storeData = data[storeName];
             // 2. If data for this store exists in the import object, add it.
             if (storeData !== null && storeData !== undefined) {
+                // Skip importing crypto keys as private keys are not exportable.
+                // A new key pair will be generated on next app load.
+                if (storeName === STORES.CRYPTO_KEYS) return;
+
                 if (Array.isArray(storeData)) {
                     // For stores like 'bills'
                     storeData.forEach(item => store.add(item));

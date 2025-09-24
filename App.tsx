@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Bill, Settings, RecurringBill, Participant, ReceiptItem } from './types.ts';
+import type { Bill, Settings, RecurringBill, Participant, ReceiptItem, ImportedBill } from './types.ts';
 import { View } from './types.ts';
 import { useBills } from './hooks/useBills.ts';
+import { useImportedBills } from './hooks/useImportedBills.ts';
+import { useKeys } from './hooks/useKeys.ts';
 import { useSettings } from './hooks/useSettings.ts';
 import { useTheme } from './hooks/useTheme.ts';
 import { useAuth } from './hooks/useAuth.ts';
@@ -18,6 +20,7 @@ import FloatingAd from './components/FloatingAd.tsx';
 import ConfirmationDialog from './components/ConfirmationDialog.tsx';
 import Disclaimer from './components/Disclaimer.tsx';
 import RecurringBillsList from './components/RecurringBillsList.tsx';
+import ViewSharedBill from './components/ViewSharedBill.tsx';
 
 // Determine if the app is running in an iframe.
 // This is used to disable URL-based navigation for a smoother sandbox experience.
@@ -39,10 +42,12 @@ export type RequestConfirmationFn = (
 
 const App: React.FC = () => {
   const { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, isLoading: billsLoading, updateMultipleBills } = useBills();
+  const { importedBills, updateImportedBill, isLoading: importedBillsLoading } = useImportedBills();
   const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: recurringBillsLoading } = useRecurringBills();
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
   const { theme, setTheme, isLoading: themeLoading } = useTheme();
   const { subscriptionStatus, logout } = useAuth();
+  useKeys(); // Initialize cryptographic keys on app load.
   
   // --- Navigation & View State ---
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
@@ -126,6 +131,8 @@ const App: React.FC = () => {
       } else {
         navigate('#/', { replace: true }); // Bill not found, go home
       }
+    } else if (path.startsWith('#/view-bill')) {
+      setCurrentView(View.ViewSharedBill);
     } else if (path === '#/create') {
       const fromTemplateId = params.get('fromTemplate');
       const editTemplateId = params.get('editTemplate');
@@ -375,6 +382,10 @@ const App: React.FC = () => {
     updateBill(bill);
     setSelectedBill(bill);
   };
+  
+  const handleImportComplete = () => {
+    navigate('#/', { replace: true });
+  }
 
   const renderContent = () => {
     switch (currentView) {
@@ -395,12 +406,15 @@ const App: React.FC = () => {
             bills={bills}
             settings={settings}
             onUpdateBill={handleUpdateBill}
+            onUpdateSettings={updateSettings}
             onBack={handleBack}
             subscriptionStatus={subscriptionStatus}
           />
         ) : (
+          // Fallback to dashboard if no bill is selected (e.g., after a reload)
           <Dashboard
             bills={bills}
+            importedBills={importedBills}
             settings={settings}
             subscriptionStatus={subscriptionStatus}
             onSelectBill={handleSelectBill}
@@ -408,6 +422,7 @@ const App: React.FC = () => {
             onUnarchiveBill={unarchiveBill}
             onDeleteBill={deleteBill}
             onUpdateMultipleBills={updateMultipleBills}
+            onUpdateImportedBill={updateImportedBill}
             dashboardView={dashboardView}
             selectedParticipant={dashboardParticipant}
             dashboardStatusFilter={dashboardStatusFilter}
@@ -417,6 +432,8 @@ const App: React.FC = () => {
             onClearParticipant={handleClearDashboardParticipant}
           />
         );
+       case View.ViewSharedBill:
+        return <ViewSharedBill onImportComplete={handleImportComplete} settings={settings} />;
       case View.RecurringBills:
         return <RecurringBillsList
             recurringBills={recurringBills}
@@ -450,6 +467,7 @@ const App: React.FC = () => {
         return (
           <Dashboard
             bills={bills}
+            importedBills={importedBills}
             settings={settings}
             subscriptionStatus={subscriptionStatus}
             onSelectBill={handleSelectBill}
@@ -457,6 +475,7 @@ const App: React.FC = () => {
             onUnarchiveBill={unarchiveBill}
             onDeleteBill={deleteBill}
             onUpdateMultipleBills={updateMultipleBills}
+            onUpdateImportedBill={updateImportedBill}
             dashboardView={dashboardView}
             selectedParticipant={dashboardParticipant}
             dashboardStatusFilter={dashboardStatusFilter}
@@ -469,7 +488,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (billsLoading || settingsLoading || themeLoading || recurringBillsLoading) {
+  if (billsLoading || settingsLoading || themeLoading || recurringBillsLoading || importedBillsLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center text-center p-4">
         <svg className="animate-spin h-10 w-10 text-teal-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

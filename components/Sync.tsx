@@ -83,7 +83,8 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
 
             // 2. Decrypt data
             setReceiveStatus('decrypting');
-            const key = await cryptoService.importKey(keyJwk);
+            // FIX: Corrected function call from importKey to importEncryptionKey.
+            const key = await cryptoService.importEncryptionKey(keyJwk);
             const decryptedJson = await cryptoService.decrypt(result.encryptedData, key);
             const importedData = JSON.parse(decryptedJson);
 
@@ -129,7 +130,8 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
         setSyncPayload(null);
         
         try {
-            const key = await cryptoService.generateKey();
+            // FIX: Corrected function call from generateKey to generateEncryptionKey.
+            const key = await cryptoService.generateEncryptionKey();
             const exportedKey = await cryptoService.exportKey(key);
             const dataToExport = await exportData();
             const encryptedData = await cryptoService.encrypt(JSON.stringify(dataToExport), key);

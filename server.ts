@@ -2,6 +2,7 @@ import express, { Express, Request, Response } from 'express';
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
 import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler } from './functions/stripe';
+import { shareHandler } from './functions/share';
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
@@ -11,6 +12,9 @@ app.use(express.json({ limit: '10mb' })); // Increase limit for receipt images
 // API routes
 app.post('/scan-receipt', scanReceiptHandler);
 app.all('/sync', syncHandler);
+
+// Share routes
+app.all('/share/:shareId?', shareHandler);
 
 // Stripe routes
 app.post('/create-checkout-session', createCheckoutSessionHandler);
