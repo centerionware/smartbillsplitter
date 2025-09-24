@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Bill, Settings } from './types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
+import ShareModal from './ShareModal.tsx';
 
 interface BillDetailsProps {
   bill: Bill;
@@ -12,9 +13,10 @@ interface BillDetailsProps {
   subscriptionStatus: SubscriptionStatus;
 }
 
-const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack }) => {
+const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill, onBack }) => {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const handleParticipantPaidToggle = (participantId: string) => {
     const updatedParticipants = bill.participants.map(p =>
@@ -47,7 +49,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack })
           <div className="my-2 flex flex-wrap gap-x-4 gap-y-2">
             {bill.receiptImage && (
                 <button onClick={() => setIsReceiptModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
                     View Scanned Receipt
                 </button>
             )}
@@ -59,10 +61,22 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack })
             )}
           </div>
           
-          <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
+          <div className="my-6 border-t border-slate-200 dark:border-slate-700" />
           
           <div>
-            <h3 className="text-xl font-semibold mb-4 text-slate-700 dark:text-slate-200">Participants</h3>
+            <div className="mb-6 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Participants</h3>
+               <button
+                  onClick={() => setIsShareModalOpen(true)}
+                  className="inline-flex items-center gap-2 bg-teal-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-teal-600 transition-colors"
+                  aria-label="Share this bill"
+               >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                  </svg>
+                  <span>Share Bill</span>
+               </button>
+            </div>
             <ul className="space-y-3">
               {bill.participants.map(p => (
                 <li key={p.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
@@ -87,6 +101,14 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack })
         </div>
       </div>
 
+      {isShareModalOpen && (
+        <ShareModal
+          bill={bill}
+          settings={settings}
+          onClose={() => setIsShareModalOpen(false)}
+        />
+      )}
+
       {isReceiptModalOpen && bill.receiptImage && (
         <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex justify-center items-center p-4" onClick={() => setIsReceiptModalOpen(false)} role="dialog" aria-modal="true" aria-label="Receipt Image Viewer">
           <div className="relative max-w-4xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
@@ -100,7 +122,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack })
         <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex justify-center items-center p-4" onClick={() => setIsInfoModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="info-dialog-title">
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-200 dark:border-slate-700"><h3 id="info-dialog-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">Additional Information</h3></div>
-              <div className="p-6 flex-grow overflow-y-auto"><dl className="space-y-4">{Object.entries(bill.additionalInfo).map(([key, value]) => (<div key={key} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-md"><dt className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{key}</dt><dd className="mt-1 text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{value}</dd></div>))}</dl></div>
+              <div className="p-6 flex-grow overflow-y-auto"><dl className="space-y-4">{Object.entries(bill.additionalInfo).map(([key, value]) => (<div key={key} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-md"><dt className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{key}</dt>{/* FIX: Explicitly cast value to a string to satisfy ReactNode type, as Object.entries can infer `unknown`. */}<dd className="mt-1 text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{String(value)}</dd></div>))}</dl></div>
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end"><button onClick={() => setIsInfoModalOpen(false)} className="px-5 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Close</button></div>
           </div>
         </div>
