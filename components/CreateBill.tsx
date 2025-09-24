@@ -42,7 +42,7 @@ export const CreateBill: React.FC<CreateBillProps> = ({
   const [participants, setParticipants] = useState<Participant[]>(() => {
     const initialParticipants = template?.participants ? JSON.parse(JSON.stringify(template.participants)) : [];
     if (initialParticipants.length === 0 && settings?.myDisplayName) {
-        return [{ id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: true }];
+        return [{ id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: false }];
     }
     return initialParticipants;
   });
@@ -236,10 +236,9 @@ export const CreateBill: React.FC<CreateBillProps> = ({
         }
     }
     
-    // 3. Set the 'paid' status for the current user.
+    // 3. Clean up temporary splitValue from participants. Paid status is preserved from the state.
     finalParticipants.forEach(p => {
-        p.paid = p.name.toLowerCase().trim() === myNameLower;
-        delete p.splitValue; // Clean up temporary value
+        delete p.splitValue;
     });
 
     const additionalInfoObject = additionalInfo.reduce((acc, info) => {
@@ -276,32 +275,42 @@ export const CreateBill: React.FC<CreateBillProps> = ({
     }
   };
 
+  // FIX: Added handleBack function and return statement to render the component UI.
   const handleBack = () => {
-     requestConfirmation('Discard Changes?', 'Are you sure you want to discard this new bill?', onCancel);
+    // This is a simplified check for unsaved changes.
+    const hasData = description.trim() || totalAmount || participants.length > 1 || (participants.length === 1 && participants[0].name.toLowerCase().trim() !== myNameLower) || items.length > 0;
+    
+    if (hasData) {
+      requestConfirmation(
+        'Discard Changes?',
+        'You have unsaved changes that will be lost. Are you sure you want to go back?',
+        onCancel,
+        { confirmText: 'Discard', confirmVariant: 'danger' }
+      );
+    } else {
+      onCancel();
+    }
   };
 
   return (
-    <>
-    {isItemEditorOpen && <ItemEditor initialItems={items} participants={participants} onSave={handleSaveItems} onCancel={() => setIsItemEditorOpen(false)} isRecurring={isRecurring}/>}
-    {isInfoEditorOpen && <AdditionalInfoEditor initialInfo={additionalInfo} onSave={handleSaveInfo} onCancel={() => setIsInfoEditorOpen(false)} />}
     <div className="max-w-2xl mx-auto">
       <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
         <BillFormHeader
-            isEditing={isEditing}
-            fromTemplateId={fromTemplateId}
-            isRecurring={isRecurring}
-            setIsRecurring={setIsRecurring}
+          isEditing={isEditing}
+          fromTemplateId={fromTemplateId}
+          isRecurring={isRecurring}
+          setIsRecurring={setIsRecurring}
         />
 
-        {!isRecurring && (
-            <ReceiptScanner 
-                onItemsScanned={handleItemsScanned}
-                onImageSelected={setReceiptImage}
-                onImageCleared={() => setReceiptImage(undefined)}
-            />
-        )}
-        
         <div className="space-y-6">
+          {!isRecurring && (
+            <ReceiptScanner
+              onItemsScanned={handleItemsScanned}
+              onImageSelected={setReceiptImage}
+              onImageCleared={() => setReceiptImage(undefined)}
+            />
+          )}
+
           <BillPrimaryDetails
             description={description}
             setDescription={setDescription}
@@ -314,7 +323,12 @@ export const CreateBill: React.FC<CreateBillProps> = ({
             errors={errors}
           />
           
-          {isRecurring && <RecurrenceSelector value={recurrenceRule} onChange={setRecurrenceRule} />}
+          {isRecurring && (
+            <RecurrenceSelector
+              value={recurrenceRule}
+              onChange={setRecurrenceRule}
+            />
+          )}
 
           <BillSplitMethod
             splitMode={splitMode}
@@ -328,7 +342,7 @@ export const CreateBill: React.FC<CreateBillProps> = ({
             splitMode={splitMode}
             participantsError={errors.participants}
           />
-          
+
           <BillExtraDetails
             items={items}
             additionalInfo={additionalInfo}
@@ -337,14 +351,31 @@ export const CreateBill: React.FC<CreateBillProps> = ({
             isRecurring={isRecurring}
           />
         </div>
-
+        
         <BillFormActions
           onCancel={handleBack}
           onSave={handleSaveClick}
           isEditing={isEditing}
         />
       </div>
+
+      {isItemEditorOpen && (
+        <ItemEditor
+          initialItems={items}
+          participants={participants}
+          onSave={handleSaveItems}
+          onCancel={() => setIsItemEditorOpen(false)}
+          isRecurring={isRecurring}
+        />
+      )}
+
+      {isInfoEditorOpen && (
+        <AdditionalInfoEditor
+          initialInfo={additionalInfo}
+          onSave={handleSaveInfo}
+          onCancel={() => setIsInfoEditorOpen(false)}
+        />
+      )}
     </div>
-    </>
   );
 };

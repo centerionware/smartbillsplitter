@@ -22,6 +22,7 @@ import ConfirmationDialog from './components/ConfirmationDialog.tsx';
 import Disclaimer from './components/Disclaimer.tsx';
 import RecurringBillsList from './components/RecurringBillsList.tsx';
 import ViewSharedBill from './components/ViewSharedBill.tsx';
+import SetupDisplayNameModal from './components/SetupDisplayNameModal.tsx';
 
 // Determine if the app is running in an iframe.
 // This is used to disable URL-based navigation for a smoother sandbox experience.
@@ -72,6 +73,7 @@ const App: React.FC = () => {
     onConfirm: () => void;
   } & RequestConfirmationOptions | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const initRef = useRef(false);
 
   // --- Navigation ---
@@ -179,6 +181,13 @@ const App: React.FC = () => {
         setCurrentView(View.Dashboard);
     }
   }, [currentPath, bills, recurringBills, importedBills, billsLoading, recurringBillsLoading, importedBillsLoading, navigate]);
+
+  // Effect to enforce display name setup.
+  useEffect(() => {
+    if (!settingsLoading && settings && (!settings.myDisplayName.trim() || settings.myDisplayName.trim().toLowerCase() === 'myself')) {
+        setIsSetupModalOpen(true);
+    }
+  }, [settings, settingsLoading]);
 
 
   useEffect(() => {
@@ -400,6 +409,13 @@ const App: React.FC = () => {
     navigate('#/', { replace: true });
   }
 
+  const handleSaveDisplayName = (newName: string) => {
+    if (newName.trim()) {
+        updateSettings({ myDisplayName: newName.trim() });
+        setIsSetupModalOpen(false);
+    }
+  };
+
   const renderContent = () => {
     switch (currentView) {
       case View.CreateBill:
@@ -497,6 +513,10 @@ const App: React.FC = () => {
         );
     }
   };
+
+  if (isSetupModalOpen && settings) {
+    return <SetupDisplayNameModal onSave={handleSaveDisplayName} currentName={settings.myDisplayName} />;
+  }
 
   if (billsLoading || settingsLoading || themeLoading || recurringBillsLoading || importedBillsLoading) {
     return (
