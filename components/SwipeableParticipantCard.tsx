@@ -3,7 +3,7 @@ import React, { useRef, useState } from 'react';
 import ParticipantCard from './ParticipantCard.tsx';
 
 interface SwipeableParticipantCardProps {
-  participant: { name: string; totalOwed: number };
+  participant: { name: string; amount: number; type: 'owed' | 'paid' };
   onClick: () => void;
   onShare: () => void;
   onPaidInFull: () => void;
@@ -23,9 +23,10 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
   const isScrolling = useRef(false);
   const dragStartTime = useRef(0);
 
-  const maxTranslateX = -ACTION_BUTTON_WIDTH;
+  const maxTranslateX = participant.type === 'owed' ? -ACTION_BUTTON_WIDTH : 0;
 
   const handleDragStart = (clientX: number, clientY: number) => {
+    if (participant.type !== 'owed') return;
     isDragging.current = true;
     isScrolling.current = false;
     dragStartX.current = clientX;
@@ -68,7 +69,14 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
   };
 
   const handleDragEnd = (e?: React.TouchEvent | React.MouseEvent) => {
-    if (!isDragging.current) return;
+    if (!isDragging.current) {
+        // If not dragging, it might be a simple tap
+        if (Math.abs(dragStartX.current - (e as any).clientX) < 10 && (Date.now() - dragStartTime.current) < 250) {
+             if (e && e.type === 'touchend') e.preventDefault();
+             onClick();
+        }
+        return;
+    }
     
     const wasScrolling = isScrolling.current;
     isDragging.current = false;
@@ -116,34 +124,35 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
 
   return (
     <div className={`relative w-full overflow-hidden transition-all duration-300 ease-in-out ${isExiting ? 'opacity-0 max-h-0 scale-95' : 'max-h-96'}`}>
-      <div className="absolute top-0 right-0 h-full flex items-center z-0">
-        <button
-          onClick={() => executeAction(onPaidInFull)}
-          className="h-full w-[90px] flex flex-col items-center justify-center bg-emerald-500 text-white transition-colors hover:bg-emerald-600"
-          aria-label={`Mark all bills for ${participant.name} as paid`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          <span className="text-xs mt-1 font-semibold">Paid in Full</span>
-        </button>
-      </div>
+       {participant.type === 'owed' && (
+        <div className="absolute top-0 right-0 h-full flex items-center z-0">
+            <button
+            onClick={() => executeAction(onPaidInFull)}
+            className="h-full w-[90px] flex flex-col items-center justify-center bg-emerald-500 text-white transition-colors hover:bg-emerald-600"
+            aria-label={`Mark all bills for ${participant.name} as paid`}
+            >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-xs mt-1 font-semibold">Paid in Full</span>
+            </button>
+        </div>
+      )}
 
       <div
         ref={cardRef}
         className="relative z-10 h-full"
-        style={{ transform: `translateX(${translateX}px)`, touchAction: 'pan-y' }}
+        style={{ transform: `translateX(${translateX}px)`, touchAction: participant.type === 'owed' ? 'pan-y' : 'auto' }}
         onTouchStart={e => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={e => handleDragMove(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchEnd={e => handleDragEnd(e)}
         onMouseDown={e => handleDragStart(e.clientX, e.clientY)}
         onMouseMove={e => handleDragMove(e.clientX, e.clientY)}
         onMouseUp={e => handleDragEnd(e)}
-        onMouseLeave={() => handleDragEnd()}
+        onMouseLeave={() => isDragging.current && handleDragEnd()}
       >
         <ParticipantCard
-          name={participant.name}
-          totalOwed={participant.totalOwed}
+          data={participant}
           onClick={() => { /* Click is now handled in dragEnd */ }}
           onShare={onShare}
           isCopied={isCopied}

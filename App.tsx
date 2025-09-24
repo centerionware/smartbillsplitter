@@ -48,6 +48,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [dashboardView, setDashboardView] = useState<'bills' | 'participants'>('bills');
+  const [dashboardStatusFilter, setDashboardStatusFilter] = useState<'active' | 'archived'>('active');
   const [dashboardParticipant, setDashboardParticipant] = useState<string | null>(null);
   
   // A single source of truth for the current logical path of the application.
@@ -113,6 +114,9 @@ const App: React.FC = () => {
     setBillCreationTemplate(null);
     setDashboardParticipant(null);
 
+    const statusParam = params.get('status');
+    const status = statusParam === 'archived' ? 'archived' : 'active';
+    
     if (path.startsWith('#/bill/')) {
       const billId = path.substring(7);
       const bill = bills.find(b => b.id === billId);
@@ -147,13 +151,13 @@ const App: React.FC = () => {
         const participantName = decodeURIComponent(path.substring(15));
         setDashboardParticipant(participantName);
         setDashboardView('participants');
+        setDashboardStatusFilter(status);
         setCurrentView(View.Dashboard);
-    } else if (path === '#/participants') {
-        setDashboardView('participants');
+    } else { // Handle general dashboard views
+        const view = path.startsWith('#/participants') ? 'participants' : 'bills';
+        setDashboardView(view);
+        setDashboardStatusFilter(status);
         setCurrentView(View.Dashboard);
-    } else { // Default to Dashboard bills view
-      setDashboardView('bills');
-      setCurrentView(View.Dashboard);
     }
   }, [currentPath, bills, recurringBills, billsLoading, recurringBillsLoading, navigate]);
 
@@ -307,12 +311,34 @@ const App: React.FC = () => {
   const handleGoHome = () => navigate('#/');
   
   const handleSetDashboardView = (view: 'bills' | 'participants') => {
-    if (view === 'bills') navigate('#/');
-    else navigate('#/participants');
+    const statusQuery = dashboardStatusFilter === 'archived' ? '?status=archived' : '';
+    const path = view === 'bills' ? '/' : '/participants';
+    navigate(`#${path}${statusQuery}`);
+  };
+  
+  const handleSetDashboardStatusFilter = (status: 'active' | 'archived') => {
+    const statusQuery = status === 'archived' ? '?status=archived' : '';
+    
+    let path: string;
+    if (dashboardParticipant) {
+      // If we are viewing a specific participant, maintain that view
+      path = `/participants/${encodeURIComponent(dashboardParticipant)}`;
+    } else {
+      // Otherwise, use the general dashboard view (bills or participants list)
+      path = dashboardView === 'bills' ? '/' : '/participants';
+    }
+
+    navigate(`#${path}${statusQuery}`);
   };
 
-  const handleSelectDashboardParticipant = (name: string) => navigate(`#/participants/${encodeURIComponent(name)}`);
-  const handleClearDashboardParticipant = () => navigate('#/participants');
+  const handleSelectDashboardParticipant = (name: string) => {
+    const statusQuery = dashboardStatusFilter === 'archived' ? '?status=archived' : '';
+    navigate(`#/participants/${encodeURIComponent(name)}${statusQuery}`);
+  };
+  const handleClearDashboardParticipant = () => {
+    const statusQuery = dashboardStatusFilter === 'archived' ? '?status=archived' : '';
+    navigate(`#/participants${statusQuery}`);
+  };
 
   const handleSaveBill = (bill: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => {
     addBill(bill);
@@ -384,7 +410,9 @@ const App: React.FC = () => {
             onUpdateMultipleBills={updateMultipleBills}
             dashboardView={dashboardView}
             selectedParticipant={dashboardParticipant}
+            dashboardStatusFilter={dashboardStatusFilter}
             onSetDashboardView={handleSetDashboardView}
+            onSetDashboardStatusFilter={handleSetDashboardStatusFilter}
             onSelectParticipant={handleSelectDashboardParticipant}
             onClearParticipant={handleClearDashboardParticipant}
           />
@@ -431,7 +459,9 @@ const App: React.FC = () => {
             onUpdateMultipleBills={updateMultipleBills}
             dashboardView={dashboardView}
             selectedParticipant={dashboardParticipant}
+            dashboardStatusFilter={dashboardStatusFilter}
             onSetDashboardView={handleSetDashboardView}
+            onSetDashboardStatusFilter={handleSetDashboardStatusFilter}
             onSelectParticipant={handleSelectDashboardParticipant}
             onClearParticipant={handleClearDashboardParticipant}
           />
