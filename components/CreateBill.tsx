@@ -1,16 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Bill, Participant, ReceiptItem, Settings, RecurringBill, RecurrenceRule, SplitMode } from '../types';
 import type { RequestConfirmationFn } from '../App';
-import ReceiptScanner from './ReceiptScanner';
-import ItemEditor from './ItemEditor';
-import RecurrenceSelector from './RecurrenceSelector';
-import AdditionalInfoEditor from './AdditionalInfoEditor';
-import BillFormHeader from './BillFormHeader';
-import BillPrimaryDetails from './BillPrimaryDetails';
-import BillSplitMethod from './BillSplitMethod';
-import BillParticipants from './BillParticipants';
-import BillExtraDetails from './BillExtraDetails';
-import BillFormActions from './BillFormActions';
+import ReceiptScanner from './ReceiptScanner.tsx';
+import ItemEditor from './ItemEditor.tsx';
+import RecurrenceSelector from './RecurrenceSelector.tsx';
+import AdditionalInfoEditor from './AdditionalInfoEditor.tsx';
+import BillFormHeader from './BillFormHeader.tsx';
+import BillPrimaryDetails from './BillPrimaryDetails.tsx';
+import BillSplitMethod from './BillSplitMethod.tsx';
+import BillParticipants from './BillParticipants.tsx';
+import BillExtraDetails from './BillExtraDetails.tsx';
+import BillFormActions from './BillFormActions.tsx';
 
 interface CreateBillProps {
   onSave: (bill: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => void;
@@ -168,10 +168,29 @@ export const CreateBill: React.FC<CreateBillProps> = ({
   const validate = () => {
     const newErrors: { [key: string]: string } = {};
     if (!description.trim()) newErrors.description = "Description is required.";
-    if (!isRecurring && (!totalAmount || totalAmount <= 0)) newErrors.totalAmount = "Total amount must be greater than zero.";
-    if (isRecurring && totalAmount && totalAmount < 0) newErrors.totalAmount = "Total amount cannot be negative.";
-    if (participants.filter(p => p.name.trim()).length < 1) newErrors.participants = "At least one participant is required.";
-    if (errors.split) newErrors.split = errors.split;
+    
+    // Basic validation for total amount
+    if (!isRecurring && (!totalAmount || totalAmount <= 0) && splitMode !== 'item') {
+        newErrors.totalAmount = "Total amount must be greater than zero.";
+    }
+    if (isRecurring && totalAmount && totalAmount < 0) {
+        newErrors.totalAmount = "Total amount cannot be negative.";
+    }
+
+    // Stricter validation: if items exist, the total must match the item sum.
+    if (items.length > 0 && totalAmount && splitMode !== 'item') {
+        const itemizationTotal = items.reduce((sum, item) => sum + (item.price || 0), 0);
+        if (Math.abs(totalAmount - itemizationTotal) > 0.01) {
+            newErrors.totalAmount = `Amount must match item total ($${itemizationTotal.toFixed(2)}). Adjust total or add tax/tip as separate items.`;
+        }
+    }
+
+    if (participants.filter(p => p.name.trim()).length < 1) {
+        newErrors.participants = "At least one participant is required.";
+    }
+    if (errors.split) {
+        newErrors.split = errors.split;
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -179,13 +198,50 @@ export const CreateBill: React.FC<CreateBillProps> = ({
   const handleSaveClick = () => {
     if (!validate()) return;
     
-    const finalParticipants = participants
-      .filter(p => p.name.trim() !== '')
-      .map(p => ({
-          ...p,
-          paid: p.name.toLowerCase().trim() === myNameLower
-      }));
+    // --- Final Calculation Pass ---
+    const activeParticipants = participants.filter(p => p.name.trim() !== '');
+    let finalParticipants: Participant[] = JSON.parse(JSON.stringify(activeParticipants));
+    let finalTotalAmount = totalAmount || 0;
     
+    // 1. Recalculate total if splitting by item, otherwise use the state value.
+    if (splitMode === 'item') {
+        finalTotalAmount = items.reduce((sum, item) => sum + item.price, 0);
+    }
+
+    // 2. Recalculate `amountOwed` for all participants based on final values.
+    if (finalParticipants.length > 0) {
+        switch (splitMode) {
+            case 'item':
+                finalParticipants.forEach(p => p.amountOwed = 0);
+                items.forEach(item => {
+                    if (item.assignedTo.length > 0) {
+                        const pricePerPerson = item.price / item.assignedTo.length;
+                        item.assignedTo.forEach(pId => {
+                            const p = finalParticipants.find(fp => fp.id === pId);
+                            if (p) p.amountOwed += pricePerPerson;
+                        });
+                    }
+                });
+                break;
+            case 'equally':
+                const amountPerPerson = finalTotalAmount / finalParticipants.length;
+                finalParticipants.forEach(p => p.amountOwed = amountPerPerson);
+                break;
+            case 'amount':
+                finalParticipants.forEach(p => p.amountOwed = p.splitValue || 0);
+                break;
+            case 'percentage':
+                finalParticipants.forEach(p => p.amountOwed = (finalTotalAmount * (p.splitValue || 0)) / 100);
+                break;
+        }
+    }
+    
+    // 3. Set the 'paid' status for the current user.
+    finalParticipants.forEach(p => {
+        p.paid = p.name.toLowerCase().trim() === myNameLower;
+        delete p.splitValue; // Clean up temporary value
+    });
+
     const additionalInfoObject = additionalInfo.reduce((acc, info) => {
       if (info.key.trim()) acc[info.key.trim()] = info.value;
       return acc;
@@ -196,7 +252,7 @@ export const CreateBill: React.FC<CreateBillProps> = ({
             description,
             totalAmount: totalAmount || undefined,
             participants: finalParticipants.map(({ amountOwed, paid, ...rest }) => ({ ...rest, amountOwed: 0, paid: false })),
-            items: items.map(({ price, ...rest }) => ({...rest, price: isEditing ? price : 0})),
+            items: items,
             splitMode,
             recurrenceRule,
             additionalInfo: additionalInfoObject,
@@ -209,7 +265,7 @@ export const CreateBill: React.FC<CreateBillProps> = ({
     } else {
         const billData: Omit<Bill, 'id' | 'status'> = {
             description,
-            totalAmount: totalAmount || 0,
+            totalAmount: finalTotalAmount,
             date,
             participants: finalParticipants,
             items,
