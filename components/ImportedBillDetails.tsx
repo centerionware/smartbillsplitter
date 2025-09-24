@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { ImportedBill, Settings } from '../types.ts';
 
@@ -13,8 +14,7 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   const { bill } = importedBill.sharedData;
-  const myNameLower = settings.myDisplayName.trim().toLowerCase();
-  const myParticipant = bill.participants.find(p => p.name.trim().toLowerCase() === myNameLower);
+  const myParticipant = bill.participants.find(p => p.id === importedBill.myParticipantId);
 
   const toggleMyPaidStatus = () => {
     const updatedBill = {
@@ -123,7 +123,7 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
         <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex justify-center items-center p-4" onClick={() => setIsInfoModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="info-dialog-title">
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-200 dark:border-slate-700"><h3 id="info-dialog-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">Additional Information</h3></div>
-              <div className="p-6 flex-grow overflow-y-auto"><dl className="space-y-4">{Object.entries(bill.additionalInfo).map(([key, value]) => (<div key={key} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-md"><dt className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{key}</dt><dd className="mt-1 text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{value}</dd></div>))}</dl></div>
+              <div className="p-6 flex-grow overflow-y-auto"><dl className="space-y-4">{Object.entries(bill.additionalInfo).map(([key, value]) => (<div key={key} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-md"><dt className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{key}</dt><dd className="mt-1 text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{String(value)}</dd></div>))}</dl></div>
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end"><button onClick={() => setIsInfoModalOpen(false)} className="px-5 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Close</button></div>
           </div>
         </div>

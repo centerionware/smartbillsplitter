@@ -1,18 +1,15 @@
+
 import React from 'react';
 import type { ImportedBill } from '../types.ts';
 
 interface ImportedBillCardProps {
   importedBill: ImportedBill;
-  myDisplayName: string;
   onUpdate: (bill: ImportedBill) => void;
-  // onClick is removed as this card is now wrapped in a swipeable container
-  // and direct clicks are not the primary interaction.
 }
 
-const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, myDisplayName, onUpdate }) => {
+const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpdate }) => {
   const { bill } = importedBill.sharedData;
-  const myNameLower = myDisplayName.trim().toLowerCase();
-  const myParticipant = bill.participants.find(p => p.name.trim().toLowerCase() === myNameLower);
+  const myParticipant = bill.participants.find(p => p.id === importedBill.myParticipantId);
 
   const toggleMyPaidStatus = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click

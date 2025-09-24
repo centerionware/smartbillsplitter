@@ -1,10 +1,10 @@
+
 import React, { useRef, useState } from 'react';
 import type { ImportedBill } from '../types.ts';
 import ImportedBillCard from './ImportedBillCard.tsx';
 
 interface SwipeableImportedBillCardProps {
   importedBill: ImportedBill;
-  myDisplayName: string;
   onUpdate: (bill: ImportedBill) => void;
   onArchive: (billId: string) => void;
   onUnarchive: (billId: string) => void;
@@ -15,7 +15,7 @@ interface SwipeableImportedBillCardProps {
 const ACTION_BUTTON_WIDTH = 70; // Width of each action button
 
 const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = ({ 
-    importedBill, myDisplayName, onUpdate, onArchive, onUnarchive, onDelete, onClick
+    importedBill, onUpdate, onArchive, onUnarchive, onDelete, onClick
 }) => {
   const [translateX, setTranslateX] = useState(0);
   const dragStartX = useRef(0);
@@ -141,7 +141,6 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = ({
       >
         <ImportedBillCard 
           importedBill={importedBill} 
-          myDisplayName={myDisplayName}
           onUpdate={onUpdate}
         />
       </div>

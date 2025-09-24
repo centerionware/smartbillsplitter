@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
@@ -103,8 +104,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     // Add amounts I owe from active imported bills
     importedBills.forEach(imported => {
         if (imported.status === 'active' && !imported.localStatus.myPortionPaid) {
-            // FIX: Corrected typo from myNameLower to myDisplayNameLower
-            const myPart = imported.sharedData.bill.participants.find(p => p.name.trim().toLowerCase() === myDisplayNameLower);
+            const myPart = imported.sharedData.bill.participants.find(p => p.id === imported.myParticipantId);
             if (myPart && !myPart.paid) { // Check their record too
                 iOwe += myPart.amountOwed;
             }
@@ -465,7 +465,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     <SwipeableImportedBillCard 
                                         key={ib.id} 
                                         importedBill={ib} 
-                                        myDisplayName={settings.myDisplayName} 
                                         onUpdate={onUpdateImportedBill}
                                         onArchive={onArchiveImportedBill}
                                         onUnarchive={onUnarchiveImportedBill}

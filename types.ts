@@ -1,3 +1,4 @@
+
 export enum View {
   Dashboard = 'dashboard',
   CreateBill = 'createBill',
@@ -105,6 +106,7 @@ export interface ImportedBill {
   shareId: string; // The ID from the /share/:shareId endpoint
   shareEncryptionKey: JsonWebKey; // The symmetric key used to decrypt this bill
   lastUpdatedAt: number; // Timestamp of the last successful fetch
+  myParticipantId: string; // The ID of the participant who is the local user
   localStatus: {
     myPortionPaid: boolean;
   };
