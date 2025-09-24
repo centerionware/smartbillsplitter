@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import type { Bill, Participant, Settings } from '../types.ts';
+import React, { useState, useEffect } from 'react';
+import type { Bill, Participant, Settings, SharedBillPayload } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import ShareModal from './ShareModal.tsx';
+import * as cryptoService from '../services/cryptoService.ts';
+import { useKeys } from '../hooks/useKeys.ts';
+
 
 interface BillDetailsProps {
   bill: Bill;
@@ -18,6 +21,53 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpda
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copiedParticipantId, setCopiedParticipantId] = useState<string | null>(null);
+  const { keyPair } = useKeys();
+
+  // Effect to push updates to a live share link when the bill changes
+  useEffect(() => {
+    const updateLiveShare = async (updatedBill: Bill) => {
+        if (!keyPair) return;
+
+        const sessionDataString = sessionStorage.getItem(`share-session-${updatedBill.id}`);
+        if (!sessionDataString) return;
+
+        try {
+            const { shareId, key: encryptionKeyJwk, creatorName } = JSON.parse(sessionDataString);
+            
+            // Re-create the payload with the updated bill
+            const billToShare: Bill = JSON.parse(JSON.stringify(updatedBill));
+            const creatorParticipant = billToShare.participants.find(p => p.name.trim().toLowerCase() === 'myself');
+            if (creatorParticipant) {
+                creatorParticipant.name = creatorName;
+            }
+
+            const publicKeyJwk = await cryptoService.exportKey(keyPair.publicKey);
+            const signature = await cryptoService.sign(JSON.stringify(billToShare), keyPair.privateKey);
+            
+            const payload: SharedBillPayload = {
+                bill: billToShare,
+                publicKey: publicKeyJwk,
+                signature: signature
+            };
+
+            const encryptionKey = await cryptoService.importEncryptionKey(encryptionKeyJwk);
+            const encryptedData = await cryptoService.encrypt(JSON.stringify(payload), encryptionKey);
+            
+            // Post the update to the server
+            await fetch('/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ encryptedData, shareId }),
+            });
+            console.log(`Live share for bill ${updatedBill.id} has been updated.`);
+        } catch (error) {
+            console.error("Failed to update live share:", error);
+        }
+    };
+    
+    updateLiveShare(bill);
+
+  }, [bill, keyPair]);
 
   const togglePaidStatus = (participantId: string) => {
     const updatedParticipants = bill.participants.map(p =>

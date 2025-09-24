@@ -14,6 +14,8 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState<string | null>(null);
   const [sharedData, setSharedData] = useState<SharedBillPayload | null>(null);
+  const [encryptionKey, setEncryptionKey] = useState<JsonWebKey | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(0);
   const { addImportedBill, importedBills } = useImportedBills();
 
   const isAlreadyImported = sharedData ? importedBills.some(b => b.id === sharedData.bill.id) : false;
@@ -39,13 +41,15 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
            const errData = await response.json().catch(() => ({}));
            throw new Error(errData.error || "Failed to retrieve shared bill data.");
         }
-        const { encryptedData } = await response.json();
+        const { encryptedData, lastUpdatedAt: serverTimestamp } = await response.json();
+        setLastUpdatedAt(serverTimestamp);
 
         // 2. Decrypt data
         setStatus('verifying');
         const keyJwk = JSON.parse(atob(keyString));
-        const encryptionKey = await cryptoService.importEncryptionKey(keyJwk);
-        const decryptedJson = await cryptoService.decrypt(encryptedData, encryptionKey);
+        setEncryptionKey(keyJwk); // Save for import
+        const symmetricKey = await cryptoService.importEncryptionKey(keyJwk);
+        const decryptedJson = await cryptoService.decrypt(encryptedData, symmetricKey);
         const data: SharedBillPayload = JSON.parse(decryptedJson);
 
         // 3. Verify signature
@@ -69,7 +73,7 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
   }, []);
 
   const handleImport = async () => {
-    if (!sharedData) return;
+    if (!sharedData || !encryptionKey) return;
 
     const imported: ImportedBill = {
         id: sharedData.bill.id,
@@ -79,7 +83,8 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
             signature: sharedData.signature,
         },
         shareId: new URLSearchParams(window.location.hash.split('?')[1]).get('shareId')!,
-        lastUpdatedAt: Date.now(),
+        shareEncryptionKey: encryptionKey,
+        lastUpdatedAt: lastUpdatedAt,
         localStatus: {
             myPortionPaid: false,
         },

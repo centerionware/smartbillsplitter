@@ -35,6 +35,7 @@ export interface ImportedBill {
     signature: string;
   };
   shareId: string; // The ephemeral ID for polling updates
+  shareEncryptionKey: JsonWebKey; // The key to decrypt updates
   lastUpdatedAt: number;
   localStatus: {
     myPortionPaid: boolean;

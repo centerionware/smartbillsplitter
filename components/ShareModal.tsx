@@ -74,8 +74,16 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, onClose, settings, onUpda
         throw new Error(result.error || "Failed to create a share session.");
       }
       
-      // 9. Construct the shareable URL
       const { shareId } = result;
+      
+      // 9. Store session info for live updates
+      sessionStorage.setItem(`share-session-${bill.id}`, JSON.stringify({
+          shareId,
+          key: encryptionKeyJwk,
+          creatorName
+      }));
+      
+      // 10. Construct the shareable URL
       const keyString = btoa(JSON.stringify(encryptionKeyJwk)); // Base64 encode the key for the URL
       const url = new URL(window.location.href);
       url.hash = `#/view-bill?shareId=${shareId}&key=${keyString}`;

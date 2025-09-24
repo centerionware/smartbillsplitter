@@ -11,47 +11,73 @@ const Disclaimer: React.FC<DisclaimerProps> = ({ onBack }) => {
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor">
           <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
         </svg>
-        Back to Dashboard
+        Back
       </button>
 
       <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
         <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-6">Disclaimer & Data Privacy</h2>
         
-        <div className="space-y-6 text-slate-600 dark:text-slate-300">
+        <div className="space-y-8 text-slate-600 dark:text-slate-300">
           <p className="text-lg font-medium text-slate-700 dark:text-slate-200">
-            We believe in complete transparency about how your data is handled. This application is designed with a "privacy first" approach.
+            We believe in complete transparency. This application is designed with a "privacy first" approach. Here’s exactly how your data is handled.
           </p>
 
           <div>
-            <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-slate-100">Local-Only Data Storage</h3>
+            <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-slate-100">On-Device Data Storage</h3>
             <p>
-              All the data you enter into Smart Bill Splitter—including your bills, participant names, amounts, and settings—is stored exclusively in your browser's <strong>local storage</strong>. This means your data lives directly on your device (your computer, phone, or tablet).
+              All your core application data—bills, participants, settings, etc.—is stored exclusively in your browser's <strong>IndexedDB</strong> database. This is a private, sandboxed database that lives directly on your device (your computer or phone).
             </p>
             <ul className="list-disc list-inside space-y-1 mt-2 pl-2">
-              <li><strong>We do not have a server database.</strong></li>
-              <li><strong>We never store, see, or have access to your personal financial data.</strong></li>
-              <li>Because the data is only on your device, you are responsible for it. If you clear your browser data or lose your device, your data will be permanently lost unless you have created a backup using the "Export Data" feature in Settings.</li>
+              <li><strong>We do not have a central database of user bills.</strong></li>
+              <li><strong>We never see or have access to your personal financial data.</strong></li>
+              <li>Because the data is only on your device, you are responsible for it. If you clear your browser data, your information will be permanently lost unless you have created a backup using the "Export Data" feature.</li>
+            </ul>
+          </div>
+          
+          <div>
+            <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-slate-100">Ephemeral Server Data for Sync & Share</h3>
+            <p>
+              When you use the <strong>"Sync with Another Device"</strong> or <strong>"Share Bill"</strong> features, a temporary, end-to-end encrypted copy of your data is sent to our server.
+            </p>
+            <ul className="list-disc list-inside space-y-1 mt-2 pl-2">
+                <li>The data is <strong>end-to-end encrypted</strong> on your device before it is sent. This means we, the server operators, cannot read its contents.</li>
+                <li>This encrypted data is stored temporarily <strong>in-memory</strong> on our server and is never written to a permanent database.</li>
+                <li>"Sync" data expires and is deleted after <strong>5 minutes</strong>.</li>
+                <li>"Share Bill" data expires and is deleted after <strong>24 hours</strong>.</li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-slate-100">Client-Side Rendering</h3>
+            <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-slate-100">Third-Party Services & Scripts</h3>
             <p>
-              This is a 100% client-side rendered application. The entire application runs within your web browser. No data is sent to a server for processing, with one specific exception detailed below.
+              To provide advanced features, this application interacts with a few external services and utilizes third-party Javascript libraries.
             </p>
-          </div>
-          
-          <div>
-            <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-slate-100">Use of Google Gemini API for Receipt Scanning</h3>
-            <p>
-              The only time any data is sent to an external server is when you choose to use the <strong>"Scan with AI"</strong> feature for a receipt.
-            </p>
-            <ul className="list-disc list-inside space-y-1 mt-2 pl-2">
-              <li>When you upload a receipt image, that image is sent directly from your browser to the <strong>Google Gemini API</strong> for analysis.</li>
-              <li>This is necessary for the AI to read the text and extract the line items and prices.</li>
-              <li>The analyzed data is then sent back to your browser and is not stored on any server controlled by us.</li>
-              <li>Your use of this feature is subject to Google's Privacy Policy. You can review it here: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-teal-600 dark:text-teal-400 hover:underline">https://policies.google.com/privacy</a>.</li>
-            </ul>
+            <div className="mt-4 space-y-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <h4 className="font-semibold text-slate-700 dark:text-slate-200">Google Gemini API</h4>
+                <p className="text-sm mt-1">
+                  The "Scan with AI" feature sends your receipt image to our server, which securely forwards it to the <strong>Google Gemini API</strong> for analysis. The extracted text is sent back to your device and is not stored by us. Your use of this feature is subject to Google's Privacy Policy.
+                </p>
+              </div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <h4 className="font-semibold text-slate-700 dark:text-slate-200">Stripe Payments</h4>
+                <p className="text-sm mt-1">
+                  For Pro subscriptions, our server communicates with <strong>Stripe</strong> to handle all billing features. We do not handle or store your credit card information directly; all payment details are securely managed by Stripe.
+                </p>
+              </div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <h4 className="font-semibold text-slate-700 dark:text-slate-200">Google AdSense</h4>
+                <p className="text-sm mt-1">
+                  If you are using the free version, we use <strong>Google AdSense</strong> to display advertisements. This service may load external scripts from Google and may use cookies to serve ads. You can learn more about how Google uses data in their privacy policy.
+                </p>
+              </div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <h4 className="font-semibold text-slate-700 dark:text-slate-200">Core Application Libraries</h4>
+                <p className="text-sm mt-1">
+                  This web application is built using modern web technologies. To ensure fast performance, core libraries such as <strong>React</strong> are loaded from secure, third-party Content Delivery Networks (CDNs). These external scripts are essential for the application's functionality.
+                </p>
+              </div>
+            </div>
           </div>
 
           <div>
