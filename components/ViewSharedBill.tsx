@@ -77,6 +77,8 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
 
     const imported: ImportedBill = {
         id: sharedData.bill.id,
+        creatorName: sharedData.creatorName,
+        status: 'active',
         sharedData: {
             bill: sharedData.bill,
             creatorPublicKey: sharedData.publicKey,

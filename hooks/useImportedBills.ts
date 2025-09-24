@@ -66,9 +66,11 @@ export const useImportedBills = () => {
                 if (isVerified) {
                     const updatedBill: ImportedBill = {
                         ...bill,
+                        creatorName: newData.creatorName, // Update name in case it changed
                         sharedData: {
-                           ...newData,
+                           bill: newData.bill,
                            creatorPublicKey: bill.sharedData.creatorPublicKey, // Keep original public key
+                           signature: newData.signature,
                         },
                         lastUpdatedAt,
                     };
@@ -103,6 +105,22 @@ export const useImportedBills = () => {
     await deleteImportedBillDB(billId);
     setImportedBills(prev => prev.filter(bill => bill.id !== billId));
   }, []);
+  
+  const archiveImportedBill = useCallback(async (billId: string) => {
+    const billToUpdate = importedBills.find(b => b.id === billId);
+    if (billToUpdate) {
+      const updatedBill = { ...billToUpdate, status: 'archived' as const };
+      await updateImportedBill(updatedBill);
+    }
+  }, [importedBills, updateImportedBill]);
+  
+  const unarchiveImportedBill = useCallback(async (billId: string) => {
+    const billToUpdate = importedBills.find(b => b.id === billId);
+    if (billToUpdate) {
+      const updatedBill = { ...billToUpdate, status: 'active' as const };
+      await updateImportedBill(updatedBill);
+    }
+  }, [importedBills, updateImportedBill]);
 
-  return { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, isLoading };
+  return { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, isLoading };
 };

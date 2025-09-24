@@ -17,11 +17,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, onClose, settings, onUpda
   const { keyPair, isLoading: keysLoading } = useKeys();
   const [copied, setCopied] = useState(false);
 
-  // State for the one-time name prompt
-  const [needsNamePrompt, setNeedsNamePrompt] = useState(false);
-  const [provisionalName, setProvisionalName] = useState('');
-  const [nameError, setNameError] = useState('');
-
   const generateShareLink = useCallback(async (creatorName: string) => {
     if (!keyPair) {
         setError("Cryptographic keys are not ready. Please wait a moment and try again.");
@@ -55,6 +50,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, onClose, settings, onUpda
       // 6. Create the final bundle to be encrypted
       const payload: SharedBillPayload = {
         bill: billToShare,
+        creatorName: creatorName,
         publicKey: publicKeyJwk,
         signature: signature
       };
@@ -99,28 +95,13 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, onClose, settings, onUpda
   }, [bill, keyPair]);
 
   useEffect(() => {
-    if (keysLoading) return;
-
-    if (settings.myDisplayName === 'Myself') {
-      setNeedsNamePrompt(true);
-      setIsLoading(false); // Stop loading to show the prompt
-    } else {
-      setNeedsNamePrompt(false);
+    if (!keysLoading) {
+      // If the user hasn't set a display name, we still proceed but it will show as 'Myself'.
+      // They can change this in the new Settings field.
       generateShareLink(settings.myDisplayName);
     }
   }, [settings.myDisplayName, keysLoading, generateShareLink]);
 
-  const handleNameSet = () => {
-    const trimmedName = provisionalName.trim();
-    if (!trimmedName) {
-      setNameError("Please enter your name.");
-      return;
-    }
-    setNameError('');
-    onUpdateSettings({ myDisplayName: trimmedName });
-    // The component will re-render after settings update. The `useEffect` above
-    // will see the new name, set `needsNamePrompt` to false, and trigger `generateShareLink`.
-  };
 
   const handleCopy = () => {
     if (shareLink) {
@@ -130,30 +111,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, onClose, settings, onUpda
         });
     }
   };
-
-  const renderNamePrompt = () => (
-    <div className="p-6">
-        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">What's your name?</h3>
-        <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-          To avoid confusion for others, please set your display name before sharing a bill. This is a one-time setup.
-        </p>
-        <input
-            type="text"
-            value={provisionalName}
-            onChange={(e) => setProvisionalName(e.target.value)}
-            placeholder="Your Name"
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100"
-            autoFocus
-            aria-label="Your display name"
-        />
-        {nameError && <p className="text-sm text-red-500 mt-1">{nameError}</p>}
-        <div className="mt-6 flex justify-end">
-            <button onClick={handleNameSet} className="px-5 py-2.5 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">
-                Continue & Share
-            </button>
-        </div>
-    </div>
-  );
 
   const renderShareContent = () => (
     <div className="p-6 text-center">
@@ -201,7 +158,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, onClose, settings, onUpda
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
         </div>
-        {needsNamePrompt ? renderNamePrompt() : renderShareContent()}
+        {renderShareContent()}
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import Header from './components/Header.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import { CreateBill } from './components/CreateBill.tsx';
 import BillDetails from './components/BillDetails.tsx';
+import ImportedBillDetails from './components/ImportedBillDetails.tsx';
 import SettingsComponent from './components/Settings.tsx';
 import SyncComponent from './components/Sync.tsx';
 import PwaInstallBanner from './components/PwaInstallBanner.tsx';
@@ -42,7 +43,7 @@ export type RequestConfirmationFn = (
 
 const App: React.FC = () => {
   const { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, isLoading: billsLoading, updateMultipleBills } = useBills();
-  const { importedBills, updateImportedBill, isLoading: importedBillsLoading } = useImportedBills();
+  const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, isLoading: importedBillsLoading } = useImportedBills();
   const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: recurringBillsLoading } = useRecurringBills();
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
   const { theme, setTheme, isLoading: themeLoading } = useTheme();
@@ -52,6 +53,7 @@ const App: React.FC = () => {
   // --- Navigation & View State ---
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [selectedImportedBill, setSelectedImportedBill] = useState<ImportedBill | null>(null);
   const [dashboardView, setDashboardView] = useState<'bills' | 'participants'>('bills');
   const [dashboardStatusFilter, setDashboardStatusFilter] = useState<'active' | 'archived'>('active');
   const [dashboardParticipant, setDashboardParticipant] = useState<string | null>(null);
@@ -108,7 +110,7 @@ const App: React.FC = () => {
   // This core effect translates the `currentPath` state into the actual view being displayed.
   // It runs on initial load and whenever `currentPath` changes.
   useEffect(() => {
-    if (billsLoading || recurringBillsLoading) return;
+    if (billsLoading || recurringBillsLoading || importedBillsLoading) return;
 
     const hash = currentPath; // Use state as the single source of truth
     const [path, queryString] = hash.split('?');
@@ -116,6 +118,7 @@ const App: React.FC = () => {
 
     // Reset view-specific states before setting the new one
     setSelectedBill(null);
+    setSelectedImportedBill(null);
     setBillCreationTemplate(null);
     setDashboardParticipant(null);
 
@@ -131,6 +134,15 @@ const App: React.FC = () => {
       } else {
         navigate('#/', { replace: true }); // Bill not found, go home
       }
+    } else if (path.startsWith('#/imported-bill/')) {
+        const billId = path.substring(16);
+        const bill = importedBills.find(b => b.id === billId);
+        if (bill) {
+            setSelectedImportedBill(bill);
+            setCurrentView(View.ImportedBillDetails);
+        } else {
+            navigate('#/', { replace: true });
+        }
     } else if (path.startsWith('#/view-bill')) {
       setCurrentView(View.ViewSharedBill);
     } else if (path === '#/create') {
@@ -166,7 +178,7 @@ const App: React.FC = () => {
         setDashboardStatusFilter(status);
         setCurrentView(View.Dashboard);
     }
-  }, [currentPath, bills, recurringBills, billsLoading, recurringBillsLoading, navigate]);
+  }, [currentPath, bills, recurringBills, importedBills, billsLoading, recurringBillsLoading, importedBillsLoading, navigate]);
 
 
   useEffect(() => {
@@ -309,6 +321,7 @@ const App: React.FC = () => {
 
   const handleCreateNewBill = () => navigate('#/create');
   const handleSelectBill = (bill: Bill) => navigate(`#/bill/${bill.id}`);
+  const handleSelectImportedBill = (bill: ImportedBill) => navigate(`#/imported-bill/${bill.id}`);
   const handleGoToSettings = () => navigate('#/settings');
   const handleGoToSync = () => navigate('#/sync');
   const handleGoToDisclaimer = () => navigate('#/disclaimer');
@@ -410,28 +423,16 @@ const App: React.FC = () => {
             onBack={handleBack}
             subscriptionStatus={subscriptionStatus}
           />
-        ) : (
-          // Fallback to dashboard if no bill is selected (e.g., after a reload)
-          <Dashboard
-            bills={bills}
-            importedBills={importedBills}
+        ) : ( <div /> );
+       case View.ImportedBillDetails:
+        return selectedImportedBill ? (
+          <ImportedBillDetails
+            importedBill={selectedImportedBill}
             settings={settings}
-            subscriptionStatus={subscriptionStatus}
-            onSelectBill={handleSelectBill}
-            onArchiveBill={archiveBill}
-            onUnarchiveBill={unarchiveBill}
-            onDeleteBill={deleteBill}
-            onUpdateMultipleBills={updateMultipleBills}
             onUpdateImportedBill={updateImportedBill}
-            dashboardView={dashboardView}
-            selectedParticipant={dashboardParticipant}
-            dashboardStatusFilter={dashboardStatusFilter}
-            onSetDashboardView={handleSetDashboardView}
-            onSetDashboardStatusFilter={handleSetDashboardStatusFilter}
-            onSelectParticipant={handleSelectDashboardParticipant}
-            onClearParticipant={handleClearDashboardParticipant}
+            onBack={handleBack}
           />
-        );
+        ) : ( <div /> );
        case View.ViewSharedBill:
         return <ViewSharedBill onImportComplete={handleImportComplete} settings={settings} />;
       case View.RecurringBills:
@@ -471,11 +472,15 @@ const App: React.FC = () => {
             settings={settings}
             subscriptionStatus={subscriptionStatus}
             onSelectBill={handleSelectBill}
+            onSelectImportedBill={handleSelectImportedBill}
             onArchiveBill={archiveBill}
             onUnarchiveBill={unarchiveBill}
             onDeleteBill={deleteBill}
             onUpdateMultipleBills={updateMultipleBills}
             onUpdateImportedBill={updateImportedBill}
+            onArchiveImportedBill={archiveImportedBill}
+            onUnarchiveImportedBill={unarchiveImportedBill}
+            onDeleteImportedBill={deleteImportedBill}
             dashboardView={dashboardView}
             selectedParticipant={dashboardParticipant}
             dashboardStatusFilter={dashboardStatusFilter}
@@ -527,6 +532,7 @@ const App: React.FC = () => {
         onCreateNewBill={handleCreateNewBill} 
         onGoToSettings={handleGoToSettings} 
         onGoToRecurringBills={handleGoToRecurringBills}
+        onNavigate={navigate}
         hasRecurringBills={recurringBills.length > 0}
         theme={theme}
         setTheme={setTheme}

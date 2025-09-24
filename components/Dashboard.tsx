@@ -4,7 +4,7 @@ import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import SwipeableBillCard from './SwipeableBillCard.tsx';
 import SwipeableParticipantCard from './SwipeableParticipantCard.tsx';
 import AdBillCard from './AdBillCard.tsx';
-import ImportedBillCard from './ImportedBillCard.tsx';
+import SwipeableImportedBillCard from './SwipeableImportedBillCard.tsx';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
 
 interface DashboardProps {
@@ -13,11 +13,15 @@ interface DashboardProps {
   settings: Settings;
   subscriptionStatus: SubscriptionStatus;
   onSelectBill: (bill: Bill) => void;
+  onSelectImportedBill: (bill: ImportedBill) => void;
   onArchiveBill: (billId: string) => void;
   onUnarchiveBill: (billId: string) => void;
   onDeleteBill: (billId: string) => void;
   onUpdateMultipleBills: (bills: Bill[]) => void;
   onUpdateImportedBill: (bill: ImportedBill) => void;
+  onArchiveImportedBill: (billId: string) => void;
+  onUnarchiveImportedBill: (billId: string) => void;
+  onDeleteImportedBill: (billId: string) => void;
   // Navigation State & Handlers
   dashboardView: 'bills' | 'participants';
   selectedParticipant: string | null;
@@ -33,7 +37,9 @@ const AD_INTERVAL = 9; // Show an ad after every 9 bills
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   bills, importedBills, settings, subscriptionStatus, 
-  onSelectBill, onArchiveBill, onUnarchiveBill, onDeleteBill, onUpdateMultipleBills, onUpdateImportedBill,
+  onSelectBill, onSelectImportedBill, 
+  onArchiveBill, onUnarchiveBill, onDeleteBill, onUpdateMultipleBills, 
+  onUpdateImportedBill, onArchiveImportedBill, onUnarchiveImportedBill, onDeleteImportedBill,
   dashboardView, selectedParticipant, dashboardStatusFilter,
   onSetDashboardView, onSetDashboardStatusFilter, onSelectParticipant, onClearParticipant
 }) => {
@@ -94,11 +100,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       });
     });
     
-    // Add amounts I owe from imported bills
+    // Add amounts I owe from active imported bills
     importedBills.forEach(imported => {
-        if (!imported.localStatus.myPortionPaid) {
+        if (imported.status === 'active' && !imported.localStatus.myPortionPaid) {
+            // FIX: Corrected typo from myNameLower to myDisplayNameLower
             const myPart = imported.sharedData.bill.participants.find(p => p.name.trim().toLowerCase() === myDisplayNameLower);
-            if (myPart && !myPart.paid) {
+            if (myPart && !myPart.paid) { // Check their record too
                 iOwe += myPart.amountOwed;
             }
         }
@@ -108,12 +115,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [activeBills, importedBills, settings.myDisplayName]);
 
   const participantsData = useMemo(() => {
+    const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
     if (dashboardStatusFilter === 'active') {
         const debtMap = new Map<string, number>();
         // An "active" participant owes money on ANY bill, regardless of bill status.
         bills.forEach(bill => {
             bill.participants.forEach(p => {
-                if (!p.paid && p.amountOwed > 0.005) {
+                // FIX: Filter out the current user from the list of people who owe money.
+                if (!p.paid && p.amountOwed > 0.005 && p.name.trim().toLowerCase() !== myDisplayNameLower) {
                     debtMap.set(p.name, (debtMap.get(p.name) || 0) + p.amountOwed);
                 }
             });
@@ -140,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         const paidUpParticipants = [];
         for (const [name, stats] of participantStats.entries()) {
-            if (stats.outstandingDebt < 0.01 && stats.totalBilled > 0) {
+            if (stats.outstandingDebt < 0.01 && stats.totalBilled > 0 && name.trim().toLowerCase() !== myDisplayNameLower) {
                 paidUpParticipants.push({
                     name,
                     amount: stats.totalBilled,
@@ -152,7 +161,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         paidUpParticipants.sort((a, b) => b.amount - a.amount);
         return paidUpParticipants;
     }
-  }, [bills, dashboardStatusFilter]);
+  }, [bills, dashboardStatusFilter, settings.myDisplayName]);
 
 
   // --- Search and Filter Logic ---
@@ -202,6 +211,10 @@ const Dashboard: React.FC<DashboardProps> = ({
     
     return billsToFilter.filter(bill => bill.status === dashboardStatusFilter);
   }, [bills, searchQuery, searchMode, dashboardStatusFilter, selectedParticipant]);
+  
+  const filteredImportedBills = useMemo(() => {
+    return importedBills.filter(bill => bill.status === dashboardStatusFilter);
+  }, [importedBills, dashboardStatusFilter]);
   
   // --- Infinite Scroll Logic ---
   useEffect(() => {
@@ -345,7 +358,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             message: `Your search for "${searchQuery}" did not match any ${dashboardStatusFilter} bills.`,
         };
     }
-    if (dashboardStatusFilter === 'active' && bills.every(b => b.status === 'archived')) {
+    if (dashboardStatusFilter === 'active' && bills.every(b => b.status === 'archived') && importedBills.every(b => b.status === 'archived')) {
         return {
             title: "All bills archived",
             message: "You can view your archived bills or create a new one.",
@@ -441,15 +454,24 @@ const Dashboard: React.FC<DashboardProps> = ({
             );
         }
     } else { // Bill display mode, no participant selected
-        if (filteredBills.length > 0 || importedBills.length > 0) {
+        if (filteredBills.length > 0 || filteredImportedBills.length > 0) {
             return (
                 <>
-                    {importedBills.length > 0 && dashboardStatusFilter === 'active' && (
+                    {filteredImportedBills.length > 0 && (
                         <div className="mb-8">
                              <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4">Shared With Me</h3>
                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {importedBills.map(ib => (
-                                    <ImportedBillCard key={ib.id} importedBill={ib} myDisplayName={settings.myDisplayName} onUpdate={onUpdateImportedBill} />
+                                {filteredImportedBills.map(ib => (
+                                    <SwipeableImportedBillCard 
+                                        key={ib.id} 
+                                        importedBill={ib} 
+                                        myDisplayName={settings.myDisplayName} 
+                                        onUpdate={onUpdateImportedBill}
+                                        onArchive={onArchiveImportedBill}
+                                        onUnarchive={onUnarchiveImportedBill}
+                                        onDelete={onDeleteImportedBill}
+                                        onClick={() => onSelectImportedBill(ib)}
+                                    />
                                 ))}
                             </div>
                         </div>

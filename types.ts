@@ -4,6 +4,7 @@ export enum View {
   Dashboard = 'DASHBOARD',
   CreateBill = 'CREATE_BILL',
   BillDetails = 'BILL_DETAILS',
+  ImportedBillDetails = 'IMPORTED_BILL_DETAILS',
   Settings = 'SETTINGS',
   Sync = 'SYNC',
   Disclaimer = 'DISCLAIMER',
@@ -82,6 +83,7 @@ export interface Settings {
 // For sharing bills end-to-end encrypted
 export interface SharedBillPayload {
     bill: Bill;
+    creatorName: string; // The display name of the person sharing.
     publicKey: JsonWebKey; // Creator's public key for signature verification
     signature: string; // Signature of the bill data
 }

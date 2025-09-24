@@ -9,12 +9,13 @@ interface SwipeableImportedBillCardProps {
   onArchive: (billId: string) => void;
   onUnarchive: (billId: string) => void;
   onDelete: (billId: string) => void;
+  onClick: () => void;
 }
 
 const ACTION_BUTTON_WIDTH = 70; // Width of each action button
 
 const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = ({ 
-    importedBill, myDisplayName, onUpdate, onArchive, onUnarchive, onDelete 
+    importedBill, myDisplayName, onUpdate, onArchive, onUnarchive, onDelete, onClick
 }) => {
   const [translateX, setTranslateX] = useState(0);
   const dragStartX = useRef(0);
@@ -76,15 +77,19 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = ({
     const dragDuration = Date.now() - dragStartTime.current;
     const dragDistance = translateX - dragInitialTranslateX.current;
     
+    // Detect a tap: short duration and minimal movement
     if (dragDuration < 250 && Math.abs(dragDistance) < 10) {
       if (dragInitialTranslateX.current !== 0) {
-        setTranslateX(0);
+        setTranslateX(0); // If it was open, close it on tap
+      } else {
+        // This is a tap on a closed card.
+        if (e && e.type === 'touchend') e.preventDefault();
+        onClick();
       }
-      // This was a tap, but we don't have a click handler for the whole card.
-      // Interactions should be with buttons inside or swipe actions.
       return;
     }
     
+    // Logic for swipe gesture
     if (translateX < maxTranslateX / 2) {
       setTranslateX(maxTranslateX);
     } else {

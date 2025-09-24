@@ -1,19 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Theme } from '../types.ts';
 import ThemeToggle from './ThemeToggle.tsx';
+import QrImporterModal from './QrImporterModal.tsx';
 
 interface HeaderProps {
   onGoHome: () => void;
   onCreateNewBill: () => void;
   onGoToSettings: () => void;
   onGoToRecurringBills: () => void;
+  onNavigate: (path: string) => void;
   hasRecurringBills: boolean;
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettings, onGoToRecurringBills, hasRecurringBills, theme, setTheme }) => {
+const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettings, onGoToRecurringBills, onNavigate, hasRecurringBills, theme, setTheme }) => {
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const fabRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -34,8 +37,23 @@ const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettin
     action();
     setIsFabMenuOpen(false);
   }
+  
+  const handleScanSuccess = (url: string) => {
+      try {
+        const urlObject = new URL(url);
+        if (urlObject.hash.startsWith('#/view-bill')) {
+            onNavigate(urlObject.hash);
+            setIsQrModalOpen(false);
+        }
+      } catch (e) {
+        // Not a valid URL, do nothing. The scanner modal can show an error.
+        console.error("Scanned QR is not a valid URL:", e);
+      }
+  }
 
   return (
+    <>
+    {isQrModalOpen && <QrImporterModal onScanSuccess={handleScanSuccess} onClose={() => setIsQrModalOpen(false)} />}
     <header className="bg-white dark:bg-slate-800 shadow-md dark:shadow-none dark:border-b dark:border-slate-700">
       <div className="container mx-auto flex items-center justify-between p-4">
         <button 
@@ -50,6 +68,17 @@ const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettin
         </button>
         <div className="flex items-center gap-2 md:gap-4">
           <ThemeToggle theme={theme} setTheme={setTheme} />
+
+          <button
+            onClick={() => setIsQrModalOpen(true)}
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-all duration-300"
+            aria-label="Scan QR code"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h-1m-1-5v1m-2-1v1m-2-1v1m-2-1v1m-6 0h1m6 5h1m-1-5v1m-2-1v1m-2-1v1m-2-1v1M4 12h1m6 5h1m-1-5v1m-2-1v1m-2-1v1m-2-1v1" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h1a2 2 0 002-2v-1a2 2 0 012-2h1.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h1A2.5 2.5 0 0014 5.5V3.935M9 21v-1.5a2.5 2.5 0 012.5-2.5h1A2.5 2.5 0 0115 19.5V21" />
+            </svg>
+          </button>
           
            <div ref={fabRef} className="relative">
              <button
@@ -95,6 +124,7 @@ const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettin
         </div>
       </div>
     </header>
+    </>
   );
 };
 

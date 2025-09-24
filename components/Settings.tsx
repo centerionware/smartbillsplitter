@@ -40,7 +40,9 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
   }, [formData, settings]);
 
   const handleSave = () => {
-    onUpdateSettings(formData);
+    // Trim display name before saving
+    const finalFormData = { ...formData, myDisplayName: formData.myDisplayName.trim() || 'Myself' };
+    onUpdateSettings(finalFormData);
     onBack();
   };
 
@@ -287,7 +289,10 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
           </div>
           <div>
             <label htmlFor="myDisplayName" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">My Display Name</label>
-            <input id="myDisplayName" type="text" value={formData.myDisplayName || ''} onChange={(e) => handleInputChange('myDisplayName', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="Myself" />
+            <input id="myDisplayName" type="text" value={formData.myDisplayName || ''} onChange={(e) => handleInputChange('myDisplayName', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="e.g. Jane Doe" />
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              This name will be shown to others when you share a bill. Defaults to 'Myself' if empty.
+            </p>
           </div>
           <div>
             <label htmlFor="shareTemplate" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Share Message Template</label>

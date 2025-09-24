@@ -44,8 +44,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpda
             const publicKeyJwk = await cryptoService.exportKey(keyPair.publicKey);
             const signature = await cryptoService.sign(JSON.stringify(billToShare), keyPair.privateKey);
             
+            // FIX: Added the missing creatorName property to the payload.
             const payload: SharedBillPayload = {
                 bill: billToShare,
+                creatorName,
                 publicKey: publicKeyJwk,
                 signature: signature
             };
@@ -189,7 +191,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, bills, settings, onUpda
                 ${bill.totalAmount.toFixed(2)}
             </div>
             <button onClick={() => setIsShareModalOpen(true)} className="flex items-center gap-2 px-5 py-2.5 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
                 <span>Share Bill</span>
             </button>
           </div>
