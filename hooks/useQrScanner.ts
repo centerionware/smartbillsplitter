@@ -31,7 +31,7 @@ export const useQrScanner = (onScan: (data: string) => void): QrScannerHook => {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-        if (code) {
+        if (code && code.data) {
           // FIX: Pass the scanned data string (code.data) to the onScan callback.
           onScan(code.data);
           // Stop scanning once a code is found
@@ -78,9 +78,11 @@ export const useQrScanner = (onScan: (data: string) => void): QrScannerHook => {
   const stopScanner = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
     setIsScanning(false);
   }, []);

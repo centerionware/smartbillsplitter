@@ -1,90 +1,3 @@
-export type SplitMode = 'equally' | 'amount' | 'percentage' | 'item';
-
-export interface Participant {
-  id: string;
-  name: string;
-  amountOwed: number;
-  paid: boolean;
-  splitValue?: number; // For storing default amounts/percentages in templates
-}
-
-export interface ReceiptItem {
-  id: string;
-  name: string;
-  price: number;
-  assignedTo: string[]; // Array of participant IDs
-}
-
-export interface Bill {
-  id:string;
-  description: string;
-  totalAmount: number;
-  date: string;
-  participants: Participant[];
-  items?: ReceiptItem[];
-  status: 'active' | 'archived';
-  receiptImage?: string; // base64 data URL of the receipt
-  additionalInfo?: Record<string, string>; // Extra details from receipt scanning as key-value pairs
-}
-
-export interface ImportedBill {
-  id: string; // The ID of the original bill
-  sharedData: {
-    bill: Bill;
-    creatorPublicKey: JsonWebKey;
-    signature: string;
-  };
-  shareId: string; // The ephemeral ID for polling updates
-  shareEncryptionKey: JsonWebKey; // The key to decrypt updates
-  lastUpdatedAt: number;
-  localStatus: {
-    myPortionPaid: boolean;
-  };
-}
-
-export interface SharedBillPayload {
-  bill: Bill;
-  publicKey: JsonWebKey;
-  signature: string;
-}
-
-export interface RecurrenceRule {
-  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  interval: number; // e.g., frequency: 'weekly' & interval: 2 means every 2 weeks.
-  dayOfWeek?: number; // For weekly: 0=Sun, 1=Mon...
-  dayOfMonth?: number; // For monthly: 1-31
-}
-
-export interface RecurringBill {
-  id: string;
-  description: string;
-  participants: Participant[]; // Template participants. amountOwed will be 0, paid will be false. Can contain splitValue.
-  items?: ReceiptItem[]; // Template items. price will be 0. Can contain assignedTo.
-  status: 'active' | 'archived';
-  recurrenceRule: RecurrenceRule;
-  nextDueDate: string; // ISO string, calculated for sorting
-  splitMode: SplitMode;
-  totalAmount?: number;
-  // FIX: Add optional additionalInfo to RecurringBill to match Bill and fix type errors.
-  additionalInfo?: Record<string, string>;
-}
-
-export interface PaymentDetails {
-    venmo?: string;
-    paypal?: string;
-    cashApp?: string;
-    zelle?: string;
-    customMessage?: string;
-}
-
-export interface Settings {
-    paymentDetails: PaymentDetails;
-    myDisplayName: string;
-    shareTemplate: string;
-    notificationsEnabled: boolean;
-    notificationDays: number; // Days before due date to notify
-}
-
 export type Theme = 'light' | 'dark' | 'system';
 
 export enum View {
@@ -92,8 +5,100 @@ export enum View {
   CreateBill = 'CREATE_BILL',
   BillDetails = 'BILL_DETAILS',
   Settings = 'SETTINGS',
-  Disclaimer = 'DISCLAIMER',
   Sync = 'SYNC',
+  Disclaimer = 'DISCLAIMER',
   RecurringBills = 'RECURRING_BILLS',
   ViewSharedBill = 'VIEW_SHARED_BILL',
+}
+
+export interface Participant {
+  id: string;
+  name: string;
+  amountOwed: number;
+  paid: boolean;
+  splitValue?: number; // Used for amount/percentage split modes during creation
+}
+
+export interface ReceiptItem {
+  id: string;
+  name:string;
+  price: number;
+  assignedTo: string[]; // array of participant IDs
+}
+
+export interface Bill {
+  id: string;
+  description: string;
+  totalAmount: number;
+  date: string; // ISO string
+  participants: Participant[];
+  status: 'active' | 'archived';
+  items?: ReceiptItem[];
+  receiptImage?: string; // base64 data URL
+  additionalInfo?: Record<string, string>;
+}
+
+export type SplitMode = 'equally' | 'amount' | 'percentage' | 'item';
+
+export interface RecurrenceRule {
+    frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    interval: number;
+    dayOfWeek?: number; // 0 for Sunday, 6 for Saturday
+    dayOfMonth?: number; // 1-31
+}
+
+// A template for creating bills that recur.
+export interface RecurringBill {
+    id: string;
+    description: string;
+    totalAmount?: number; // Optional, can be filled in when creating the bill.
+    // Participants are stored with default values that are recalculated on creation.
+    participants: Participant[];
+    // Items can have a price of 0 if it varies each time.
+    items?: ReceiptItem[];
+    splitMode: SplitMode;
+    recurrenceRule: RecurrenceRule;
+    nextDueDate: string; // ISO string for the next time a bill should be generated.
+    status: 'active' | 'archived';
+    additionalInfo?: Record<string, string>;
+}
+
+export interface PaymentDetails {
+  venmo: string;
+  paypal: string;
+  cashApp: string;
+  zelle: string;
+  customMessage: string;
+}
+
+export interface Settings {
+  paymentDetails: PaymentDetails;
+  myDisplayName: string;
+  shareTemplate: string;
+  notificationsEnabled: boolean;
+  notificationDays: number;
+}
+
+// For sharing bills end-to-end encrypted
+export interface SharedBillPayload {
+    bill: Bill;
+    publicKey: JsonWebKey; // Creator's public key for signature verification
+    signature: string; // Signature of the bill data
+}
+
+export interface ImportedBill {
+    id: string; // This will be the original bill ID from the creator
+    creatorName: string; // The display name of the person who shared the bill.
+    status: 'active' | 'archived'; // Local status (archived by receiver)
+    sharedData: {
+        bill: Bill;
+        creatorPublicKey: JsonWebKey; // The public key of the person who shared the bill
+        signature: string;
+    };
+    shareId: string; // The ID for the share session on the server
+    shareEncryptionKey: JsonWebKey; // The symmetric key to decrypt updates
+    lastUpdatedAt: number; // Timestamp of the last data fetch
+    localStatus: {
+        myPortionPaid: boolean;
+    };
 }

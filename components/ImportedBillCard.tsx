@@ -5,6 +5,8 @@ interface ImportedBillCardProps {
   importedBill: ImportedBill;
   myDisplayName: string;
   onUpdate: (bill: ImportedBill) => void;
+  // onClick is removed as this card is now wrapped in a swipeable container
+  // and direct clicks are not the primary interaction.
 }
 
 const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, myDisplayName, onUpdate }) => {
@@ -24,9 +26,6 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, myDis
     onUpdate(updatedBill);
   };
   
-  const creator = bill.participants.find(p => p.name.trim().toLowerCase() !== myNameLower);
-  const creatorName = creator ? creator.name : "Someone";
-  
   const isLive = (Date.now() - importedBill.lastUpdatedAt) < (24 * 60 * 60 * 1000);
 
 
@@ -39,7 +38,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, myDis
             <div>
                  <p className="text-lg font-bold text-slate-800 dark:text-slate-100 break-words">{bill.description}</p>
                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Shared by {creatorName}</p>
+                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Shared by {importedBill.creatorName}</p>
                     {isLive && (
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50">
                             <span className="relative flex h-2 w-2">
