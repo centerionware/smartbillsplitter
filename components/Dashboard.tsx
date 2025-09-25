@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill, Participant, SummaryFilter } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
@@ -252,7 +253,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
     
     active.sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
-    allArchived.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    allArchived.sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
 
     return { active, allArchived, unpaidArchived };
   }, [bills, selectedParticipant, searchQuery, searchMode]);
@@ -673,7 +674,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div>
       {/* Summary Cards */}
       <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md mb-8">
-        <div className="flex flex-col sm:flex-row justify-around items-center text-center gap-2">
+        <div className="flex flex-wrap items-stretch text-center gap-4">
             <div 
                 className={`${summaryCardBaseClasses} ${dashboardSummaryFilter === 'total' ? summaryCardActiveClasses : (dashboardStatusFilter === 'active' ? summaryCardInactiveClasses : '')} ${dashboardStatusFilter === 'archived' ? summaryCardDisabledClasses : ''}`}
                 onClick={() => dashboardStatusFilter === 'active' && onSetDashboardSummaryFilter('total')}
@@ -687,7 +688,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Tracked</p>
                 <p className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1">${summaryTotals.totalTracked.toFixed(2)}</p>
             </div>
-            <div className="h-12 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block mx-2"></div>
             <div 
                 className={`${summaryCardBaseClasses} ${dashboardSummaryFilter === 'othersOweMe' ? summaryCardActiveClasses : (dashboardStatusFilter === 'active' ? summaryCardInactiveClasses : '')} ${dashboardStatusFilter === 'archived' ? summaryCardDisabledClasses : ''}`}
                 onClick={() => dashboardStatusFilter === 'active' && onSetDashboardSummaryFilter('othersOweMe')}
@@ -701,7 +701,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Others Owe Me</p>
                 <p className="text-2xl lg:text-3xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">${summaryTotals.othersOweMe.toFixed(2)}</p>
             </div>
-            <div className="h-12 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block mx-2"></div>
             <div 
                 className={`${summaryCardBaseClasses} ${dashboardSummaryFilter === 'iOwe' ? summaryCardActiveClasses : (dashboardStatusFilter === 'active' ? summaryCardInactiveClasses : '')} ${dashboardStatusFilter === 'archived' ? summaryCardDisabledClasses : ''}`}
                 onClick={() => dashboardStatusFilter === 'active' && onSetDashboardSummaryFilter('iOwe')}
