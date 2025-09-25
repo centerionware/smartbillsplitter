@@ -31,74 +31,74 @@ export const useImportedBills = () => {
         const activeImported = importedBills.filter(b => b.status === 'active' && b.shareEncryptionKey);
         if (activeImported.length === 0) return;
 
-        const updatedBillsPromises = activeImported.map(async (bill) => {
-            try {
-                // Send our last known timestamp to the server to check for new data.
-                const response = await fetch(`/share/${bill.shareId}?lastUpdatedAt=${bill.lastUpdatedAt}`);
-                
-                // If status is 304, there's no new data.
-                if (response.status === 304) {
-                    return bill;
-                }
+        // 1. Gather all bill IDs and their last known timestamps for the batch request.
+        const batchCheckPayload = activeImported.map(bill => ({
+            shareId: bill.shareId,
+            lastUpdatedAt: bill.lastUpdatedAt,
+        }));
 
-                if (!response.ok) {
-                    console.error(`Failed to poll for bill ${bill.id}, server responded with ${response.status}`);
-                    return bill; // Return original on error
-                }
-
-                const { encryptedData, lastUpdatedAt } = await response.json();
-                
-                // Although the server handles the check, this is a good defensive measure.
-                if (lastUpdatedAt > bill.lastUpdatedAt) {
-                    const key = await cryptoService.importEncryptionKey(bill.shareEncryptionKey!);
-                    const decryptedJson = await cryptoService.decrypt(encryptedData, key);
-                    const payload: SharedBillPayload = JSON.parse(decryptedJson);
-
-                    const publicKey = await cryptoService.importPublicKey(payload.publicKey);
-                    const isVerified = await cryptoService.verify(JSON.stringify(payload.bill), payload.signature, publicKey);
-                    
-                    if (isVerified) {
-                        return {
-                            ...bill,
-                            sharedData: {
-                                bill: payload.bill,
-                                creatorPublicKey: payload.publicKey,
-                                signature: payload.signature,
-                            },
-                            lastUpdatedAt,
-                        };
-                    }
-                }
-            } catch (error) {
-                console.error(`Failed to update bill ${bill.id}:`, error);
+        try {
+            // 2. Send a single batch request to the server.
+            const response = await fetch(`/share/batch-check`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(batchCheckPayload),
+            });
+            
+            if (!response.ok) {
+                console.error(`Batch poll failed, server responded with ${response.status}`);
+                return;
             }
-            return bill; 
-        });
-        
-        const updatedBillsResult = await Promise.all(updatedBillsPromises);
 
-        // Create a map of only the bills that have new, more recent data.
-        const updatedDataMap = new Map(
-            updatedBillsResult
-                .filter(ub => {
-                    const originalBill = importedBills.find(ib => ib.id === ub.id);
-                    // The filter condition ensures we only consider bills that actually changed.
-                    return originalBill && ub.lastUpdatedAt > originalBill.lastUpdatedAt;
-                })
-                .map(b => [b.id, b])
-        );
+            const updatedBillPayloads: { shareId: string, encryptedData: string, lastUpdatedAt: number }[] = await response.json();
+            
+            if (updatedBillPayloads.length === 0) {
+                return; // No updates
+            }
+            
+            // 3. Decrypt and verify only the bills that the server returned.
+            const decryptedUpdatesPromises = updatedBillPayloads.map(async (payload) => {
+                const originalBill = activeImported.find(b => b.shareId === payload.shareId);
+                if (!originalBill || !originalBill.shareEncryptionKey) return null;
 
-        // If there are any updates, update both the state and the database.
-        if (updatedDataMap.size > 0) {
-            // Update the React state to trigger a UI re-render.
-            setImportedBills(prev => {
-                const final = prev.map(p => updatedDataMap.get(p.id) || p);
-                final.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
-                return final;
+                const key = await cryptoService.importEncryptionKey(originalBill.shareEncryptionKey);
+                const decryptedJson = await cryptoService.decrypt(payload.encryptedData, key);
+                const sharedPayload: SharedBillPayload = JSON.parse(decryptedJson);
+
+                const publicKey = await cryptoService.importPublicKey(sharedPayload.publicKey);
+                const isVerified = await cryptoService.verify(JSON.stringify(sharedPayload.bill), sharedPayload.signature, publicKey);
+                
+                if (isVerified) {
+                    return {
+                        ...originalBill,
+                        sharedData: {
+                            bill: sharedPayload.bill,
+                            creatorPublicKey: sharedPayload.publicKey,
+                            signature: sharedPayload.signature,
+                        },
+                        lastUpdatedAt: payload.lastUpdatedAt,
+                    };
+                }
+                return null; // Verification failed
             });
 
-            // Persist only the changed bills to the database.
-            await Promise.all(Array.from(updatedDataMap.values()).map(updateDB));
+            const decryptedUpdates = (await Promise.all(decryptedUpdatesPromises)).filter((b): b is ImportedBill => b !== null);
+
+            if (decryptedUpdates.length > 0) {
+                const updatedDataMap = new Map(decryptedUpdates.map(b => [b.id, b]));
+
+                // Update the React state to trigger a UI re-render.
+                setImportedBills(prev => {
+                    const final = prev.map(p => updatedDataMap.get(p.id) || p);
+                    final.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
+                    return final;
+                });
+
+                // Persist only the changed bills to the database.
+                await Promise.all(Array.from(updatedDataMap.values()).map(updateDB));
+            }
+        } catch (error) {
+            console.error('Failed to poll for bill updates:', error);
         }
     };
 

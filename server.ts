@@ -23,6 +23,7 @@ app.post('/scan-receipt', createExpressAdapter(scanReceiptHandler));
 app.all('/sync', createExpressAdapter(syncHandler));
 
 // Share routes using the adapter
+app.post('/share/batch-check', createExpressAdapter(shareHandler));
 app.all('/share/:shareId?', createExpressAdapter(shareHandler));
 app.all('/onetime-key/:keyId?/:action(status)?', createExpressAdapter(onetimeKeyHandler));
 

@@ -90,6 +90,47 @@ async function retrieveShare(shareId: string): Promise<{ encryptedData: string; 
     };
 }
 
+/**
+ * Efficiently retrieves multiple share sessions, returning only those that have been updated.
+ * @param checkPayload An array of objects, each with a shareId and the client's lastUpdatedAt timestamp.
+ * @returns A promise resolving to an array of full share payloads for only the updated bills.
+ */
+async function retrieveBatchShares(
+  checkPayload: { shareId: string; lastUpdatedAt: number }[]
+): Promise<{ shareId: string; encryptedData: string; lastUpdatedAt: number }[]> {
+  if (!Array.isArray(checkPayload) || checkPayload.length === 0) {
+    return [];
+  }
+
+  // Create Redis keys for all requested shareIds
+  const keys = checkPayload.map(p => `share:${p.shareId}`);
+  const results = await redisClient.mget(keys);
+
+  const updatedBills: { shareId: string; encryptedData: string; lastUpdatedAt: number }[] = [];
+
+  results.forEach((sessionJson, index) => {
+    if (!sessionJson) return; // This bill was not found or expired
+
+    const clientData = checkPayload[index];
+    const serverPayload = JSON.parse(sessionJson);
+
+    // Check if the server's data is newer than the client's
+    if (serverPayload.lastUpdatedAt > clientData.lastUpdatedAt) {
+        let encryptedContent = serverPayload.encryptedData || serverPayload.data;
+        if (encryptedContent) {
+             updatedBills.push({
+                shareId: clientData.shareId,
+                encryptedData: encryptedContent,
+                lastUpdatedAt: serverPayload.lastUpdatedAt,
+            });
+        }
+    }
+  });
+
+  return updatedBills;
+}
+
+
 // --- Framework-Agnostic Handler ---
 export const shareHandler = async (req: HttpRequest): Promise<HttpResponse> => {
   const corsHeaders = {
@@ -109,6 +150,17 @@ export const shareHandler = async (req: HttpRequest): Promise<HttpResponse> => {
   };
 
   try {
+    // Handle the new batch check endpoint: POST /share/batch-check
+    if (req.method === "POST" && req.path.endsWith('/batch-check')) {
+        const batchPayload = req.body;
+        const result = await retrieveBatchShares(batchPayload);
+        return {
+            statusCode: 200,
+            headers: responseHeaders,
+            body: JSON.stringify(result)
+        };
+    }
+      
     if (req.method === "POST") {
       const { shareId } = req.params;
       const { encryptedData } = req.body;
