@@ -80,7 +80,7 @@ const HalfScreenAdModal: React.FC<HalfScreenAdModalProps> = ({ onClose }) => {
                 border: '0',
                 overflow: 'hidden',
               }}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts"
               aria-label="Advertisement Content"
             ></iframe>
            </div>
