@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill, Participant } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
@@ -402,6 +399,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   const itemsWithAds = useMemo(() => {
     const billsToShow = filteredBills.slice(0, visibleCount);
     const renderedItems: React.ReactElement[] = [];
+    const isFree = subscriptionStatus === 'free';
+
+    // If free, add an ad as the very first card.
+    if (isFree) {
+      renderedItems.push(<AdBillCard key="ad-first" />);
+    }
 
     billsToShow.forEach((bill, index) => {
       const isArchiving = archivingBillIds.includes(bill.id);
@@ -417,12 +420,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       );
 
-      if ((index + 1) % AD_INTERVAL === 0) {
-        renderedItems.push(<AdBillCard key={`ad-${index}`} />);
+      // If free, inject ads at regular intervals.
+      if (isFree && (index + 1) % AD_INTERVAL === 0) {
+        renderedItems.push(<AdBillCard key={`ad-interval-${index}`} />);
       }
     });
     return renderedItems;
-  }, [filteredBills, visibleCount, onArchiveBill, onUnarchiveBill, onDeleteBill, onSelectBill, archivingBillIds]);
+  }, [filteredBills, visibleCount, subscriptionStatus, onArchiveBill, onUnarchiveBill, onDeleteBill, onSelectBill, archivingBillIds]);
 
   const getEmptyState = () => {
      if (dashboardView === 'participants') {
@@ -438,7 +442,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             };
         }
     }
-    if (searchQuery && filteredBills.length === 0) {
+    if (searchQuery && filteredBills.length === 0 && filteredImportedBills.length === 0) {
         return {
             title: "No results found",
             message: `Your search for "${searchQuery}" did not match any ${dashboardStatusFilter} bills.`,
@@ -538,7 +542,9 @@ const Dashboard: React.FC<DashboardProps> = ({
             );
         }
     } else { // Bill display mode, no participant selected
-        if (filteredBills.length > 0 || filteredImportedBills.length > 0) {
+        const billItems = itemsWithAds;
+
+        if (billItems.length > 0 || filteredImportedBills.length > 0) {
             return (
                 <>
                     {filteredImportedBills.length > 0 && (
@@ -559,11 +565,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                             </div>
                         </div>
                     )}
-                    {filteredBills.length > 0 && (
+                    {billItems.length > 0 && (
                         <>
                         <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4">My Bills</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {itemsWithAds}
+                            {billItems}
                         </div>
                         {hasMore && (
                             <div ref={loadMoreRef} className="flex justify-center items-center p-8">

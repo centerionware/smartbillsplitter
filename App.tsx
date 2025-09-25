@@ -16,7 +16,6 @@ import ImportedBillDetails from './components/ImportedBillDetails.tsx';
 import SettingsComponent from './components/Settings.tsx';
 import SyncComponent from './components/Sync.tsx';
 import PwaInstallBanner from './components/PwaInstallBanner.tsx';
-import FloatingAd from './components/FloatingAd.tsx';
 import ConfirmationDialog from './components/ConfirmationDialog.tsx';
 import Disclaimer from './components/Disclaimer.tsx';
 import RecurringBillsList from './components/RecurringBillsList.tsx';
@@ -539,7 +538,6 @@ const App: React.FC = () => {
       <main className="container mx-auto p-4 md:p-8">
         {renderContent()}
       </main>
-      {subscriptionStatus === 'free' && <FloatingAd />}
       <footer className="text-center p-6 text-slate-500 dark:text-slate-400 text-sm">
         <div className="flex items-center justify-center gap-2 mb-2">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 dark:text-slate-500" viewBox="0 0 20 20" fill="currentColor">
