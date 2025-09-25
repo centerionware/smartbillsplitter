@@ -1,5 +1,5 @@
-// FIX: Replaced explicit Request/Response imports with the RequestHandler and Response types for better type inference and compatibility with Express.
-import type { RequestHandler, Response } from 'express';
+// FIX: Reverted handler signatures to use explicit Request and Response types to resolve type conflicts.
+import type { Request, Response } from 'express';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
@@ -22,8 +22,7 @@ const checkStripeConfig = (res: Response): boolean => {
     return true;
 }
 
-// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
-export const createCheckoutSessionHandler: RequestHandler = async (req, res) => {
+export const createCheckoutSessionHandler = async (req: Request, res: Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { plan, origin } = req.body;
@@ -55,8 +54,7 @@ export const createCheckoutSessionHandler: RequestHandler = async (req, res) => 
     }
 };
 
-// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
-export const verifySessionHandler: RequestHandler = async (req, res) => {
+export const verifySessionHandler = async (req: Request, res: Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { sessionId } = req.body;
@@ -99,8 +97,7 @@ export const verifySessionHandler: RequestHandler = async (req, res) => {
     }
 };
 
-// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
-export const createCustomerPortalSessionHandler: RequestHandler = async (req, res) => {
+export const createCustomerPortalSessionHandler = async (req: Request, res: Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { customerId, origin } = req.body;

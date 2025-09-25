@@ -1,5 +1,5 @@
-// FIX: Replaced explicit Request/Response imports with the RequestHandler type for better type inference and compatibility with Express.
-import type { RequestHandler } from 'express';
+// FIX: Reverted handler signature to use explicit Request and Response types to resolve type conflicts.
+import type { Request, Response } from 'express';
 import redisClient from '../services/redisClient.ts';
 
 const EXPIRATION_SECONDS = 5 * 60; // 5 minutes
@@ -17,8 +17,7 @@ const generateCode = async (): Promise<string> => {
   return code;
 };
 
-// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
-export const syncHandler: RequestHandler = async (req, res) => {
+export const syncHandler = async (req: Request, res: Response) => {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");

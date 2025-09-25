@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-// FIX: Replaced explicit Request/Response imports with the RequestHandler type for better type inference and compatibility with Express.
-import type { RequestHandler } from 'express';
+// FIX: Reverted handler signature to use explicit Request and Response types to resolve type conflicts.
+import type { Request, Response } from 'express';
 
 // Defines the expected JSON structure from the Gemini API for consistent data handling.
 const responseSchema = {
@@ -61,9 +61,7 @@ const responseSchema = {
   required: ["description", "items"],
 };
 
-// The main handler, now explicitly typed as a RequestHandler.
-// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
-export const scanReceiptHandler: RequestHandler = async (req, res) => {
+export const scanReceiptHandler = async (req: Request, res: Response) => {
   const { base64Image, mimeType } = req.body;
   if (!base64Image || !mimeType) {
     return res.status(400).json({ error: 'Missing required parameters: base64Image and mimeType.' });
