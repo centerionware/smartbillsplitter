@@ -109,14 +109,14 @@ export const createCheckoutSessionHandler = async (req: HttpRequest): Promise<Ht
         const result = await createCheckoutSession(plan, origin);
         return {
             statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
             body: JSON.stringify(result)
         };
     } catch (error: any) {
         const statusCode = error.message.includes("Invalid request") ? 400 : 500;
         return {
             statusCode: statusCode,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
             body: JSON.stringify({ error: error.message })
         };
     }
@@ -128,7 +128,7 @@ export const verifySessionHandler = async (req: HttpRequest): Promise<HttpRespon
         const result = await verifyPaymentSession(sessionId);
         return {
             statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
             body: JSON.stringify(result)
         };
     } catch (error: any) {
@@ -140,7 +140,7 @@ export const verifySessionHandler = async (req: HttpRequest): Promise<HttpRespon
         }
         return {
             statusCode: statusCode,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
             body: JSON.stringify({ error: error.message })
         };
     }
@@ -152,14 +152,14 @@ export const createCustomerPortalSessionHandler = async (req: HttpRequest): Prom
         const result = await createCustomerPortalSession(customerId, origin);
         return {
             statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
             body: JSON.stringify(result)
         };
     } catch (error: any) {
         const statusCode = error.message.includes("Missing 'customerId'") ? 400 : 500;
         return {
             statusCode: statusCode,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
             body: JSON.stringify({ error: error.message })
         };
     }

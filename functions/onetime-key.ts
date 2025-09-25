@@ -92,6 +92,7 @@ export const onetimeKeyHandler = async (req: HttpRequest): Promise<HttpResponse>
   const responseHeaders = {
     ...corsHeaders,
     "Content-Type": "application/json",
+    "Cache-Control": "no-store",
   };
 
   try {

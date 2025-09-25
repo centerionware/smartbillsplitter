@@ -22,6 +22,10 @@ type Status = 'loading' | 'fetching_key' | 'fetching_data' | 'verifying' | 'veri
  * @throws An error with a specific message if decoding fails at any step.
  */
 function base64UrlDecode(base64Url: string): string {
+    if (typeof base64Url !== 'string' || !base64Url) {
+        // Throw an error that is specific and helpful for debugging.
+        throw new Error('Malformed share link: The key data in the URL is missing, empty, or invalid.');
+    }
     // Replace URL-safe characters with standard Base64 characters
     let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     
@@ -82,8 +86,20 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
     if (!hasAcceptedPrivacy) return;
 
     const processShareLink = async () => {
+      // Reset state for new link processing to avoid showing stale data from a previous link.
+      setStatus('loading');
+      setError(null);
+      setSharedData(null);
+      setLastUpdatedAt(0);
+      setBillEncryptionKey(null);
+      setSelectedParticipantId(null);
+
       try {
-        const params = new URLSearchParams(window.location.hash.split('?')[1]);
+        const hash = window.location.hash;
+        if (!hash.includes('?')) {
+          throw new Error("Share link is missing parameters.");
+        }
+        const params = new URLSearchParams(hash.split('?')[1]);
         const shareId = params.get('shareId');
         const keyId = params.get('keyId');
         const fragmentKeyStr = params.get('fragmentKey');
@@ -151,7 +167,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
       }
     };
     processShareLink();
-  }, [hasAcceptedPrivacy]);
+  }, [hasAcceptedPrivacy, window.location.hash]);
 
   const handleImport = async () => {
     if (!sharedData || !selectedParticipantId || !billEncryptionKey) return;

@@ -98,11 +98,16 @@ async function scanReceiptLogic(base64Image: string, mimeType: string) {
 // --- Framework-Agnostic Handler ---
 // This function is now independent of Express.js.
 export const scanReceiptHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+  const responseHeaders = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+  };
+
   const { base64Image, mimeType } = req.body;
   if (!base64Image || !mimeType) {
     return {
       statusCode: 400,
-      headers: { 'Content-Type': 'application/json' },
+      headers: responseHeaders,
       body: JSON.stringify({ error: 'Missing required parameters: base64Image and mimeType.' }),
     };
   }
@@ -111,7 +116,7 @@ export const scanReceiptHandler = async (req: HttpRequest): Promise<HttpResponse
     const parsedData = await scanReceiptLogic(base64Image, mimeType);
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: responseHeaders,
       body: JSON.stringify(parsedData),
     };
   } catch (error: any) {
@@ -119,7 +124,7 @@ export const scanReceiptHandler = async (req: HttpRequest): Promise<HttpResponse
     const statusCode = error.message.startsWith('Server configuration error') ? 500 : 500;
     return {
       statusCode: statusCode,
-      headers: { 'Content-Type': 'application/json' },
+      headers: responseHeaders,
       body: JSON.stringify({ error: 'Failed to process receipt.', details: error.message }),
     };
   }
