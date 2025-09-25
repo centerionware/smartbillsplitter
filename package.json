@@ -1,3 +1,4 @@
+
 {
   "name": "smart-bill-splitter",
   "private": true,
@@ -6,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build:frontend": "vite build",
-    "build:backend": "esbuild server.ts functions/*.ts services/redisClient.ts --bundle --platform=node --format=esm --outdir=dist-server --packages=external",
+    "build:backend": "esbuild server.ts http-types.ts express-adapter.ts functions/*.ts services/redisClient.ts --bundle --platform=node --format=esm --outdir=dist-server --packages=external",
     "build": "npm run build:frontend && npm run build:backend",
     "start": "node dist-server/server.js",
     "preview": "vite preview"

@@ -1,4 +1,11 @@
+
+
+// FIX: Changed `import * as express` to `import express` to use the default export,
+// which is the express function needed to create the app instance.
 import express from 'express';
+import { createExpressAdapter } from './express-adapter';
+
+// Import the framework-agnostic handlers
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
 import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler } from './functions/stripe';
@@ -10,18 +17,18 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' })); // Increase limit for receipt images
 
-// API routes
-app.post('/scan-receipt', scanReceiptHandler);
-app.all('/sync', syncHandler);
+// API routes using the adapter
+app.post('/scan-receipt', createExpressAdapter(scanReceiptHandler));
+app.all('/sync', createExpressAdapter(syncHandler));
 
-// Share routes
-app.all('/share/:shareId?', shareHandler);
-app.all('/onetime-key/:keyId?', onetimeKeyHandler);
+// Share routes using the adapter
+app.all('/share/:shareId?', createExpressAdapter(shareHandler));
+app.all('/onetime-key/:keyId?', createExpressAdapter(onetimeKeyHandler));
 
-// Stripe routes
-app.post('/create-checkout-session', createCheckoutSessionHandler);
-app.post('/verify-session', verifySessionHandler);
-app.post('/create-customer-portal-session', createCustomerPortalSessionHandler);
+// Stripe routes using the adapter
+app.post('/create-checkout-session', createExpressAdapter(createCheckoutSessionHandler));
+app.post('/verify-session', createExpressAdapter(verifySessionHandler));
+app.post('/create-customer-portal-session', createExpressAdapter(createCustomerPortalSessionHandler));
 
 
 // Health check endpoint

@@ -1,6 +1,6 @@
-// FIX: Reverted handler signature to use explicit Request and Response types to resolve type conflicts.
-import type { Request, Response } from 'express';
+
 import redisClient from '../services/redisClient.ts';
+import { HttpRequest, HttpResponse } from '../http-types';
 
 const EXPIRATION_SECONDS = 5 * 60; // 5 minutes
 
@@ -17,59 +17,111 @@ const generateCode = async (): Promise<string> => {
   return code;
 };
 
-export const syncHandler = async (req: Request, res: Response) => {
-  if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    return res.status(204).send();
+
+// --- Business Logic ---
+// These functions contain the core logic for sync sessions and are independent of the server framework.
+
+/**
+ * Creates a new sync session, storing encrypted data and returning a unique code.
+ * @param encryptedData The encrypted data payload from the client.
+ * @returns An object containing the generated sync code.
+ */
+async function createSyncSession(encryptedData: string): Promise<{ code: string }> {
+  if (!encryptedData || typeof encryptedData !== 'string') {
+    throw new Error("Invalid payload. 'encryptedData' string is required.");
   }
-
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Content-Type", "application/json");
-
-  // --- UPLOAD DATA (POST) ---
-  if (req.method === "POST") {
-    try {
-      const { encryptedData } = req.body;
-      if (!encryptedData || typeof encryptedData !== 'string') {
-        return res.status(400).json({ error: "Invalid payload. 'encryptedData' string is required." });
-      }
-
-      const code = await generateCode();
-      // Store the data in Redis with a 5-minute expiration
-      await redisClient.set(`sync:${code}`, encryptedData, 'EX', EXPIRATION_SECONDS);
-
-      console.log(`Created sync session ${code}.`);
-      return res.status(201).json({ code });
-
-    } catch (e) {
-      console.error('Sync POST error:', e);
-      return res.status(400).json({ error: "Invalid JSON body or Redis error." });
-    }
+  
+  try {
+    const code = await generateCode();
+    await redisClient.set(`sync:${code}`, encryptedData, 'EX', EXPIRATION_SECONDS);
+    console.log(`Created sync session ${code}.`);
+    return { code };
+  } catch(e) {
+      console.error('Redis error during sync session creation:', e);
+      throw new Error("Could not create sync session due to a database error.");
   }
+}
 
-  // --- DOWNLOAD DATA (GET) ---
-  if (req.method === "GET") {
-    const code = req.query.code as string;
+/**
+ * Retrieves and deletes data from a sync session.
+ * @param code The 6-digit sync code.
+ * @returns An object containing the retrieved encrypted data.
+ */
+async function retrieveSyncSession(code: string): Promise<{ encryptedData: string }> {
     if (!code) {
-      return res.status(400).json({ error: "Missing 'code' query parameter." });
+        throw new Error("Missing 'code' parameter.");
     }
 
     const key = `sync:${code}`;
     const encryptedData = await redisClient.get(key);
 
     if (!encryptedData) {
-      return res.status(404).json({ error: "Invalid or expired code." });
+        throw new Error("Invalid or expired code.");
     }
-
+    
     // Data is for one-time use. Delete it immediately after retrieval.
     await redisClient.del(key);
     console.log(`Sync session ${code} retrieved and deleted.`);
     
-    return res.status(200).json({ encryptedData });
+    return { encryptedData };
+}
+
+// --- Framework-Agnostic Handler ---
+export const syncHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return { statusCode: 204, headers: corsHeaders };
   }
 
-  res.setHeader('Allow', 'GET, POST, OPTIONS');
-  return res.status(405).json({ error: "Method Not Allowed" });
+  const responseHeaders = {
+    ...corsHeaders,
+    "Content-Type": "application/json",
+  };
+
+  try {
+    if (req.method === "POST") {
+      const { encryptedData } = req.body;
+      const result = await createSyncSession(encryptedData);
+      return {
+        statusCode: 201,
+        headers: responseHeaders,
+        body: JSON.stringify(result),
+      };
+    }
+
+    if (req.method === "GET") {
+      const code = req.query.code as string;
+      const result = await retrieveSyncSession(code);
+      return {
+        statusCode: 200,
+        headers: responseHeaders,
+        body: JSON.stringify(result),
+      };
+    }
+    
+    return {
+      statusCode: 405,
+      headers: { ...responseHeaders, 'Allow': 'GET, POST, OPTIONS' },
+      body: JSON.stringify({ error: "Method Not Allowed" }),
+    };
+
+  } catch (error: any) {
+    let statusCode = 500;
+    if (error.message.includes("Invalid or expired")) {
+        statusCode = 404;
+    } else if (error.message.includes("Invalid payload") || error.message.includes("Missing 'code'")) {
+        statusCode = 400;
+    }
+    
+    return {
+      statusCode: statusCode,
+      headers: responseHeaders,
+      body: JSON.stringify({ error: error.message, details: error.message }),
+    };
+  }
 };

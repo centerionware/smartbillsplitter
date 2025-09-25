@@ -1,6 +1,6 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-// FIX: Reverted handler signature to use explicit Request and Response types to resolve type conflicts.
-import type { Request, Response } from 'express';
+import { HttpRequest, HttpResponse } from '../http-types';
 
 // Defines the expected JSON structure from the Gemini API for consistent data handling.
 const responseSchema = {
@@ -61,16 +61,15 @@ const responseSchema = {
   required: ["description", "items"],
 };
 
-export const scanReceiptHandler = async (req: Request, res: Response) => {
-  const { base64Image, mimeType } = req.body;
-  if (!base64Image || !mimeType) {
-    return res.status(400).json({ error: 'Missing required parameters: base64Image and mimeType.' });
-  }
 
+// --- Business Logic ---
+// This function contains the core logic for parsing a receipt and is independent of the server framework.
+async function scanReceiptLogic(base64Image: string, mimeType: string) {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     console.error("API_KEY environment variable not set.");
-    return res.status(500).json({ error: 'Server configuration error: API key is not set.' });
+    // Throw a specific error for the handler to catch and return the correct HTTP status.
+    throw new Error('Server configuration error: API key is not set.');
   }
 
   try {
@@ -88,12 +87,40 @@ export const scanReceiptHandler = async (req: Request, res: Response) => {
       },
     });
     
-    const parsedData = JSON.parse(response.text);
-
-    return res.status(200).json(parsedData);
-
+    return JSON.parse(response.text);
   } catch (error: any) {
     console.error("Error calling Gemini API:", error);
-    return res.status(500).json({ error: 'Failed to communicate with the AI service.', details: error.message });
+    // Rethrow to be handled by the adapter layer.
+    throw new Error(`Failed to communicate with the AI service: ${error.message}`);
+  }
+}
+
+// --- Framework-Agnostic Handler ---
+// This function is now independent of Express.js.
+export const scanReceiptHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+  const { base64Image, mimeType } = req.body;
+  if (!base64Image || !mimeType) {
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Missing required parameters: base64Image and mimeType.' }),
+    };
+  }
+
+  try {
+    const parsedData = await scanReceiptLogic(base64Image, mimeType);
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(parsedData),
+    };
+  } catch (error: any) {
+    // Check for specific error messages to return appropriate status codes.
+    const statusCode = error.message.startsWith('Server configuration error') ? 500 : 500;
+    return {
+      statusCode: statusCode,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Failed to process receipt.', details: error.message }),
+    };
   }
 };

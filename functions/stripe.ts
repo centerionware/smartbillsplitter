@@ -1,6 +1,6 @@
-// FIX: Reverted handler signatures to use explicit Request and Response types to resolve type conflicts.
-import type { Request, Response } from 'express';
+
 import Stripe from 'stripe';
+import { HttpRequest, HttpResponse } from '../http-types';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_PRICE_ID_MONTHLY = process.env.STRIPE_PRICE_ID_MONTHLY;
@@ -13,108 +13,154 @@ if (!STRIPE_SECRET_KEY || !STRIPE_PRICE_ID_MONTHLY || !STRIPE_PRICE_ID_YEARLY) {
 // Initialize Stripe only if the secret key is available.
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
-// Helper function to check for Stripe configuration at runtime.
-const checkStripeConfig = (res: Response): boolean => {
+const assertStripeConfig = () => {
     if (!stripe || !STRIPE_PRICE_ID_MONTHLY || !STRIPE_PRICE_ID_YEARLY) {
-        res.status(500).json({ error: "Stripe integration is not configured on the server." });
-        return false;
-    }
-    return true;
-}
-
-export const createCheckoutSessionHandler = async (req: Request, res: Response) => {
-    if (!checkStripeConfig(res)) return;
-
-    const { plan, origin } = req.body;
-    if (!plan || (plan !== 'monthly' && plan !== 'yearly') || !origin) {
-        return res.status(400).json({ error: "Invalid request. 'plan' (monthly/yearly) and 'origin' are required." });
-    }
-
-    const priceId = plan === 'monthly' ? STRIPE_PRICE_ID_MONTHLY : STRIPE_PRICE_ID_YEARLY;
-    
-    try {
-        // Create a checkout session with Stripe
-        const session = await stripe!.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [{
-                price: priceId,
-                quantity: 1,
-            }],
-            mode: 'subscription',
-            // Define the redirect URLs. Stripe will append the session_id automatically.
-            success_url: `${origin}?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${origin}`,
-        });
-        
-        return res.status(200).json({ url: session.url });
-
-    } catch (error: any) {
-        console.error("Stripe checkout session creation failed:", error);
-        return res.status(500).json({ error: "Failed to create checkout session.", details: error.message });
+        throw new Error("Stripe integration is not configured on the server.");
     }
 };
 
-export const verifySessionHandler = async (req: Request, res: Response) => {
-    if (!checkStripeConfig(res)) return;
+// --- Business Logic ---
+// These functions contain the core logic for Stripe interactions and are independent of the server framework.
 
-    const { sessionId } = req.body;
+async function createCheckoutSession(plan: 'monthly' | 'yearly', origin: string): Promise<{ url: string | null }> {
+    assertStripeConfig();
+    if (!plan || (plan !== 'monthly' && plan !== 'yearly') || !origin) {
+        throw new Error("Invalid request. 'plan' (monthly/yearly) and 'origin' are required.");
+    }
+    
+    const priceId = plan === 'monthly' ? STRIPE_PRICE_ID_MONTHLY! : STRIPE_PRICE_ID_YEARLY!;
+    
+    try {
+        const session = await stripe!.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [{ price: priceId, quantity: 1 }],
+            mode: 'subscription',
+            success_url: `${origin}?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}`,
+        });
+        return { url: session.url };
+    } catch (error: any) {
+        console.error("Stripe checkout session creation failed:", error);
+        throw new Error(`Failed to create checkout session: ${error.message}`);
+    }
+}
+
+async function verifyPaymentSession(sessionId: string) {
+    assertStripeConfig();
     if (!sessionId) {
-        return res.status(400).json({ error: "Missing 'sessionId' in request body." });
+        throw new Error("Missing 'sessionId'.");
     }
 
     try {
-        // Retrieve the session from Stripe to verify its status
         const session = await stripe!.checkout.sessions.retrieve(sessionId, {
             expand: ['subscription', 'line_items']
         });
 
         if (session.payment_status === 'paid' && session.subscription && session.customer) {
             const subscription = session.subscription as Stripe.Subscription;
-            
             const priceId = session.line_items?.data[0]?.price?.id;
             let duration: 'monthly' | 'yearly' | null = null;
             
             if (priceId === STRIPE_PRICE_ID_MONTHLY) duration = 'monthly';
             else if (priceId === STRIPE_PRICE_ID_YEARLY) duration = 'yearly';
             
-
-            if (duration) {
-                return res.status(200).json({ 
-                    status: 'success', 
-                    duration,
-                    subscriptionId: subscription.id,
-                    customerId: session.customer,
-                 });
-            } else {
-                 return res.status(400).json({ error: 'Could not determine subscription duration from checkout session.' });
+            if (!duration) {
+                throw new Error('Could not determine subscription duration from checkout session.');
             }
+            // FIX: Handle case where session.customer is a string (ID) vs an object
+            const customerId = typeof session.customer === 'string' ? session.customer : session.customer.id;
+            return { 
+                status: 'success', 
+                duration,
+                subscriptionId: subscription.id,
+                customerId: customerId,
+            };
         } else {
-            return res.status(402).json({ error: 'Payment not completed successfully or subscription not found.' });
+            throw new Error('Payment not completed successfully or subscription not found.');
         }
     } catch (error: any) {
         console.error("Stripe session verification failed:", error);
-        return res.status(500).json({ error: 'Failed to verify checkout session.', details: error.message });
+        throw new Error(`Failed to verify checkout session: ${error.message}`);
     }
-};
+}
 
-export const createCustomerPortalSessionHandler = async (req: Request, res: Response) => {
-    if (!checkStripeConfig(res)) return;
-
-    const { customerId, origin } = req.body;
+async function createCustomerPortalSession(customerId: string, origin: string): Promise<{ url: string }> {
+    assertStripeConfig();
     if (!customerId) {
-        return res.status(400).json({ error: "Missing 'customerId' in request body." });
+        throw new Error("Missing 'customerId'.");
     }
-
     try {
         const portalSession = await stripe!.billingPortal.sessions.create({
             customer: customerId,
             return_url: origin,
         });
-
-        return res.status(200).json({ url: portalSession.url });
-
+        return { url: portalSession.url };
     } catch (error: any) {
         console.error("Stripe customer portal session creation failed:", error);
-        return res.status(500).json({ error: "Failed to create customer portal session.", details: error.message });
+        throw new Error(`Failed to create customer portal session: ${error.message}`);
+    }
+}
+
+// --- Framework-Agnostic Handlers ---
+
+export const createCheckoutSessionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+    try {
+        const { plan, origin } = req.body;
+        const result = await createCheckoutSession(plan, origin);
+        return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(result)
+        };
+    } catch (error: any) {
+        const statusCode = error.message.includes("Invalid request") ? 400 : 500;
+        return {
+            statusCode: statusCode,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: error.message })
+        };
+    }
+};
+
+export const verifySessionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+    try {
+        const { sessionId } = req.body;
+        const result = await verifyPaymentSession(sessionId);
+        return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(result)
+        };
+    } catch (error: any) {
+        let statusCode = 500;
+        if (error.message.includes("Missing 'sessionId'")) {
+            statusCode = 400;
+        } else if (error.message.includes("Payment not completed")) {
+            statusCode = 402;
+        }
+        return {
+            statusCode: statusCode,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: error.message })
+        };
+    }
+};
+
+export const createCustomerPortalSessionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+    try {
+        const { customerId, origin } = req.body;
+        const result = await createCustomerPortalSession(customerId, origin);
+        return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(result)
+        };
+    } catch (error: any) {
+        const statusCode = error.message.includes("Missing 'customerId'") ? 400 : 500;
+        return {
+            statusCode: statusCode,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: error.message })
+        };
     }
 };
