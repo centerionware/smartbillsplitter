@@ -379,8 +379,10 @@ const App: React.FC = () => {
     await notificationService.cancelNotification(billId);
   }
 
-  const handleUpdateBill = (bill: Bill) => {
-    updateBill(bill);
+  // FIX: Converted `handleUpdateBill` to an async function to correctly handle the promise
+  // from the `updateBill` hook. This ensures dependent operations, like sharing, can await the update.
+  const handleUpdateBill = async (bill: Bill) => {
+    await updateBill(bill);
     setSelectedBill(bill);
   };
   

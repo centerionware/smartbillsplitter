@@ -12,7 +12,8 @@ interface BillDetailsProps {
   bill: Bill;
   bills: Bill[];
   settings: Settings;
-  onUpdateBill: (bill: Bill) => void;
+  // FIX: Updated prop type to reflect that updating a bill is an async operation.
+  onUpdateBill: (bill: Bill) => Promise<void>;
   onUpdateSettings: (settings: Partial<Settings>) => void;
   onBack: () => void;
   subscriptionStatus: SubscriptionStatus;
@@ -57,13 +58,14 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
     }
   }, [settings]);
 
-  const handleParticipantPaidToggle = (participantId: string) => {
+  // FIX: Made function async to await the bill update and share push operations.
+  const handleParticipantPaidToggle = async (participantId: string) => {
     const updatedParticipants = bill.participants.map(p =>
       p.id === participantId ? { ...p, paid: !p.paid } : p
     );
     const updatedBill = { ...bill, participants: updatedParticipants };
-    onUpdateBill(updatedBill);
-    pushShareUpdate(updatedBill);
+    await onUpdateBill(updatedBill);
+    await pushShareUpdate(updatedBill);
   };
   
   // --- Share Handlers ---
@@ -108,11 +110,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
   };
 
   const handleShareLink = useCallback(async (participant: Participant, method: 'sms' | 'email' | 'generic') => {
-    const handleShareInfoCreated = async (shareInfo: Bill['shareInfo']) => {
-        onUpdateBill({ ...bill, shareInfo });
-    };
-
-    const shareUrl = await generateShareLink(bill, settings, handleShareInfoCreated);
+    const shareUrl = await generateShareLink(bill, participant.id, settings, onUpdateBill);
     
     const message = `Here is a link to view our bill for "${bill.description}". This link is live and will update if I make changes:\n\n${shareUrl}`;
 

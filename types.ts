@@ -32,6 +32,12 @@ export interface ReceiptItem {
   assignedTo: string[]; // array of participant ids
 }
 
+export interface ParticipantShareInfo {
+  keyId: string; // The ID for the one-time key on the server
+  fragmentKey: JsonWebKey; // The key embedded in the URL fragment
+  expires: number; // Client-side expiration timestamp
+}
+
 export interface Bill {
   id: string;
   description: string;
@@ -47,6 +53,7 @@ export interface Bill {
     encryptionKey: JsonWebKey;
     signingPublicKey: JsonWebKey; // Public key for this specific bill's signing pair
   };
+  participantShareInfo?: Record<string, ParticipantShareInfo>; // Map participant.id -> share info
 }
 
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';

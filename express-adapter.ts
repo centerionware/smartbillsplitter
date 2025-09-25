@@ -1,6 +1,5 @@
-// FIX: Changed to use named imports for Express types to resolve type definition errors.
-// The namespace import was causing issues with type resolution.
-import { Request, Response, Handler, NextFunction } from 'express';
+// FIX: Changed to use named imports for Express types to resolve type conflicts.
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
 
 /**
@@ -36,7 +35,7 @@ function applyHttpResponse(res: Response, httpResponse: HttpResponse): void {
  * Creates an Express request handler from a framework-agnostic HttpHandler.
  * This acts as an adapter layer, containing the only Express-specific logic.
  */
-export function createExpressAdapter(handler: HttpHandler): Handler {
+export function createExpressAdapter(handler: HttpHandler): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const httpRequest = toHttpRequest(req);

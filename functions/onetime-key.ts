@@ -1,4 +1,5 @@
 
+
 import { randomUUID } from 'crypto';
 import redisClient from '../services/redisClient.ts';
 import { HttpRequest, HttpResponse } from '../http-types';
@@ -58,6 +59,24 @@ async function retrieveOnetimeKey(keyId: string): Promise<{ encryptedBillKey: st
     }
 }
 
+/**
+ * Checks if a one-time key exists without consuming it. Throws an error if not found.
+ * @param keyId The ID of the key to check.
+ * @returns An object with the status 'available'.
+ */
+async function checkOnetimeKeyStatus(keyId: string): Promise<{ status: 'available' }> {
+    if (!keyId) {
+        throw new Error("Missing 'keyId'.");
+    }
+    const redisKey = `onetimekey:${keyId}`;
+    const exists = await redisClient.exists(redisKey);
+    if (!exists) {
+        throw new Error("Key not found or already consumed.");
+    }
+    return { status: 'available' };
+}
+
+
 // --- Framework-Agnostic Handler ---
 export const onetimeKeyHandler = async (req: HttpRequest): Promise<HttpResponse> => {
   const corsHeaders = {
@@ -87,10 +106,20 @@ export const onetimeKeyHandler = async (req: HttpRequest): Promise<HttpResponse>
     }
 
     if (req.method === "GET") {
-        const { keyId } = req.params;
+        const { keyId, action } = req.params;
         if (!keyId) {
-            throw new Error("Missing 'keyId'");
+          throw new Error("Missing 'keyId' for GET request");
         }
+        
+        if (action === 'status') {
+            const result = await checkOnetimeKeyStatus(keyId);
+            return {
+                statusCode: 200,
+                headers: responseHeaders,
+                body: JSON.stringify(result),
+            };
+        }
+
         const result = await retrieveOnetimeKey(keyId);
         return {
           statusCode: 200,
@@ -107,7 +136,7 @@ export const onetimeKeyHandler = async (req: HttpRequest): Promise<HttpResponse>
 
   } catch (error: any) {
     let statusCode = 500;
-    if (error.message.includes("Invalid or expired")) {
+    if (error.message.includes("Invalid or expired") || error.message.includes("Key not found or already consumed.")) {
         statusCode = 404;
     } else if (error.message.includes("Invalid payload") || error.message.includes("Missing 'keyId'")) {
         statusCode = 400;

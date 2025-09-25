@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill, Participant } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
@@ -10,7 +11,7 @@ import AdBillCard from './AdBillCard.tsx';
 import SwipeableImportedBillCard from './SwipeableImportedBillCard.tsx';
 import ShareActionSheet from './ShareActionSheet.tsx';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
-import { generateShareText, generateAggregateBill, generateShareLink } from '../services/shareService.ts';
+import { generateShareText, generateAggregateBill, generateOneTimeShareLink } from '../services/shareService.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 
 interface DashboardProps {
@@ -348,8 +349,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
 
     const summaryBill = generateAggregateBill(participantName, participantUnpaidBills, settings);
-    // For summary bills, we don't need to persist shareInfo, so the callback is undefined.
-    const shareUrl = await generateShareLink(summaryBill, settings, undefined);
+    const shareUrl = await generateOneTimeShareLink(summaryBill, settings);
 
     const message = `Here is a link to view a summary of your outstanding bills with me. This link contains a key and should not be shared with others:\n\n${shareUrl}`;
 

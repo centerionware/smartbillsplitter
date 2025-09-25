@@ -1,7 +1,7 @@
 
 
-// FIX: Changed `import * as express` to `import express` to use the default export,
-// which is the express function needed to create the app instance.
+// FIX: Resolved handler type errors by correcting type imports in `express-adapter.ts`. 
+// The default `import express from 'express'` is correct for creating the application instance.
 import express from 'express';
 import { createExpressAdapter } from './express-adapter';
 
@@ -23,7 +23,7 @@ app.all('/sync', createExpressAdapter(syncHandler));
 
 // Share routes using the adapter
 app.all('/share/:shareId?', createExpressAdapter(shareHandler));
-app.all('/onetime-key/:keyId?', createExpressAdapter(onetimeKeyHandler));
+app.all('/onetime-key/:keyId?/:action(status)?', createExpressAdapter(onetimeKeyHandler));
 
 // Stripe routes using the adapter
 app.post('/create-checkout-session', createExpressAdapter(createCheckoutSessionHandler));
