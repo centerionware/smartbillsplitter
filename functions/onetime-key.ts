@@ -1,13 +1,13 @@
-// FIX: Changed import to use RequestHandler for robust Express handler typing.
-import { RequestHandler } from 'express';
+// FIX: Changed import to use Request and Response for robust Express handler typing.
+import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import redisClient from '../services/redisClient.ts';
 
 // Keys are short-lived, for the initial share only.
 const EXPIRATION_SECONDS = 24 * 60 * 60; // 24 hours
 
-// FIX: Explicitly typed the handler with RequestHandler to ensure correct types for req and res.
-export const onetimeKeyHandler: RequestHandler = async (req, res) => {
+// FIX: Explicitly typed the handler parameters to avoid type conflicts with RequestHandler.
+export const onetimeKeyHandler = async (req: Request, res: Response) => {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");

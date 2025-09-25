@@ -2,7 +2,7 @@ import type { Bill, Settings, Theme, RecurringBill, ImportedBill } from '../type
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 8; // Incremented version for corrective migration
+const DB_VERSION = 9; // Incremented version for the final data sanitization migration
 
 // Object Store Names
 const STORES = {
@@ -47,6 +47,7 @@ export function initDB(): Promise<void> {
     request.onupgradeneeded = (event) => {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
       const transaction = (event.target as IDBOpenDBRequest).transaction;
+      if (!transaction) return;
 
       if (event.oldVersion < 1) {
         if (!dbInstance.objectStoreNames.contains(STORES.BILLS)) {
@@ -89,9 +90,7 @@ export function initDB(): Promise<void> {
       }
       if (event.oldVersion < 8) {
         // Corrective migration to remove obsolete `shareInfo` from both bills and imported_bills.
-        // This is idempotent and will fix data for users on v6 or v7.
         console.log('Upgrading database to version 8: Removing obsolete shareInfo property.');
-        if (!transaction) return;
         
         // Clean up 'bills' store
         const billStore = transaction.objectStore(STORES.BILLS);
@@ -127,6 +126,44 @@ export function initDB(): Promise<void> {
                   console.log('Migration to v8 complete for imported_bills store.');
               }
           };
+        }
+      }
+      if (event.oldVersion < 9) {
+        // Final corrective migration: The new background polling feature in useImportedBills
+        // crashes if it finds an old imported bill with a malformed `shareEncryptionKey`
+        // (which can happen if IndexedDB failed to store a raw CryptoKey object).
+        // This migration cleans that up, making old imported bills static and preventing the crash.
+        console.log('Upgrading database to version 9: Sanitizing imported_bills for new share system.');
+        
+        if (dbInstance.objectStoreNames.contains(STORES.IMPORTED_BILLS)) {
+            const store = transaction.objectStore(STORES.IMPORTED_BILLS);
+            const cursorRequest = store.openCursor();
+
+            cursorRequest.onsuccess = e => {
+                const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                if (cursor) {
+                    const importedBill = cursor.value as ImportedBill;
+                    let needsUpdate = false;
+                    
+                    if (importedBill.shareEncryptionKey) {
+                        // A valid JWK is an object with properties. A failed stored CryptoKey might be
+                        // an empty object `{}`. We remove this property entirely to stop the new
+                        // polling code from attempting to use it and crashing.
+                        const key = importedBill.shareEncryptionKey;
+                        if (typeof key !== 'object' || key === null || !key.kty) {
+                            delete importedBill.shareEncryptionKey;
+                            needsUpdate = true;
+                        }
+                    }
+                    
+                    if (needsUpdate) {
+                        cursor.update(importedBill);
+                    }
+                    cursor.continue();
+                } else {
+                    console.log('Migration to v9 complete for imported_bills store.');
+                }
+            };
         }
       }
     };
