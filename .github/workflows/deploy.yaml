@@ -1,5 +1,5 @@
 name: Build, Push, and Deploy to Kubernetes
- 
+
 on:
   push:
     branches:
@@ -16,11 +16,12 @@ jobs:
   build-and-push-images:
     name: Build and Push Docker Images
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
-    runs-on: ciw-gh-homelab-runners
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    
+      actions: write # Required for gha cache
+
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
 
@@ -34,25 +35,10 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # Log in to Harbor for caching only
-      - name: Log in to Harbor
-        uses: docker/login-action@v3
-        with:
-          registry: harbor.centerionware.com
-          username: ${{ secrets.HARBOR_USER }}
-          password: ${{ secrets.HARBOR_PASS }}
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver: kubernetes
-          driver-opts: |
-            namespace=buildkit
-          use: true
-          buildkitd-config-inline: |
-            [registry."docker.io"]
-              mirrors = ["https://harbor.centerionware.com/dockerhub"]
-            [registry."ghcr.io"]
-              mirrors = ["https://harbor.centerionware.com/github"]
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -71,6 +57,8 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push backend image
         uses: docker/build-push-action@v5
@@ -80,6 +68,8 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.meta.outputs.version }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   update-helm-chart:
     name: Update Helm Chart and Push to Production Branch
@@ -92,21 +82,45 @@ jobs:
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
+        with:
+          path: workspace
 
-      - name: Set image tag variable
-        id: vars
-        run: echo "tag=${{ needs.build-and-push-images.outputs.image_tag }}" >> $GITHUB_OUTPUT
+      - name: Checkout production branch for current chart version
+        uses: actions/checkout@v4
+        with:
+          ref: production
+          path: production
+          continue-on-error: true
+
+      - name: Increment chart version
+        id: increment_version
+        run: |
+          CHART_FILE="production/charts/bill-splitter/Chart.yaml"
+          if [ -f "$CHART_FILE" ]; then
+            CURRENT_VERSION=$(grep '^version:' $CHART_FILE | awk '{print $2}')
+            NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. -v OFS=. '{$NF = $NF + 1;} 1')
+            echo "Found existing version $CURRENT_VERSION. New version: $NEW_VERSION."
+          else
+            NEW_VERSION=$(grep '^version:' workspace/charts/bill-splitter/Chart.yaml | awk '{print $2}')
+            echo "No existing production version found. Using initial version: $NEW_VERSION."
+          fi
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          sed -i "s/^version: .*/version: $NEW_VERSION/" workspace/charts/bill-splitter/Chart.yaml
 
       - name: Update Helm chart values
         run: |
+          cd workspace
+          IMAGE_TAG=${{ needs.build-and-push-images.outputs.image_tag }}
           sed -i "s|owner: PLACEHOLDER_OWNER|owner: ${{ env.IMAGE_OWNER }}|" charts/bill-splitter/values.yaml
-          sed -i "s|IMAGE_TAG_PLACEHOLDER_FRONTEND|${{ steps.vars.outputs.tag }}|g" charts/bill-splitter/templates/deployment.yaml
-          sed -i "s|IMAGE_TAG_PLACEHOLDER_BACKEND|${{ steps.vars.outputs.tag }}|g" charts/bill-splitter/templates/deployment.yaml
+          sed -i "s|IMAGE_TAG_PLACEHOLDER_FRONTEND|$IMAGE_TAG|g" charts/bill-splitter/templates/deployment.yaml
+          sed -i "s|IMAGE_TAG_PLACEHOLDER_BACKEND|$IMAGE_TAG|g" charts/bill-splitter/templates/deployment.yaml
 
       - name: Commit and push changes to production branch
         run: |
+          cd workspace
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add charts/bill-splitter/values.yaml charts/bill-splitter/templates/deployment.yaml
-          git commit -m "build: deploy ${{ steps.vars.outputs.tag }} [ci skip]"
+          git add charts/bill-splitter/Chart.yaml charts/bill-splitter/values.yaml charts/bill-splitter/templates/deployment.yaml
+          git commit -m "build: deploy ${{ needs.build-and-push-images.outputs.image_tag }}, chart version ${{ steps.increment_version.outputs.new_version }} [ci skip]"
           git push --force origin HEAD:production
