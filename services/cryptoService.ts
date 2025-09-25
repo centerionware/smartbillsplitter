@@ -26,6 +26,29 @@ const uint8ArrayToBinaryString = (arr: Uint8Array): string => {
   return binary;
 };
 
+/**
+ * Decodes a standard Base64 string into a Uint8Array, with robust error handling for atob.
+ * @param base64 The standard Base64 string.
+ * @throws An error with a specific message if decoding fails.
+ */
+function decodeBase64(base64: string): Uint8Array {
+    try {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+    } catch (e: any) {
+        // This provides a much clearer error than the default 'atob' failure.
+        if (e instanceof DOMException && e.name === 'InvalidCharacterError') {
+            throw new Error("Failed to decode data. The Base64 string is corrupted or contains invalid characters.");
+        }
+        // Rethrow other errors with more context.
+        throw new Error(`An unexpected error occurred during Base64 decoding: ${e.message}`);
+    }
+}
+
 
 /**
  * Generates a new AES-GCM cryptographic key for symmetric encryption.
@@ -83,8 +106,8 @@ export const encrypt = async (data: string, key: CryptoKey): Promise<string> => 
  * @returns The original decrypted string.
  */
 export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<string> => {
-  // Decode the base64 string back to an ArrayBuffer
-  const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+  // Decode the base64 string back to an ArrayBuffer using the robust helper
+  const combined = decodeBase64(encryptedData);
   
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
@@ -136,6 +159,7 @@ export const sign = async (data: string, privateKey: CryptoKey): Promise<string>
  */
 export const verify = async (data: string, signature: string, publicKey: CryptoKey): Promise<boolean> => {
   const encodedData = new TextEncoder().encode(data);
-  const signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+  // Decode the signature using the robust helper
+  const signatureBytes = decodeBase64(signature);
   return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes, encodedData);
 };
