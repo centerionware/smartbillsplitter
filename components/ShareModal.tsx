@@ -7,7 +7,6 @@ interface ShareModalProps {
   bill: Bill;
   settings: Settings;
   onClose: () => void;
-  // FIX: Updated prop type to reflect that updating a bill is an async operation.
   onUpdateBill: (bill: Bill) => Promise<void>;
 }
 
@@ -23,22 +22,16 @@ const ActionButton: React.FC<{ onClick: () => void; children: React.ReactNode; d
 );
 
 const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpdateBill }) => {
-  const [links, setLinks] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<string | null>(null);
   const { showNotification } = useAppControl();
 
-  const getLink = useCallback(async (participant: Participant): Promise<string | null> => {
-    // Return cached link if available
-    if (links[participant.id]) {
-      return links[participant.id];
-    }
-
+  const getShareUrlForParticipant = useCallback(async (participant: Participant): Promise<string | null> => {
     setLoading(prev => new Set(prev).add(participant.id));
     try {
-      // The new generateShareLink handles per-participant logic
+      // The generateShareLink service now correctly handles caching and server-side checks.
+      // We no longer need a local cache in this component.
       const url = await generateShareLink(bill, participant.id, settings, onUpdateBill);
-      setLinks(prev => ({ ...prev, [participant.id]: url }));
       return url;
     } catch (e: any) {
       console.error("Error generating share link:", e);
@@ -51,10 +44,10 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
         return next;
       });
     }
-  }, [bill, links, settings, onUpdateBill, showNotification]);
+  }, [bill, settings, onUpdateBill, showNotification]);
 
   const handleCopy = async (p: Participant) => {
-    const url = await getLink(p);
+    const url = await getShareUrlForParticipant(p);
     if (url) {
       navigator.clipboard.writeText(url);
       setCopied(p.id);
@@ -63,7 +56,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
   };
 
   const handleShare = async (p: Participant) => {
-    const url = await getLink(p);
+    const url = await getShareUrlForParticipant(p);
     if (!url) return;
     
     const message = `Here is a secure link to our bill for "${bill.description}":\n\n${url}`;
@@ -83,14 +76,14 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
   };
 
   const handleSms = async (p: Participant) => {
-    const url = await getLink(p);
+    const url = await getShareUrlForParticipant(p);
     if (url && p.phone) {
       window.location.href = `sms:${p.phone}?&body=${encodeURIComponent(getShareMessage(p, url))}`;
     }
   };
   
   const handleEmail = async (p: Participant) => {
-    const url = await getLink(p);
+    const url = await getShareUrlForParticipant(p);
     if (url && p.email) {
       window.location.href = `mailto:${p.email}?subject=${encodeURIComponent(`Bill: ${bill.description}`)}&body=${encodeURIComponent(getShareMessage(p, url))}`;
     }

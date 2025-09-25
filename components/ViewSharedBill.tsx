@@ -12,7 +12,7 @@ interface ViewSharedBillProps {
 
 type Status = 'loading' | 'fetching_key' | 'fetching_data' | 'verifying' | 'verified' | 'imported' | 'error' | 'expired';
 
-// Helper to decode a Base64URL string
+// Helper to decode a Base64URL string robustly.
 function base64UrlDecode(base64Url: string): string {
     // Replace URL-safe characters with Base64 standard characters
     let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -31,9 +31,15 @@ function base64UrlDecode(base64Url: string): string {
     }
     
     try {
-        return atob(base64);
+        // First, decode from Base64 to a binary string (each char has a code from 0-255).
+        const binaryString = atob(base64);
+        // Then, convert this binary string into a Uint8Array of bytes.
+        const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
+        // Finally, use TextDecoder to interpret these bytes as a UTF-8 string.
+        // This correctly handles any multi-byte characters in the original JSON.
+        return new TextDecoder().decode(bytes);
     } catch (e) {
-        // This catches errors from invalid characters within the string itself.
+        // This catches errors from invalid characters within the base64 string itself.
         console.error("atob failed:", e);
         throw new Error('Malformed share link: The key data contains invalid characters.');
     }

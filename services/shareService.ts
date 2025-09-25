@@ -1,4 +1,3 @@
-
 import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import * as cryptoService from './cryptoService.ts';
@@ -9,10 +8,22 @@ interface ShareBillInfo {
     amountOwed: number;
 }
 
+// Converts a UTF-8 string to a binary string where each character's code is 0-255,
+// making it suitable for the btoa function.
+const utf8ToBinary = (str: string): string => {
+  const encoder = new TextEncoder();
+  const uint8Array = encoder.encode(str);
+  let binary = '';
+  uint8Array.forEach(byte => {
+    binary += String.fromCharCode(byte);
+  });
+  return binary;
+}
+
 // Helper to Base64URL encode a string, making it safe for URLs
 function base64UrlEncode(str: string): string {
-    // Regular base64 contains characters that are not URL-safe (+, /, =)
-    return btoa(str)
+    // Use the robust helper to prevent errors with Unicode characters before encoding.
+    return btoa(utf8ToBinary(str))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=/g, '');
