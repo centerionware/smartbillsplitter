@@ -1,12 +1,12 @@
-// FIX: Changed import to use Request and Response for robust Express handler typing.
-import { Request, Response } from 'express';
+// FIX: Replaced explicit Request/Response imports with the RequestHandler type for better type inference and compatibility with Express.
+import type { RequestHandler } from 'express';
 import { randomUUID } from 'crypto';
 import redisClient from '../services/redisClient.ts';
 
 const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
-// FIX: Explicitly typed the handler function with Request and Response types.
-export const shareHandler = async (req: Request, res: Response) => {
+// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
+export const shareHandler: RequestHandler = async (req, res) => {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");

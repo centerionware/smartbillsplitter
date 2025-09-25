@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-// FIX: Changed import to use Request and Response for robust Express handler typing.
-import { Request, Response } from 'express';
+// FIX: Replaced explicit Request/Response imports with the RequestHandler type for better type inference and compatibility with Express.
+import type { RequestHandler } from 'express';
 
 // Defines the expected JSON structure from the Gemini API for consistent data handling.
 const responseSchema = {
@@ -61,9 +61,9 @@ const responseSchema = {
   required: ["description", "items"],
 };
 
-// The main handler, now an Express RequestHandler.
-// FIX: Explicitly typed the handler function with Request and Response types.
-export const scanReceiptHandler = async (req: Request, res: Response) => {
+// The main handler, now explicitly typed as a RequestHandler.
+// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
+export const scanReceiptHandler: RequestHandler = async (req, res) => {
   const { base64Image, mimeType } = req.body;
   if (!base64Image || !mimeType) {
     return res.status(400).json({ error: 'Missing required parameters: base64Image and mimeType.' });
@@ -82,7 +82,6 @@ export const scanReceiptHandler = async (req: Request, res: Response) => {
     const textPart = { text: "Analyze the provided receipt image. Extract a concise description (like the store name), the date, the final total, a list of all line items with their individual prices, and a list of any other relevant information (like store location, tracking numbers, etc.) as key-value pairs. Ignore any taxes, tips, or subtotals that are not individual items. Return all data in the specified JSON format." };
 
     const response = await ai.models.generateContent({
-      // FIX: Use the correct model as per guidelines.
       model: 'gemini-2.5-flash',
       contents: { parts: [imagePart, textPart] },
       config: {

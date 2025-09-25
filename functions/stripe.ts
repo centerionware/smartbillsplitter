@@ -1,5 +1,5 @@
-// FIX: Changed import to use Request and Response types for robust Express handler typing.
-import { Request, Response } from 'express';
+// FIX: Replaced explicit Request/Response imports with the RequestHandler and Response types for better type inference and compatibility with Express.
+import type { RequestHandler, Response } from 'express';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
@@ -22,8 +22,8 @@ const checkStripeConfig = (res: Response): boolean => {
     return true;
 }
 
-// FIX: Explicitly typed the handler function with Request and Response types.
-export const createCheckoutSessionHandler = async (req: Request, res: Response) => {
+// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
+export const createCheckoutSessionHandler: RequestHandler = async (req, res) => {
     if (!checkStripeConfig(res)) return;
 
     const { plan, origin } = req.body;
@@ -55,8 +55,8 @@ export const createCheckoutSessionHandler = async (req: Request, res: Response) 
     }
 };
 
-// FIX: Explicitly typed the handler function with Request and Response types.
-export const verifySessionHandler = async (req: Request, res: Response) => {
+// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
+export const verifySessionHandler: RequestHandler = async (req, res) => {
     if (!checkStripeConfig(res)) return;
 
     const { sessionId } = req.body;
@@ -99,8 +99,8 @@ export const verifySessionHandler = async (req: Request, res: Response) => {
     }
 };
 
-// FIX: Explicitly typed the handler function with Request and Response types.
-export const createCustomerPortalSessionHandler = async (req: Request, res: Response) => {
+// FIX: Changed function signature to use the RequestHandler type, which correctly types req and res for an Express route handler.
+export const createCustomerPortalSessionHandler: RequestHandler = async (req, res) => {
     if (!checkStripeConfig(res)) return;
 
     const { customerId, origin } = req.body;
