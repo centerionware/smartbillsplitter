@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Bill, Settings, RecurringBill, Participant, ReceiptItem, ImportedBill } from './types.ts';
+import type { Bill, Settings, RecurringBill, Participant, ReceiptItem, ImportedBill, SummaryFilter } from './types.ts';
 import { View } from './types.ts';
 import { useBills } from './hooks/useBills.ts';
 import { useImportedBills } from './hooks/useImportedBills.ts';
@@ -58,6 +58,7 @@ const App: React.FC = () => {
   const [dashboardView, setDashboardView] = useState<'bills' | 'participants'>('bills');
   const [dashboardStatusFilter, setDashboardStatusFilter] = useState<'active' | 'archived'>('active');
   const [dashboardParticipant, setDashboardParticipant] = useState<string | null>(null);
+  const [dashboardSummaryFilter, setDashboardSummaryFilter] = useState<SummaryFilter>('total');
   
   // A single source of truth for the current logical path of the application.
   // On initial load, it reads from the URL hash if not in an iframe, otherwise defaults to the dashboard.
@@ -125,6 +126,8 @@ const App: React.FC = () => {
 
     const statusParam = params.get('status');
     const status = statusParam === 'archived' ? 'archived' : 'active';
+    const summaryFilterParam = params.get('summaryFilter');
+    const summaryFilter: SummaryFilter = (summaryFilterParam === 'othersOweMe' || summaryFilterParam === 'iOwe') ? summaryFilterParam : 'total';
     
     if (path.startsWith('#/bill/')) {
       const billId = path.substring(7);
@@ -177,6 +180,7 @@ const App: React.FC = () => {
         const view = path.startsWith('#/participants') ? 'participants' : 'bills';
         setDashboardView(view);
         setDashboardStatusFilter(status);
+        setDashboardSummaryFilter(summaryFilter);
         setCurrentView(View.Dashboard);
     }
   }, [currentPath, bills, recurringBills, importedBills, billsLoading, recurringBillsLoading, importedBillsLoading, navigate]);
@@ -319,33 +323,58 @@ const App: React.FC = () => {
   const handleGoHome = () => navigate('#/');
   
   const handleSetDashboardView = (view: 'bills' | 'participants') => {
-    const statusQuery = dashboardStatusFilter === 'archived' ? '?status=archived' : '';
+    const params = new URLSearchParams(currentPath.split('?')[1] || '');
+    if (view === 'participants') {
+        params.delete('summaryFilter');
+    }
     const path = view === 'bills' ? '/' : '/participants';
-    navigate(`#${path}${statusQuery}`);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    navigate(`#${path}${queryString}`);
   };
   
   const handleSetDashboardStatusFilter = (status: 'active' | 'archived') => {
-    const statusQuery = status === 'archived' ? '?status=archived' : '';
+    const params = new URLSearchParams(currentPath.split('?')[1] || '');
+    if (status === 'archived') {
+        params.set('status', 'archived');
+        params.delete('summaryFilter'); // Reset summary filter for archived view
+    } else {
+        params.delete('status');
+    }
     
     let path: string;
     if (dashboardParticipant) {
-      // If we are viewing a specific participant, maintain that view
-      path = `/participants/${encodeURIComponent(dashboardParticipant)}`;
+        path = `/participants/${encodeURIComponent(dashboardParticipant)}`;
     } else {
-      // Otherwise, use the general dashboard view (bills or participants list)
-      path = dashboardView === 'bills' ? '/' : '/participants';
+        path = dashboardView === 'bills' ? '/' : '/participants';
     }
 
-    navigate(`#${path}${statusQuery}`);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    navigate(`#${path}${queryString}`);
+  };
+  
+  const handleSetDashboardSummaryFilter = (filter: SummaryFilter) => {
+    const params = new URLSearchParams(currentPath.split('?')[1] || '');
+    if (filter !== 'total') {
+        params.set('summaryFilter', filter);
+    } else {
+        params.delete('summaryFilter');
+    }
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    // This action always navigates to the root bill view
+    navigate(`#/${queryString}`);
   };
 
   const handleSelectDashboardParticipant = (name: string) => {
-    const statusQuery = dashboardStatusFilter === 'archived' ? '?status=archived' : '';
-    navigate(`#/participants/${encodeURIComponent(name)}${statusQuery}`);
+    const params = new URLSearchParams(currentPath.split('?')[1] || '');
+    params.delete('summaryFilter');
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    navigate(`#/participants/${encodeURIComponent(name)}${queryString}`);
   };
   const handleClearDashboardParticipant = () => {
-    const statusQuery = dashboardStatusFilter === 'archived' ? '?status=archived' : '';
-    navigate(`#/participants${statusQuery}`);
+    const params = new URLSearchParams(currentPath.split('?')[1] || '');
+    params.delete('summaryFilter');
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    navigate(`#/participants${queryString}`);
   };
 
   const handleSaveBill = (bill: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => {
@@ -486,8 +515,10 @@ const App: React.FC = () => {
             dashboardView={dashboardView}
             selectedParticipant={dashboardParticipant}
             dashboardStatusFilter={dashboardStatusFilter}
+            dashboardSummaryFilter={dashboardSummaryFilter}
             onSetDashboardView={handleSetDashboardView}
             onSetDashboardStatusFilter={handleSetDashboardStatusFilter}
+            onSetDashboardSummaryFilter={handleSetDashboardSummaryFilter}
             onSelectParticipant={handleSelectDashboardParticipant}
             onClearParticipant={handleClearDashboardParticipant}
           />

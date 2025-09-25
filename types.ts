@@ -13,6 +13,8 @@ export enum View {
 
 export type Theme = 'light' | 'dark' | 'system';
 
+export type SummaryFilter = 'total' | 'othersOweMe' | 'iOwe';
+
 export type SplitMode = 'equally' | 'amount' | 'percentage' | 'item';
 
 export interface Participant {
