@@ -1,5 +1,5 @@
 // FIX: Changed import to use RequestHandler for robust Express handler typing.
-import type { RequestHandler } from 'express';
+import { RequestHandler } from 'express';
 import redisClient from '../services/redisClient.ts';
 
 const EXPIRATION_SECONDS = 5 * 60; // 5 minutes

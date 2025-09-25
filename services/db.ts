@@ -2,7 +2,7 @@ import type { Bill, Settings, Theme, RecurringBill, ImportedBill } from '../type
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 7; // Incremented version for migration
+const DB_VERSION = 8; // Incremented version for corrective migration
 
 // Object Store Names
 const STORES = {
@@ -87,16 +87,16 @@ export function initDB(): Promise<void> {
             dbInstance.deleteObjectStore('share_keys');
         }
       }
-      if (event.oldVersion < 7) {
-        // Migration to remove obsolete `shareInfo` from existing bills. This property
-        // is from the old sharing system and will cause crashes with the new code.
-        console.log('Upgrading database to version 7: Removing obsolete shareInfo from bills.');
+      if (event.oldVersion < 8) {
+        // Corrective migration to remove obsolete `shareInfo` from both bills and imported_bills.
+        // This is idempotent and will fix data for users on v6 or v7.
+        console.log('Upgrading database to version 8: Removing obsolete shareInfo property.');
         if (!transaction) return;
         
+        // Clean up 'bills' store
         const billStore = transaction.objectStore(STORES.BILLS);
-        const cursorRequest = billStore.openCursor();
-
-        cursorRequest.onsuccess = e => {
+        const billCursorRequest = billStore.openCursor();
+        billCursorRequest.onsuccess = e => {
             const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
             if (cursor) {
                 const bill = cursor.value;
@@ -106,9 +106,28 @@ export function initDB(): Promise<void> {
                 }
                 cursor.continue();
             } else {
-                console.log('Bill data migration to v7 complete.');
+                console.log('Migration to v8 complete for bills store.');
             }
         };
+
+        // Clean up 'imported_bills' store, which contains nested bill objects
+        if (dbInstance.objectStoreNames.contains(STORES.IMPORTED_BILLS)) {
+          const importedBillStore = transaction.objectStore(STORES.IMPORTED_BILLS);
+          const importedBillCursorRequest = importedBillStore.openCursor();
+          importedBillCursorRequest.onsuccess = e => {
+              const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+              if (cursor) {
+                  const importedBill = cursor.value as ImportedBill;
+                  if (importedBill.sharedData?.bill && 'shareInfo' in importedBill.sharedData.bill) {
+                      delete importedBill.sharedData.bill.shareInfo;
+                      cursor.update(importedBill);
+                  }
+                  cursor.continue();
+              } else {
+                  console.log('Migration to v8 complete for imported_bills store.');
+              }
+          };
+        }
       }
     };
 

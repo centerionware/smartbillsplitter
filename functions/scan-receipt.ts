@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 // FIX: Changed import to use RequestHandler for robust Express handler typing.
-import type { RequestHandler } from 'express';
+import { RequestHandler } from 'express';
 
 // Defines the expected JSON structure from the Gemini API for consistent data handling.
 const responseSchema = {

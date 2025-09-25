@@ -1,5 +1,5 @@
 // FIX: Changed import to use RequestHandler for robust Express handler typing.
-import type { RequestHandler } from 'express';
+import { RequestHandler } from 'express';
 import { randomUUID } from 'crypto';
 import redisClient from '../services/redisClient.ts';
 

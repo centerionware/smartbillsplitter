@@ -1,5 +1,5 @@
 // FIX: Changed import to use RequestHandler and Response types for robust Express handler typing.
-import type { Response, RequestHandler } from 'express';
+import { Response, RequestHandler } from 'express';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
