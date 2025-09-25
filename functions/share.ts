@@ -20,7 +20,8 @@ async function createOrUpdateShare(encryptedData: string, shareId?: string): Pro
     const now = Date.now();
     
     try {
-        const sessionData = { encryptedData, lastUpdatedAt: now }; // Use 'encryptedData' key
+        // FIX: Consistently use the 'encryptedData' key for all new and updated shares.
+        const sessionData = { encryptedData, lastUpdatedAt: now };
         if (shareId) { // UPDATE
             const key = `share:${shareId}`;
             if (!(await redisClient.exists(key))) {
