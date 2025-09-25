@@ -1,11 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AD_IFRAME_CONTENT } from '../services/adService.ts';
 
 const FloatingAd: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);
+  const [loadAd, setLoadAd] = useState(false);
+  const adRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setLoadAd(true);
+          if (adRef.current) {
+            observer.unobserve(adRef.current);
+          }
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (adRef.current) {
+      observer.observe(adRef.current);
+    }
+
+    return () => {
+      if (adRef.current) {
+        observer.unobserve(adRef.current);
+      }
+    };
+  }, [isVisible]);
 
   const handleClose = (e: React.MouseEvent) => {
-    // Prevent the click from bubbling up or triggering any other default action.
     e.preventDefault();
     e.stopPropagation();
     setIsVisible(false);
@@ -17,6 +44,7 @@ const FloatingAd: React.FC = () => {
 
   return (
     <aside
+      ref={adRef}
       className="fixed bottom-4 right-4 z-50 w-full max-w-sm bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700"
       role="complementary"
       aria-label="Advertisement"
@@ -32,18 +60,20 @@ const FloatingAd: React.FC = () => {
           </svg>
         </button>
         
-        <iframe
-          srcDoc={AD_IFRAME_CONTENT}
-          title="Advertisement"
-          style={{
-            width: '100%',
-            height: '100px',
-            border: '0',
-            overflow: 'hidden',
-          }}
-          sandbox="allow-scripts"
-          aria-label="Advertisement Content"
-        ></iframe>
+        {loadAd && (
+          <iframe
+            srcDoc={AD_IFRAME_CONTENT}
+            title="Advertisement"
+            style={{
+              width: '100%',
+              height: '100px',
+              border: '0',
+              overflow: 'hidden',
+            }}
+            sandbox="allow-scripts"
+            aria-label="Advertisement Content"
+          ></iframe>
+        )}
 
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-2">
             Upgrade to Pro to remove ads!

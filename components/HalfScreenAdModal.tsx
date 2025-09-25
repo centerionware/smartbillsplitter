@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { AD_IFRAME_CONTENT } from '../services/adService.ts';
 
 interface HalfScreenAdModalProps {
@@ -7,6 +7,8 @@ interface HalfScreenAdModalProps {
 
 const HalfScreenAdModal: React.FC<HalfScreenAdModalProps> = ({ onClose }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const adContainerRef = useRef<HTMLDivElement>(null);
+  const [loadAd, setLoadAd] = useState(false);
 
   // Animate in on mount
   useEffect(() => {
@@ -18,6 +20,31 @@ const HalfScreenAdModal: React.FC<HalfScreenAdModalProps> = ({ onClose }) => {
     return () => clearTimeout(timer);
   }, []);
   
+  // Use intersection observer to load the ad only when the container is visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setLoadAd(true);
+          if (adContainerRef.current) {
+            observer.unobserve(adContainerRef.current);
+          }
+        }
+      },
+      { threshold: 0.5 } // Load when 50% of the ad container is visible
+    );
+
+    if (adContainerRef.current) {
+      observer.observe(adContainerRef.current);
+    }
+
+    return () => {
+      if (adContainerRef.current) {
+        observer.unobserve(adContainerRef.current);
+      }
+    };
+  }, []);
+
   const handleClose = () => {
       if(modalRef.current) {
           modalRef.current.classList.add('translate-y-full');
@@ -56,19 +83,21 @@ const HalfScreenAdModal: React.FC<HalfScreenAdModalProps> = ({ onClose }) => {
               </svg>
             </button>
           </div>
-          <div className="flex-grow w-full h-full">
-            <iframe
-              srcDoc={AD_IFRAME_CONTENT}
-              title="Advertisement"
-              style={{
-                width: '100%',
-                height: '100%',
-                border: '0',
-                overflow: 'hidden',
-              }}
-              sandbox="allow-scripts"
-              aria-label="Advertisement Content"
-            ></iframe>
+          <div ref={adContainerRef} className="flex-grow w-full h-full">
+            {loadAd && (
+              <iframe
+                srcDoc={AD_IFRAME_CONTENT}
+                title="Advertisement"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: '0',
+                  overflow: 'hidden',
+                }}
+                sandbox="allow-scripts"
+                aria-label="Advertisement Content"
+              ></iframe>
+            )}
            </div>
            <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-2">
             Upgrade to Pro to remove ads!
