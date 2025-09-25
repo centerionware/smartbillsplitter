@@ -13,15 +13,15 @@ const SIGNING_KEY_EXTRACTABLE = true; // Allow exporting the public key
 const SIGNING_KEY_USAGES: KeyUsage[] = ['sign', 'verify'];
 
 /**
- * A robust, chunk-based method to convert a Uint8Array to a binary string for btoa,
- * preventing "Maximum call stack size exceeded" errors with large inputs.
+ * Converts a Uint8Array to a "binary string" (a string where each character's char code is a byte value),
+ * which is the format required by the btoa function. This is a robust way to handle Unicode.
  * @param arr The Uint8Array to convert.
  */
 const uint8ArrayToBinaryString = (arr: Uint8Array): string => {
-  const CHUNK_SIZE = 8192;
   let binary = '';
-  for (let i = 0; i < arr.length; i += CHUNK_SIZE) {
-    binary += String.fromCharCode.apply(null, arr.subarray(i, i + CHUNK_SIZE) as unknown as number[]);
+  // This loop is more robust than `String.fromCharCode.apply` for large inputs on some JS engines.
+  for (let i = 0; i < arr.length; i++) {
+    binary += String.fromCharCode(arr[i]);
   }
   return binary;
 };

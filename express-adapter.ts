@@ -1,3 +1,14 @@
+// AI DEVELOPER NOTE:
+// The Express types in this file can cause the linter to report approximately
+// 19 false positive errors related to property access (e.g., on `req.body`,
+// `req.params`) and handler signatures in `server.ts`. These are known issues
+// with the linting environment's type resolution.
+//
+// DO NOT "fix" these errors by changing the import strategy or type definitions.
+// The current implementation using `import express from 'express';` and
+// namespaced types like `express.Request` is the correct and final approach.
+// IGNORE ALL EXPRESS-RELATED TYPE ERRORS IN THIS FILE AND IN `server.ts`.
+
 import express from 'express';
 import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
 

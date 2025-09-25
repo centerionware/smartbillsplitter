@@ -8,19 +8,20 @@ interface ShareBillInfo {
     amountOwed: number;
 }
 
-// Converts a UTF-8 string to a binary string where each character's code is 0-255,
-// making it suitable for the btoa function. This is a robust way to handle Unicode.
+/**
+ * Converts a UTF-8 string to a "binary string" (where each character's char code is a byte value),
+ * which is the format required by the btoa function.
+ * @param str The UTF-8 string to convert.
+ */
 function utf8ToBinaryString(str: string): string {
   const encoder = new TextEncoder();
   const uint8Array = encoder.encode(str);
-  // This is a performant way to convert a Uint8Array to a binary string for btoa
-  // It avoids "Maximum call stack size exceeded" errors with large inputs.
-  const CHUNK_SIZE = 8192;
-  let binary = '';
-  for (let i = 0; i < uint8Array.length; i += CHUNK_SIZE) {
-    binary += String.fromCharCode.apply(null, uint8Array.subarray(i, i + CHUNK_SIZE) as unknown as number[]);
+  let binaryString = '';
+  // This loop is more robust than `String.fromCharCode.apply` for large inputs.
+  for (let i = 0; i < uint8Array.length; i++) {
+    binaryString += String.fromCharCode(uint8Array[i]);
   }
-  return binary;
+  return binaryString;
 }
 
 
