@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import redisClient from '../services/redisClient.ts';
 

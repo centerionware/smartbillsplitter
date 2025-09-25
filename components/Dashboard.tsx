@@ -342,9 +342,10 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
 
     const summaryBill = generateAggregateBill(participantName, participantUnpaidBills, settings);
-    const { url: shareUrl } = await generateShareLink(summaryBill, settings);
+    // For summary bills, we don't need to persist shareInfo, so the callback is undefined.
+    const shareUrl = await generateShareLink(summaryBill, settings, undefined);
 
-    const message = `Here is a link to view a summary of your outstanding bills with me. This link will expire after it's used once or after 24 hours:\n\n${shareUrl}`;
+    const message = `Here is a link to view a summary of your outstanding bills with me. This link contains a key and should not be shared with others:\n\n${shareUrl}`;
 
     try {
         if (method === 'sms') {

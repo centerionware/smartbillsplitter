@@ -28,12 +28,14 @@ export const DisclaimerContent: React.FC = () => (
             <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                 <h4 className="font-semibold text-slate-700 dark:text-slate-200">How Secure Bill Sharing Works</h4>
                 <p className="text-sm mt-1">
-                    To allow someone to view a shared bill via a link, we must provide them with a way to decrypt it. To do this securely, we temporarily store a one-time use <strong>decryption key</strong> on our server, separate from the encrypted bill data itself. The link you share contains a unique ID to fetch this key.
+                    To ensure share links are secure and can only be used once to retrieve the bill's key, we use a two-key system.
                 </p>
                 <ul className="list-disc list-inside space-y-1 mt-2 pl-2 text-sm">
-                    <li>This key is "consumable" - it is <strong>permanently deleted</strong> from our server immediately after it is accessed for the first time.</li>
-                    <li>If unused, the key is automatically deleted after <strong>24 hours</strong>.</li>
-                    <li>This process ensures that only the intended recipient with the unique link can decrypt the bill information, and only for a limited time. The sender's public key, used for verifying the bill's authenticity, is part of the encrypted data and is not stored separately.</li>
+                    <li>A <strong>long-term key</strong> is created to encrypt the bill data itself. This key is what the recipient will store to view the bill long-term.</li>
+                    <li>A <strong>one-time-use key</strong> is generated and embedded directly into the URL fragment of the share link you send. Your browser does not send this part of the URL to our server.</li>
+                    <li>The long-term key is itself encrypted and stored temporarily on our server with a unique ID.</li>
+                    <li>When your friend opens the link, their browser uses the one-time-use key from the URL to securely download and decrypt the long-term key. This long-term key is then <strong>immediately and permanently deleted</strong> from our server.</li>
+                    <li>This process makes the link single-use for key retrieval and ensures we (the server operators) can never read your bill data.</li>
                 </ul>
             </div>
         </div>

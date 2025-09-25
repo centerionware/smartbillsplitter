@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;

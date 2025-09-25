@@ -1,9 +1,9 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express } from 'express';
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
 import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler } from './functions/stripe';
 import { shareHandler } from './functions/share';
-import { shareKeyHandler } from './functions/share-key';
+import { onetimeKeyHandler } from './functions/onetime-key';
 
 const app: Express = express();
 const port = process.env.PORT || 3000;
@@ -16,7 +16,7 @@ app.all('/sync', syncHandler);
 
 // Share routes
 app.all('/share/:shareId?', shareHandler);
-app.all('/share-key/:keyId?', shareKeyHandler);
+app.all('/onetime-key/:keyId?', onetimeKeyHandler);
 
 // Stripe routes
 app.post('/create-checkout-session', createCheckoutSessionHandler);
@@ -25,7 +25,7 @@ app.post('/create-customer-portal-session', createCustomerPortalSessionHandler);
 
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 

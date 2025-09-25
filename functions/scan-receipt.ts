@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Request, Response } from 'express';
+import { Request, Response } from 'express';
 
 // Defines the expected JSON structure from the Gemini API for consistent data handling.
 const responseSchema = {

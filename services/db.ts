@@ -2,7 +2,7 @@ import type { Bill, Settings, Theme, RecurringBill, ImportedBill } from '../type
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 5; // Incremented version for new stores
+const DB_VERSION = 6; // Incremented version for new stores
 
 // Object Store Names
 const STORES = {
@@ -14,7 +14,6 @@ const STORES = {
   SUBSCRIPTION: 'subscription',
   SUBSCRIPTION_DETAILS: 'subscription_details',
   CRYPTO_KEYS: 'crypto_keys', // Note: This is now legacy and unused.
-  SHARE_KEYS: 'share_keys',
   BILL_SIGNING_KEYS: 'bill_signing_keys',
 };
 
@@ -73,14 +72,15 @@ export function initDB(): Promise<void> {
           dbInstance.createObjectStore(STORES.IMPORTED_BILLS, { keyPath: 'id' });
         }
       }
-      if (event.oldVersion < 4) {
-        if (!dbInstance.objectStoreNames.contains(STORES.SHARE_KEYS)) {
-          dbInstance.createObjectStore(STORES.SHARE_KEYS, { keyPath: 'shareId' });
-        }
-      }
       if (event.oldVersion < 5) {
         if (!dbInstance.objectStoreNames.contains(STORES.BILL_SIGNING_KEYS)) {
             dbInstance.createObjectStore(STORES.BILL_SIGNING_KEYS, { keyPath: 'billId' });
+        }
+      }
+      if (event.oldVersion < 6) {
+        // Obsolete store, keys are now passed directly in the URL hash.
+        if (dbInstance.objectStoreNames.contains('share_keys')) {
+            dbInstance.deleteObjectStore('share_keys');
         }
       }
     };
@@ -165,15 +165,6 @@ export const getBillSigningKey = (billId: string) => get<BillSigningKeyRecord>(S
 export const deleteBillSigningKeyDB = (billId: string) => del(STORES.BILL_SIGNING_KEYS, billId);
 
 
-// --- Share Keys ---
-interface ShareKeyRecord {
-  shareId: string;
-  key: JsonWebKey;
-}
-export const getShareKey = (shareId: string) => get<ShareKeyRecord>(STORES.SHARE_KEYS, shareId);
-export const saveShareKey = (shareId: string, key: JsonWebKey) => set(STORES.SHARE_KEYS, { shareId, key });
-
-
 // --- Subscription ---
 export const getSubscriptionDetails = () => get<SubscriptionDetails>(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
 export const saveSubscriptionDetails = (details: SubscriptionDetails) => set(STORES.SUBSCRIPTION_DETAILS, details, SINGLE_KEY);
@@ -238,13 +229,12 @@ export async function exportData(): Promise<object> {
       STORES.SETTINGS, 
       STORES.THEME, 
       STORES.SUBSCRIPTION, 
-      STORES.SUBSCRIPTION_DETAILS, 
-      STORES.SHARE_KEYS,
+      STORES.SUBSCRIPTION_DETAILS,
       // Note: BILL_SIGNING_KEYS and the legacy CRYPTO_KEYS are intentionally omitted
       // for security, as private keys should never be exported.
     ];
     for (const storeName of storesToExport) {
-        if ([STORES.BILLS, STORES.RECURRING_BILLS, STORES.IMPORTED_BILLS, STORES.SHARE_KEYS].includes(storeName)) {
+        if ([STORES.BILLS, STORES.RECURRING_BILLS, STORES.IMPORTED_BILLS].includes(storeName)) {
              data[storeName] = await getAll(storeName);
         } else {
              data[storeName] = await get(storeName, SINGLE_KEY);

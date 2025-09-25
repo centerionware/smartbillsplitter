@@ -8,6 +8,16 @@ interface ShareBillInfo {
     amountOwed: number;
 }
 
+// Helper to Base64URL encode a string, making it safe for URLs
+function base64UrlEncode(str: string): string {
+    // Regular base64 contains characters that are not URL-safe (+, /, =)
+    return btoa(str)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+
 export const generateShareText = (
     participantName: string,
     totalOwed: number,
@@ -93,116 +103,79 @@ export const generateAggregateBill = (participantName: string, unpaidBills: Bill
 };
 
 /**
- * Encrypts a bill, uploads it, and generates a single shareable URL with a one-time key.
- * This function intelligently handles both real, persisted bills and temporary summary bills.
+ * Encrypts a bill, uploads it, and generates a single, one-time-use shareable URL.
+ * The URL contains a temporary key in the fragment, which is used to decrypt the long-term
+ * bill key fetched from a self-destructing server endpoint.
  * @param bill The bill to share.
  * @param settings The current app settings.
- * @returns A promise resolving to an object with the share URL and the shareInfo.
+ * @param onShareInfoCreated Optional callback to persist new share info for a real bill.
+ * @returns A promise resolving to the shareable URL string.
  */
 export const generateShareLink = async (
-    bill: Bill, 
-    settings: Settings
-): Promise<{ url: string; shareInfo: Bill['shareInfo'] | null }> => {
-    
-    // For summary bills, which are temporary and not stored.
-    // We generate temporary keys in-memory for this single transaction.
-    if (bill.id.startsWith('summary-')) {
-        const tempSigningKeyPair = await cryptoService.generateSigningKeyPair();
-        const tempEncryptionKey = await cryptoService.generateEncryptionKey();
-        const publicKeyJwk = await cryptoService.exportKey(tempSigningKeyPair.publicKey);
-
-        const encryptedData = await encryptAndSignPayload(bill, settings, tempSigningKeyPair.privateKey, publicKeyJwk, tempEncryptionKey);
-        
-        const shareResponse = await fetch('/share', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ encryptedData }),
-        });
-        const { shareId } = await shareResponse.json();
-
-        const exportedKey = await cryptoService.exportKey(tempEncryptionKey);
-        const keyResponse = await fetch('/share-key', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: exportedKey, shareId }),
-        });
-        const { keyId } = await keyResponse.json();
-        
-        const url = new URL(window.location.href);
-        url.hash = `#/view-bill?shareId=${shareId}&keyId=${keyId}`;
-
-        return { url: url.toString(), shareInfo: null }; // No shareInfo to persist for summaries
-    }
-
-    // For regular, persisted bills.
-    const { links, shareInfo } = await generateShareLinksForParticipants(bill, [], settings);
-    return { url: links.get('default') || '', shareInfo };
-};
-
-
-/**
- * Generates unique, one-time-use share links for a list of participants.
- * If the participant list is empty, it generates a single default link.
- * @param bill The bill to share.
- * @param participantNames A list of participant names to generate links for.
- * @param settings App settings.
- * @returns A map of participant names to their unique share URLs, and the bill's shareInfo.
- */
-export const generateShareLinksForParticipants = async (
     bill: Bill,
-    participantNames: string[],
-    settings: Settings
-): Promise<{ links: Map<string, string>, shareInfo: Bill['shareInfo'] | null }> => {
+    settings: Settings,
+    onShareInfoCreated?: (info: Bill['shareInfo']) => Promise<void>
+): Promise<string> => {
     let shareId = bill.shareInfo?.shareId;
-    let encryptionKey: CryptoKey;
-    let newShareInfo: Bill['shareInfo'] | null = null;
+    let billEncryptionKey: CryptoKey;
     
-    // 1. If the bill hasn't been shared before, create a new session and signing key.
+    // 1. Setup Keys & Share Session if needed for the main bill data
     if (!bill.shareInfo) {
+        // This is the first time this specific bill is being shared.
+        // Generate and store all necessary long-term keys.
         const signingKeyPair = await cryptoService.generateSigningKeyPair();
         await saveBillSigningKey(bill.id, signingKeyPair.privateKey);
         const signingPublicKeyJwk = await cryptoService.exportKey(signingKeyPair.publicKey);
         
-        encryptionKey = await cryptoService.generateEncryptionKey();
-        const encryptedData = await encryptAndSignPayload(bill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, encryptionKey);
+        billEncryptionKey = await cryptoService.generateEncryptionKey();
+        const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
 
+        // Encrypt and upload the main bill payload
+        const encryptedData = await encryptAndSignPayload(bill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey);
         const shareResponse = await fetch('/share', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ encryptedData }),
         });
         const shareResult = await shareResponse.json();
-        if (!shareResponse.ok) throw new Error(shareResult.error || "Failed to upload bill data.");
+        if (!shareResponse.ok) throw new Error(shareResult.error || "Failed to create share session.");
         
         shareId = shareResult.shareId;
-        const exportedKey = await cryptoService.exportKey(encryptionKey);
-        newShareInfo = { shareId, encryptionKey: exportedKey, signingPublicKey: signingPublicKeyJwk };
+        const newShareInfo = { shareId, encryptionKey: billEncryptionKeyJwk, signingPublicKey: signingPublicKeyJwk };
+
+        if (onShareInfoCreated) {
+            await onShareInfoCreated(newShareInfo);
+        }
     } else {
-        encryptionKey = await cryptoService.importEncryptionKey(bill.shareInfo.encryptionKey);
+        // Bill has been shared before, so we can reuse its existing long-term key.
+        billEncryptionKey = await cryptoService.importEncryptionKey(bill.shareInfo.encryptionKey);
     }
 
     if (!shareId) throw new Error("Could not determine shareId for the bill.");
-    
-    const exportedKey = await cryptoService.exportKey(encryptionKey);
-    const links = new Map<string, string>();
-    const namesToGenerate = participantNames.length > 0 ? participantNames : ['default'];
 
-    for (const name of namesToGenerate) {
-        const keyResponse = await fetch('/share-key', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: exportedKey, shareId }),
-        });
-        const keyResult = await keyResponse.json();
-        if (!keyResponse.ok) throw new Error(keyResult.error || `Failed to get one-time key for ${name}.`);
-        
-        const { keyId } = keyResult;
-        const url = new URL(window.location.href);
-        url.hash = `#/view-bill?shareId=${shareId}&keyId=${keyId}`;
-        links.set(name, url.toString());
-    }
-    
-    return { links, shareInfo: newShareInfo };
+    // 2. Create the one-time key exchange mechanism for this specific share action.
+    // This part runs every time a new link is generated.
+    const fragmentKey = await cryptoService.generateEncryptionKey();
+    const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
+    const encryptedBillKey = await cryptoService.encrypt(JSON.stringify(billEncryptionKeyJwk), fragmentKey);
+
+    const keyResponse = await fetch('/onetime-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ encryptedBillKey }),
+    });
+    const keyResult = await keyResponse.json();
+    if (!keyResponse.ok) throw new Error(keyResult.error || "Failed to create one-time key session.");
+    const { keyId } = keyResult;
+
+    // 3. Construct the final URL with all parts in the fragment.
+    const fragmentKeyJwk = await cryptoService.exportKey(fragmentKey);
+    const encodedFragmentKey = base64UrlEncode(JSON.stringify(fragmentKeyJwk));
+
+    const url = new URL(window.location.href);
+    url.hash = `#/view-bill?shareId=${shareId}&keyId=${keyId}&fragmentKey=${encodedFragmentKey}`;
+
+    return url.toString();
 };
 
 

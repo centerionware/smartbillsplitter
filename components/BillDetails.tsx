@@ -103,13 +103,11 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
   };
 
   const handleShareLink = useCallback(async (participant: Participant, method: 'sms' | 'email' | 'generic') => {
-    // This re-uses the existing share info if available, or generates a new one.
-    const { url: shareUrl, shareInfo } = await generateShareLink(bill, settings);
-    
-    // If new share info was created, persist it to the bill
-    if (shareInfo && !bill.shareInfo) {
-      onUpdateBill({ ...bill, shareInfo });
-    }
+    const handleShareInfoCreated = async (shareInfo: Bill['shareInfo']) => {
+        onUpdateBill({ ...bill, shareInfo });
+    };
+
+    const shareUrl = await generateShareLink(bill, settings, handleShareInfoCreated);
     
     const message = `Here is a link to view our bill for "${bill.description}". This link is live and will update if I make changes:\n\n${shareUrl}`;
 

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { SharedBillPayload, ImportedBill, Settings } from '../types.ts';
 import * as cryptoService from '../services/cryptoService.ts';
-import { getShareKey, saveShareKey } from '../services/db.ts';
 import PrivacyConsent from './PrivacyConsent.tsx';
 
 interface ViewSharedBillProps {
@@ -13,6 +12,15 @@ interface ViewSharedBillProps {
 
 type Status = 'loading' | 'fetching_key' | 'fetching_data' | 'verifying' | 'verified' | 'imported' | 'error' | 'expired';
 
+// Helper to decode a Base64URL string
+function base64UrlDecode(str: string): string {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) {
+        str += '=';
+    }
+    return atob(str);
+}
+
 const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills }) => {
   const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(
     () => typeof window !== 'undefined' && localStorage.getItem('privacyConsentAccepted') === 'true'
@@ -21,7 +29,7 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
   const [error, setError] = useState<string | null>(null);
   const [sharedData, setSharedData] = useState<SharedBillPayload | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(0);
-  const [encryptionKey, setEncryptionKey] = useState<JsonWebKey | null>(null);
+  const [billEncryptionKey, setBillEncryptionKey] = useState<JsonWebKey | null>(null);
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -36,39 +44,37 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
         const params = new URLSearchParams(window.location.hash.split('?')[1]);
         const shareId = params.get('shareId');
         const keyId = params.get('keyId');
+        const fragmentKeyStr = params.get('fragmentKey');
 
-        if (!shareId) throw new Error("Invalid or incomplete share link (missing Share ID).");
-        
-        // 1. Get the encryption key
-        let keyToUse: JsonWebKey;
-        const cachedKeyRecord = await getShareKey(shareId);
-
-        if (cachedKeyRecord) {
-            keyToUse = cachedKeyRecord.key;
-        } else {
-            if (!keyId) throw new Error("This link requires a key to unlock. Please use the full original link provided.");
-            setStatus('fetching_key');
-            const keyResponse = await fetch(`/share-key/${keyId}`);
-            if (!keyResponse.ok) {
-                const err = await keyResponse.json().catch(() => ({}));
-                throw new Error(err.error || "Failed to retrieve the encryption key. It may have expired or been used already.");
-            }
-            const keyData = await keyResponse.json();
-            if (keyData.shareId !== shareId) {
-                throw new Error("Key/Share ID mismatch. This key is for a different bill.");
-            }
-            keyToUse = keyData.key;
-            await saveShareKey(shareId, keyToUse);
+        if (!shareId || !keyId || !fragmentKeyStr) {
+          throw new Error("Invalid or incomplete share link. All components are required.");
         }
-        setEncryptionKey(keyToUse);
-
-        // 2. Fetch the encrypted data
-        setStatus('fetching_data');
-        const response = await fetch(`/share/${shareId}`);
-        if (response.status === 404) {
+        
+        // 1. Fetch the encrypted long-term key from the one-time endpoint.
+        setStatus('fetching_key');
+        const keyResponse = await fetch(`/onetime-key/${keyId}`);
+        if (keyResponse.status === 404) {
           setStatus('expired');
+          setError("This share link has already been used or has expired. Please ask for a new one.");
           return;
         }
+        if (!keyResponse.ok) {
+           const errData = await keyResponse.json().catch(() => ({}));
+           throw new Error(errData.error || "Failed to retrieve the bill key.");
+        }
+        const { encryptedBillKey } = await keyResponse.json();
+
+        // 2. Decrypt the long-term key using the key from the URL fragment.
+        const fragmentKeyJwk = JSON.parse(base64UrlDecode(fragmentKeyStr));
+        const fragmentKey = await cryptoService.importEncryptionKey(fragmentKeyJwk);
+        const decryptedBillKeyJson = await cryptoService.decrypt(encryptedBillKey, fragmentKey);
+        const billKeyToUse: JsonWebKey = JSON.parse(decryptedBillKeyJson);
+        setBillEncryptionKey(billKeyToUse);
+        const symmetricKey = await cryptoService.importEncryptionKey(billKeyToUse);
+
+        // 3. Fetch the main encrypted bill data
+        setStatus('fetching_data');
+        const response = await fetch(`/share/${shareId}`);
         if (!response.ok) {
            const errData = await response.json().catch(() => ({}));
            throw new Error(errData.error || "Failed to retrieve shared bill data.");
@@ -76,9 +82,8 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
         const { encryptedData, lastUpdatedAt: serverTimestamp } = await response.json();
         setLastUpdatedAt(serverTimestamp);
 
-        // 3. Decrypt and verify
+        // 4. Decrypt and verify the main payload
         setStatus('verifying');
-        const symmetricKey = await cryptoService.importEncryptionKey(keyToUse);
         const decryptedJson = await cryptoService.decrypt(encryptedData, symmetricKey);
         const data: SharedBillPayload = JSON.parse(decryptedJson);
 
@@ -98,7 +103,7 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
   }, [hasAcceptedPrivacy]);
 
   const handleImport = async () => {
-    if (!sharedData || !selectedParticipantId || !encryptionKey) return;
+    if (!sharedData || !selectedParticipantId || !billEncryptionKey) return;
 
     const imported: ImportedBill = {
         id: sharedData.bill.id,
@@ -110,7 +115,7 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
             signature: sharedData.signature,
         },
         shareId: new URLSearchParams(window.location.hash.split('?')[1]).get('shareId')!,
-        shareEncryptionKey: encryptionKey,
+        shareEncryptionKey: billEncryptionKey,
         lastUpdatedAt: lastUpdatedAt,
         myParticipantId: selectedParticipantId,
         localStatus: {
@@ -136,7 +141,7 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
     if (['loading', 'fetching_key', 'fetching_data', 'verifying'].includes(status)) {
         const messages = {
             loading: 'Loading bill...',
-            fetching_key: 'Retrieving encryption key...',
+            fetching_key: 'Retrieving secure key...',
             fetching_data: 'Downloading bill data...',
             verifying: 'Verifying signature...'
         };
@@ -151,8 +156,8 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
         return (
             <div className="p-8 text-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-red-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                <h3 className="text-xl font-bold mt-4 text-slate-800 dark:text-slate-100">{status === 'expired' ? 'Link Expired' : 'An Error Occurred'}</h3>
-                <p className="mt-2 text-slate-600 dark:text-slate-300">{status === 'expired' ? 'This share link has expired or is invalid. Please ask for a new link.' : error}</p>
+                <h3 className="text-xl font-bold mt-4 text-slate-800 dark:text-slate-100">{status === 'expired' ? 'Link Expired or Used' : 'An Error Occurred'}</h3>
+                <p className="mt-2 text-slate-600 dark:text-slate-300">{error}</p>
             </div>
         );
     }
@@ -177,7 +182,7 @@ const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, setti
                 <ul className="mb-6 space-y-2">{bill.participants.map(p => (<li key={p.id} className="flex justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg text-sm"><span className="font-semibold text-slate-700 dark:text-slate-200">{p.name}</span><span className={`font-semibold ${p.paid ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>{p.paid ? 'Paid' : 'Owes'} ${p.amountOwed.toFixed(2)}</span></li>))}</ul>
                 <div className="my-6 border-t border-slate-200 dark:border-slate-700" />
                 <h3 className="text-lg font-semibold mb-3 text-slate-700 dark:text-slate-200">Who are you in this bill?</h3>
-                <div className="space-y-2">{bill.participants.map(p => (<button key={p.id} onClick={() => setSelectedParticipantId(p.id)} className={`w-full text-left p-3 rounded-lg transition-all border-2 flex justify-between items-center ${selectedParticipantId === p.id ? 'bg-teal-50 border-teal-500 dark:bg-teal-900/50' : 'bg-slate-50 border-transparent hover:border-slate-300 dark:bg-slate-700/50 dark:hover:border-slate-600'}`}><div><p className="font-bold text-slate-800 dark:text-slate-100">{p.name}</p><p className="text-sm text-slate-600 dark:text-slate-300">Owes ${p.amountOwed.toFixed(2)}</p></div>{selectedParticipantId === p.id && (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-teal-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>)}</button>))}</div>
+                <div className="space-y-2">{bill.participants.map(p => (<button key={p.id} onClick={() => setSelectedParticipantId(p.id)} className={`w-full text-left p-3 rounded-lg transition-all border-2 flex justify-between items-center ${selectedParticipantId === p.id ? 'bg-teal-50 border-teal-500 dark:bg-teal-900/50' : 'bg-slate-50 border-transparent hover:border-slate-300 dark:bg-slate-700/50 dark:hover:border-slate-600'}`}><div><p className="font-bold text-slate-800 dark:text-slate-100">{p.name}</p><p className="text-sm text-slate-600 dark:text-slate-300">Owes ${p.amountOwed.toFixed(2)}</p></div>{selectedParticipantId === p.id && (<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-teal-500" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>)}</button>))}</div>
             </div>
         );
     }

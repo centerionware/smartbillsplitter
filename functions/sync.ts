@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import redisClient from '../services/redisClient.ts';
 
 const EXPIRATION_SECONDS = 5 * 60; // 5 minutes
