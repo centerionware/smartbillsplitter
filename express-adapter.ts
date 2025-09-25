@@ -13,13 +13,14 @@
 // The standard ES module import for Express (`import express from 'express'`) is used instead,
 // which correctly resolves namespaced types like `express.Request` and `express.Response`.
 // FIX: Changed import to directly import types like Request, Response, etc. to resolve type errors in the environment.
-import express, { Request, Response, NextFunction, RequestHandler } from 'express';
+// FIX: Reverted to namespaced express types as per the developer note to fix type compatibility issues.
+import express from 'express';
 import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
 
 /**
  * Transforms an Express request into a framework-agnostic HttpRequest.
  */
-function toHttpRequest(req: Request): HttpRequest {
+function toHttpRequest(req: express.Request): HttpRequest {
   return {
     method: req.method.toUpperCase() as HttpRequest['method'],
     path: req.path,
@@ -33,7 +34,7 @@ function toHttpRequest(req: Request): HttpRequest {
 /**
  * Applies a framework-agnostic HttpResponse to an Express response object.
  */
-function applyHttpResponse(res: Response, httpResponse: HttpResponse): void {
+function applyHttpResponse(res: express.Response, httpResponse: HttpResponse): void {
   if (httpResponse.headers) {
     res.set(httpResponse.headers);
   }
@@ -49,8 +50,8 @@ function applyHttpResponse(res: Response, httpResponse: HttpResponse): void {
  * Creates an Express request handler from a framework-agnostic HttpHandler.
  * This acts as an adapter layer, containing the only Express-specific logic.
  */
-export function createExpressAdapter(handler: HttpHandler): RequestHandler {
-  return async (req: Request, res: Response, next: NextFunction) => {
+export function createExpressAdapter(handler: HttpHandler): express.RequestHandler {
+  return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     try {
       const httpRequest = toHttpRequest(req);
       const httpResponse = await handler(httpRequest);

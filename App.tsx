@@ -19,7 +19,8 @@ import PwaInstallBanner from './components/PwaInstallBanner.tsx';
 import ConfirmationDialog from './components/ConfirmationDialog.tsx';
 import Disclaimer from './components/Disclaimer.tsx';
 import RecurringBillsList from './components/RecurringBillsList.tsx';
-import ViewSharedBill from './components/ViewSharedBill.tsx';
+// FIX: Changed to a named import to resolve module resolution issues.
+import { ViewSharedBill } from './components/ViewSharedBill.tsx';
 import SetupDisplayNameModal from './components/SetupDisplayNameModal.tsx';
 import { useAppControl } from './contexts/AppControlContext.tsx';
 
