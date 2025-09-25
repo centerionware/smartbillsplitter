@@ -1,5 +1,5 @@
-// FIX: Changed import to use Request and Response for robust Express handler typing.
-import { Request, Response } from 'express';
+// FIX: Changed import to use RequestHandler for robust Express handler typing.
+import { RequestHandler } from 'express';
 import redisClient from '../services/redisClient.ts';
 
 const EXPIRATION_SECONDS = 5 * 60; // 5 minutes
@@ -17,8 +17,8 @@ const generateCode = async (): Promise<string> => {
   return code;
 };
 
-// FIX: Explicitly typed the handler parameters to avoid type conflicts with RequestHandler.
-export const syncHandler = async (req: Request, res: Response) => {
+// FIX: Explicitly typed the handler function with RequestHandler.
+export const syncHandler: RequestHandler = async (req, res) => {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");

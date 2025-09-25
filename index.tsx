@@ -4,6 +4,7 @@ import AppGate from './AppGate.tsx';
 import { AuthProvider } from './hooks/useAuth.ts';
 import { AppControlContext } from './contexts/AppControlContext.tsx';
 import { initDB } from './services/db.ts';
+import ErrorBoundary from './components/ErrorBoundary.tsx';
 
 const Root: React.FC = () => {
   const reloadApp = () => {
@@ -33,7 +34,9 @@ initDB().then(() => {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <Root />
+      <ErrorBoundary>
+        <Root />
+      </ErrorBoundary>
     </React.StrictMode>
   );
 }).catch(err => {
