@@ -61,7 +61,7 @@ export const DisclaimerContent: React.FC = () => (
             <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                 <h4 className="font-semibold text-slate-700 dark:text-slate-200">Google AdSense</h4>
                 <p className="text-sm mt-1">
-                If you are using the free version, we use <strong>Google AdSense</strong> to display advertisements. This service may load external scripts from Google and may use cookies to serve ads. You can learn more about how Google uses data in their privacy policy.
+                If you are using the free version, we use <strong>Google AdSense</strong> to display advertisements. This service may load external scripts from Google and may use cookies to serve ads. We make a best effort to isolate these ads within sandboxed <code>iframe</code> elements to prevent them from accessing the content of the application's pages. You can learn more about how Google uses data in their privacy policy.
                 </p>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
