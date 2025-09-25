@@ -6,22 +6,8 @@ interface HalfScreenAdModalProps {
 }
 
 const HalfScreenAdModal: React.FC<HalfScreenAdModalProps> = ({ onClose }) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Inject ad content into the iframe
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (iframe) {
-      const doc = iframe.contentWindow?.document;
-      if (doc) {
-        doc.open();
-        doc.write(AD_IFRAME_CONTENT);
-        doc.close();
-      }
-    }
-  }, []);
-  
   // Animate in on mount
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -72,7 +58,7 @@ const HalfScreenAdModal: React.FC<HalfScreenAdModalProps> = ({ onClose }) => {
           </div>
           <div className="flex-grow w-full h-full">
             <iframe
-              ref={iframeRef}
+              srcDoc={AD_IFRAME_CONTENT}
               title="Advertisement"
               style={{
                 width: '100%',
