@@ -1,7 +1,5 @@
-
-
-// FIX: Resolved handler type errors by correcting type imports in `express-adapter.ts`. 
 // The default `import express from 'express'` is correct for creating the application instance.
+// Type errors that may have appeared in this file were resolved by fixing the adapter.
 import express from 'express';
 import { createExpressAdapter } from './express-adapter';
 

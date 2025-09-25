@@ -1,5 +1,4 @@
-// FIX: Changed to use named imports for Express types to resolve type conflicts.
-import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
 
 /**
