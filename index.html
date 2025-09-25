@@ -6,58 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SharedBills</title>
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-
-    <!-- Theme Color for browsers -->
-    <meta name="theme-color" content="#14b8a6" />
-
-    <!-- PWA & Mobile Web App settings -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // Configure Tailwind CSS to use the 'class' strategy for dark mode.
-      // This MUST run AFTER the main Tailwind script is loaded.
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            animation: {
-              'slide-up': 'slide-up 0.3s ease-out forwards',
-            },
-            keyframes: {
-              'slide-up': {
-                '0%': { transform: 'translateY(100%)' },
-                '100%': { transform: 'translateY(0)' },
-              },
-            },
-          },
-        },
-      }
-    </script>
-
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
-    "@netlify/edge-functions": "https://aistudiocdn.com/@netlify/edge-functions@^2.18.0",
-    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^4.2.5",
-    "express": "https://aistudiocdn.com/express@^5.1.0",
-    "stripe": "https://aistudiocdn.com/stripe@^18.5.0",
-    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
-    "ioredis": "https://aistudiocdn.com/ioredis@^5.8.0"
-  }
-}
-</script>
-</head>
-  <body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
     <script>
       // --- Ultimate Error Safety Net ---
       // This script runs before the main application to catch any catastrophic startup errors.
@@ -128,6 +76,60 @@
         window.addEventListener('unhandledrejection', (event) => showCatastrophicError(event.reason));
       })();
     </script>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Theme Color for browsers -->
+    <meta name="theme-color" content="#14b8a6" />
+
+    <!-- PWA & Mobile Web App settings -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Configure Tailwind CSS to use the 'class' strategy for dark mode.
+      // This MUST run AFTER the main Tailwind script is loaded.
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            animation: {
+              'slide-up': 'slide-up 0.3s ease-out forwards',
+            },
+            keyframes: {
+              'slide-up': {
+                '0%': { transform: 'translateY(100%)' },
+                '100%': { transform: 'translateY(0)' },
+              },
+            },
+          },
+        },
+      }
+    </script>
+
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+    "@netlify/edge-functions": "https://aistudiocdn.com/@netlify/edge-functions@^2.18.0",
+    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^4.2.5",
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "stripe": "https://aistudiocdn.com/stripe@^18.5.0",
+    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
+    "ioredis": "https://aistudiocdn.com/ioredis@^5.8.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+    
     <div id="root"></div>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
