@@ -13,12 +13,30 @@ interface ViewSharedBillProps {
 type Status = 'loading' | 'fetching_key' | 'fetching_data' | 'verifying' | 'verified' | 'imported' | 'error' | 'expired';
 
 // Helper to decode a Base64URL string
-function base64UrlDecode(str: string): string {
-    str = str.replace(/-/g, '+').replace(/_/g, '/');
-    while (str.length % 4) {
-        str += '=';
+function base64UrlDecode(base64Url: string): string {
+    // Replace URL-safe characters with Base64 standard characters
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    
+    // Add padding if necessary
+    const padding = base64.length % 4;
+    if (padding) {
+        if (padding === 2) {
+            base64 += '==';
+        } else if (padding === 3) {
+            base64 += '=';
+        } else {
+            // A length that is 1 mod 4 is invalid, indicating a corrupted string.
+            throw new Error('Malformed share link: The key data appears to be truncated.');
+        }
     }
-    return atob(str);
+    
+    try {
+        return atob(base64);
+    } catch (e) {
+        // This catches errors from invalid characters within the string itself.
+        console.error("atob failed:", e);
+        throw new Error('Malformed share link: The key data contains invalid characters.');
+    }
 }
 
 const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills }) => {
