@@ -6,6 +6,7 @@ import ShareActionSheet from './ShareActionSheet.tsx';
 import { generateShareText, generateShareLink, encryptAndSignPayload } from '../services/shareService.ts';
 import * as cryptoService from '../services/cryptoService.ts';
 import { getBillSigningKey } from '../services/db.ts';
+import { useAppControl } from '../contexts/AppControlContext.tsx';
 
 interface BillDetailsProps {
   bill: Bill;
@@ -22,6 +23,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareMenuParticipant, setShareMenuParticipant] = useState<Participant | null>(null);
+  const { showNotification } = useAppControl();
 
   const pushShareUpdate = useCallback(async (updatedBill: Bill) => {
     if (!updatedBill.shareInfo) return;
@@ -74,11 +76,14 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
         await navigator.share({ title: 'Bill Split Reminder', text });
       } else {
         await navigator.clipboard.writeText(text);
-        alert('Share text copied to clipboard!');
+        showNotification('Share text copied to clipboard!');
       }
     } catch (err: any) {
-        if (err.name !== 'AbortError') {
+        if (err.name === 'AbortError') {
+          showNotification('Share cancelled', 'info');
+        } else {
           console.error("Error sharing:", err);
+          showNotification('Failed to share', 'error');
         }
     } finally {
         setShareMenuParticipant(null);
@@ -121,18 +126,20 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
                 await navigator.share({ title: `Bill: ${bill.description}`, text: message });
             } else {
                 await navigator.clipboard.writeText(message);
-                alert('Share link copied to clipboard!');
+                showNotification('Share link copied to clipboard!');
             }
         }
     } catch (err: any) {
-        if (err.name !== 'AbortError') {
+        if (err.name === 'AbortError') {
+            showNotification('Share cancelled', 'info');
+        } else {
             console.error("Error sharing link:", err);
-            alert("An error occurred while trying to share the link.");
+            showNotification('An error occurred while trying to share the link.', 'error');
         }
     } finally {
         setShareMenuParticipant(null);
     }
-  }, [bill, settings, onUpdateBill]);
+  }, [bill, settings, onUpdateBill, showNotification]);
 
   return (
     <>

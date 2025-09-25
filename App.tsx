@@ -22,6 +22,7 @@ import Disclaimer from './components/Disclaimer.tsx';
 import RecurringBillsList from './components/RecurringBillsList.tsx';
 import ViewSharedBill from './components/ViewSharedBill.tsx';
 import SetupDisplayNameModal from './components/SetupDisplayNameModal.tsx';
+import { useAppControl } from './contexts/AppControlContext.tsx';
 
 // Determine if the app is running in an iframe.
 // This is used to disable URL-based navigation for a smoother sandbox experience.
@@ -48,6 +49,7 @@ const App: React.FC = () => {
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
   const { theme, setTheme, isLoading: themeLoading } = useTheme();
   const { subscriptionStatus, logout } = useAuth();
+  const { showNotification } = useAppControl();
   
   // --- Navigation & View State ---
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
@@ -70,7 +72,6 @@ const App: React.FC = () => {
     message: string;
     onConfirm: () => void;
   } & RequestConfirmationOptions | null>(null);
-  const [notification, setNotification] = useState<string | null>(null);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const initRef = useRef(false);
 
@@ -188,13 +189,6 @@ const App: React.FC = () => {
   }, [settings, settingsLoading]);
 
 
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => setNotification(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
   const createBillFromTemplate = useCallback((template: RecurringBill, myDisplayName: string): Omit<Bill, 'id' | 'status'> => {
     const totalAmount = template.totalAmount || 0;
     
@@ -276,9 +270,9 @@ const App: React.FC = () => {
     }
 
     if (createdCount > 0) {
-        setNotification(`${createdCount > 1 ? 's' : ''} automatically generated.`);
+      showNotification(`${createdCount} bill${createdCount > 1 ? 's' : ''} automatically generated.`, 'info');
     }
-  }, [recurringBills, settings, addBill, updateRecurringBill, createBillFromTemplate]);
+  }, [recurringBills, settings, addBill, updateRecurringBill, createBillFromTemplate, showNotification]);
 
   useEffect(() => {
     if (billsLoading || recurringBillsLoading || settingsLoading || initRef.current) {
@@ -529,14 +523,6 @@ const App: React.FC = () => {
           confirmVariant={confirmation.confirmVariant}
         />
       )}
-      <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
-        <div className={`transition-all duration-500 ease-in-out mt-4 bg-teal-500 text-white px-6 py-3 rounded-lg shadow-lg ${notification ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'}`}>
-          <div className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-            <span>{notification}</span>
-          </div>
-        </div>
-      </div>
       <Header 
         onGoHome={handleGoHome}
         onCreateNewBill={handleCreateNewBill} 

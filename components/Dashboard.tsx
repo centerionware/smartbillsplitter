@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill, Participant } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
@@ -10,6 +11,7 @@ import SwipeableImportedBillCard from './SwipeableImportedBillCard.tsx';
 import ShareActionSheet from './ShareActionSheet.tsx';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
 import { generateShareText, generateAggregateBill, generateShareLink } from '../services/shareService.ts';
+import { useAppControl } from '../contexts/AppControlContext.tsx';
 
 interface DashboardProps {
   bills: Bill[];
@@ -61,6 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [visibleCount, setVisibleCount] = useState(BILLS_PER_PAGE);
   const [shareSheetParticipant, setShareSheetParticipant] = useState<ParticipantData | null>(null);
   const [archivingBillIds, setArchivingBillIds] = useState<string[]>([]);
+  const { showNotification } = useAppControl();
 
   // --- Calculations for Summary & Participant View ---
   const activeBills = useMemo(() => bills.filter(b => b.status === 'active'), [bills]);
@@ -310,11 +313,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         await navigator.share({ title: 'Bill Split Reminder', text: shareText });
       } else {
         await navigator.clipboard.writeText(shareText);
-        alert('Share text copied to clipboard!');
+        showNotification('Share text copied to clipboard!');
       }
     } catch (err: any) {
-      if (err.name !== 'AbortError') {
+      if (err.name === 'AbortError') {
+        showNotification('Share cancelled', 'info');
+      } else {
         console.error("Error sharing or copying:", err);
+        showNotification('Failed to share', 'error');
       }
     } finally {
         setShareSheetParticipant(null);
@@ -359,18 +365,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                 await navigator.share({ title: 'Summary of Outstanding Bills', text: message });
             } else {
                 await navigator.clipboard.writeText(message);
-                alert('Share link copied to clipboard!');
+                showNotification('Share link copied to clipboard!');
             }
         }
     } catch (err: any) {
-        if (err.name !== 'AbortError') {
+        if (err.name === 'AbortError') {
+            showNotification('Share cancelled', 'info');
+        } else {
             console.error("Error sharing link:", err);
-            alert("An error occurred while trying to share the link.");
+            showNotification('An error occurred while trying to share the link.', 'error');
         }
     } finally {
         setShareSheetParticipant(null);
     }
-  }, [bills, settings, participantsData]);
+  }, [bills, settings, participantsData, showNotification]);
 
 
   const handleMarkParticipantAsPaid = async (participantName: string) => {

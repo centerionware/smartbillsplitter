@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Bill, Settings, Participant } from '../types.ts';
 import { generateShareLink } from '../services/shareService.ts';
+import { useAppControl } from '../contexts/AppControlContext.tsx';
 
 interface ShareModalProps {
   bill: Bill;
@@ -27,6 +28,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
   const [links, setLinks] = useState<Record<string, LinkState>>({}); // key: participant.id
   const [error, setError] = useState<string | null>(null);
   const [copiedParticipantId, setCopiedParticipantId] = useState<string | null>(null);
+  const { showNotification } = useAppControl();
 
   const handleUpdateBillAndShareInfo = useCallback(async (shareInfo: Bill['shareInfo']) => {
       onUpdateBill({ ...bill, shareInfo });
@@ -75,15 +77,24 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
     }
   };
 
-  const handleShare = (p: Participant) => {
-      const link = links[p.id]?.url;
-      if (!link) return;
-      
-      const message = `Here is a secure link to our bill for "${bill.description}":\n\n${link}`;
-      if (navigator.share) {
-          navigator.share({ title: `Bill: ${bill.description}`, text: message });
-          markAsInitiated(p.id);
+  const handleShare = async (p: Participant) => {
+    const link = links[p.id]?.url;
+    if (!link) return;
+    
+    const message = `Here is a secure link to our bill for "${bill.description}":\n\n${link}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Bill: ${bill.description}`, text: message });
+        markAsInitiated(p.id);
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          showNotification('Share cancelled', 'info');
+        } else {
+          console.error("Error sharing link:", err);
+          showNotification('Failed to share link', 'error');
+        }
       }
+    }
   };
 
   const getShareMessage = (p: Participant) => {

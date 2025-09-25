@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import AppGate from './AppGate.tsx';
 import { AuthProvider } from './hooks/useAuth.ts';
@@ -76,15 +76,60 @@ try {
   if (!rootElement) {
     throw new Error("Could not find root element to mount to");
   }
+  
+  type NotificationType = 'success' | 'info' | 'error';
+  interface NotificationState {
+    message: string;
+    type: NotificationType;
+  }
 
   const Root: React.FC = () => {
+    const [notification, setNotification] = useState<NotificationState | null>(null);
+
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
+
     const reloadApp = () => {
       window.history.replaceState(null, '', '/');
       window.location.reload();
     };
 
+    const showNotification = (message: string, type: NotificationType = 'success') => {
+        setNotification({ message, type });
+    };
+    
+    const getNotificationStyles = (type: NotificationType) => {
+        switch (type) {
+            case 'error': return 'bg-red-600 text-white';
+            case 'info': return 'bg-blue-600 text-white';
+            case 'success':
+            default: return 'bg-teal-500 text-white';
+        }
+    };
+    
+    const getNotificationIcon = (type: NotificationType) => {
+        switch (type) {
+            case 'error': return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>;
+            case 'info': return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>;
+            case 'success':
+            default: return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>;
+        }
+    };
+
     return (
-      <AppControlContext.Provider value={{ reloadApp }}>
+      <AppControlContext.Provider value={{ reloadApp, showNotification }}>
+        <div className="fixed top-0 left-0 right-0 z-[60] flex justify-center pointer-events-none">
+            <div className={`transition-all duration-500 ease-in-out mt-4 px-6 py-3 rounded-lg shadow-lg ${notification ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'} ${notification ? getNotificationStyles(notification.type) : ''}`}>
+              <div className="flex items-center gap-3">
+                {notification && getNotificationIcon(notification.type)}
+                <span className="font-semibold">{notification?.message}</span>
+              </div>
+            </div>
+        </div>
         <AuthProvider>
           <AppGate />
         </AuthProvider>
