@@ -1,6 +1,6 @@
-// FIX: Changed to a namespace import for React to resolve a likely tooling issue
-// that caused a false positive error when accessing 'this.props' in a class component.
-import * as React from 'react';
+// FIX: Corrected the React import to resolve a type error where 'this.props' was not recognized.
+// Switched from a namespace import (`import * as React`) to a default import (`import React`) for consistency.
+import React from 'react';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match the name in db.ts
 
