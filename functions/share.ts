@@ -19,26 +19,31 @@ async function createOrUpdateShare(encryptedData: string, shareId?: string): Pro
     }
     const now = Date.now();
     
+    // Explicitly create the new payload with the correct, modern schema.
+    // This ensures that on update, any older format (e.g., using a 'data' key) is
+    // completely and cleanly replaced with the new format, guaranteeing the new timestamp is saved.
+    const newSessionPayload = {
+        encryptedData,
+        lastUpdatedAt: now,
+    };
+
     try {
-        // The session data must use 'encryptedData' to be compatible with the client.
-        const sessionData = { encryptedData, lastUpdatedAt: now };
         if (shareId) { // UPDATE
             const key = `share:${shareId}`;
             if (!(await redisClient.exists(key))) {
                 throw new Error("Cannot update. Share session not found or expired.");
             }
-            await redisClient.set(key, JSON.stringify(sessionData), 'EX', EXPIRATION_SECONDS);
+            await redisClient.set(key, JSON.stringify(newSessionPayload), 'EX', EXPIRATION_SECONDS);
             console.log(`Updated shared bill ${shareId}.`);
             return { shareId, lastUpdatedAt: now };
         } else { // CREATE
             const id = randomUUID();
             const key = `share:${id}`;
-            await redisClient.set(key, JSON.stringify(sessionData), 'EX', EXPIRATION_SECONDS);
+            await redisClient.set(key, JSON.stringify(newSessionPayload), 'EX', EXPIRATION_SECONDS);
             console.log(`Created shared bill ${id}.`);
             return { shareId: id, lastUpdatedAt: now };
         }
     } catch (e: any) {
-        // If it's one of our thrown errors, rethrow it. Otherwise, wrap it.
         if (e.message.startsWith("Cannot update")) throw e;
         console.error('Redis error during share operation:', e);
         throw new Error("A database error occurred during the share operation.");

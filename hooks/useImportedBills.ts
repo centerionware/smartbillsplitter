@@ -31,11 +31,10 @@ export const useImportedBills = () => {
         const activeImported = importedBills.filter(b => b.status === 'active' && b.shareEncryptionKey);
         if (activeImported.length === 0) return;
 
-        let madeUpdates = false;
         const updatedBillsPromises = activeImported.map(async (bill) => {
             try {
                 const response = await fetch(`/share/${bill.shareId}`);
-                if (!response.ok) return bill; // Skip if error fetching
+                if (!response.ok) return bill; 
 
                 const { encryptedData, lastUpdatedAt } = await response.json();
                 if (lastUpdatedAt > bill.lastUpdatedAt) {
@@ -47,7 +46,6 @@ export const useImportedBills = () => {
                     const isVerified = await cryptoService.verify(JSON.stringify(payload.bill), payload.signature, publicKey);
                     
                     if (isVerified) {
-                        madeUpdates = true;
                         return {
                             ...bill,
                             sharedData: {
@@ -62,19 +60,33 @@ export const useImportedBills = () => {
             } catch (error) {
                 console.error(`Failed to update bill ${bill.id}:`, error);
             }
-            return bill; // Return original bill on error or no update
+            return bill; 
         });
+        
+        const updatedBillsResult = await Promise.all(updatedBillsPromises);
 
-        if (madeUpdates) {
-            const updatedBills = await Promise.all(updatedBillsPromises);
+        // Create a map of only the bills that have new, more recent data.
+        const updatedDataMap = new Map(
+            updatedBillsResult
+                .filter(ub => {
+                    const originalBill = importedBills.find(ib => ib.id === ub.id);
+                    // The filter condition ensures we only consider bills that actually changed.
+                    return originalBill && ub.lastUpdatedAt > originalBill.lastUpdatedAt;
+                })
+                .map(b => [b.id, b])
+        );
+
+        // If there are any updates, update both the state and the database.
+        if (updatedDataMap.size > 0) {
+            // Update the React state to trigger a UI re-render.
             setImportedBills(prev => {
-                const billMap = new Map(updatedBills.map(b => [b.id, b]));
-                const final = prev.map(p => billMap.get(p.id) || p);
+                const final = prev.map(p => updatedDataMap.get(p.id) || p);
                 final.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
                 return final;
             });
-            // Persist all updates to the database
-            await Promise.all(updatedBills.filter(b => b.lastUpdatedAt > importedBills.find(ib => ib.id === b.id)!.lastUpdatedAt).map(updateDB));
+
+            // Persist only the changed bills to the database.
+            await Promise.all(Array.from(updatedDataMap.values()).map(updateDB));
         }
     };
 
