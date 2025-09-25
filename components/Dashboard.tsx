@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill, Participant } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
@@ -10,6 +11,7 @@ import ShareActionSheet from './ShareActionSheet.tsx';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
 import { generateShareText, generateAggregateBill, generateOneTimeShareLink } from '../services/shareService.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
+import HalfScreenAdModal from './HalfScreenAdModal.tsx';
 
 interface DashboardProps {
   bills: Bill[];
@@ -61,6 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [visibleCount, setVisibleCount] = useState(BILLS_PER_PAGE);
   const [shareSheetParticipant, setShareSheetParticipant] = useState<ParticipantData | null>(null);
   const [archivingBillIds, setArchivingBillIds] = useState<string[]>([]);
+  const [isHalfScreenAdOpen, setIsHalfScreenAdOpen] = useState(false);
   const { showNotification } = useAppControl();
 
   // --- Calculations for Summary & Participant View ---
@@ -92,6 +95,18 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
     }
   }, [activeBills, onUpdateMultipleBills, dashboardView, dashboardStatusFilter]);
+
+  // --- Half-Screen Ad Logic ---
+  useEffect(() => {
+    if (subscriptionStatus === 'free' && !sessionStorage.getItem('halfScreenAdShown')) {
+        const timer = setTimeout(() => {
+            setIsHalfScreenAdOpen(true);
+            sessionStorage.setItem('halfScreenAdShown', 'true');
+        }, 500); // Show after a small delay
+        
+        return () => clearTimeout(timer);
+    }
+  }, [subscriptionStatus]);
 
   const summaryTotals = useMemo(() => {
     const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
@@ -235,7 +250,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         b.participants.some(p => p.name === selectedParticipant && !p.paid && p.amountOwed > 0.005)
     );
     
-    active.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    active.sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
     allArchived.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return { active, allArchived, unpaidArchived };
@@ -689,6 +704,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             shareContext="dashboard"
         />
       )}
+
+      {isHalfScreenAdOpen && <HalfScreenAdModal onClose={() => setIsHalfScreenAdOpen(false)} />}
     </div>
   );
 };

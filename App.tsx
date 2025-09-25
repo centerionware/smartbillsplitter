@@ -554,6 +554,10 @@ const App: React.FC = () => {
           <button onClick={handleGoToDisclaimer} className="hover:underline text-teal-600 dark:text-teal-400 font-medium">
             Disclaimer
           </button>
+          <span className="text-slate-300 dark:text-slate-600">&bull;</span>
+          <a href="https://github.com/centerionware/smartbillsplitter/commits/main" target="_blank" rel="noopener noreferrer" className="hover:underline text-teal-600 dark:text-teal-400 font-medium">
+            Changelog
+          </a>
         </div>
       </footer>
     </div>
