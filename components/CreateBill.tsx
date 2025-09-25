@@ -322,6 +322,14 @@ export const CreateBill: React.FC<CreateBillProps> = ({
             errors={errors}
           />
           
+          <BillExtraDetails
+            items={items}
+            additionalInfo={additionalInfo}
+            onEditItems={() => setIsItemEditorOpen(true)}
+            onEditInfo={() => setIsInfoEditorOpen(true)}
+            isRecurring={isRecurring}
+          />
+          
           {isRecurring && (
             <RecurrenceSelector
               value={recurrenceRule}
@@ -340,14 +348,6 @@ export const CreateBill: React.FC<CreateBillProps> = ({
             setParticipants={setParticipants}
             splitMode={splitMode}
             participantsError={errors.participants}
-          />
-
-          <BillExtraDetails
-            items={items}
-            additionalInfo={additionalInfo}
-            onEditItems={() => setIsItemEditorOpen(true)}
-            onEditInfo={() => setIsInfoEditorOpen(true)}
-            isRecurring={isRecurring}
           />
         </div>
         

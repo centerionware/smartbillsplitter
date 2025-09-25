@@ -1,10 +1,11 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+// FIX: Alias Express Request and Response to avoid conflict with global DOM types.
+import { Request as ExpressRequest, Response as ExpressResponse, NextFunction, RequestHandler } from 'express';
 import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
 
 /**
  * Transforms an Express request into a framework-agnostic HttpRequest.
  */
-function toHttpRequest(req: Request): HttpRequest {
+function toHttpRequest(req: ExpressRequest): HttpRequest {
   return {
     method: req.method.toUpperCase() as HttpRequest['method'],
     path: req.path,
@@ -18,7 +19,7 @@ function toHttpRequest(req: Request): HttpRequest {
 /**
  * Applies a framework-agnostic HttpResponse to an Express response object.
  */
-function applyHttpResponse(res: Response, httpResponse: HttpResponse): void {
+function applyHttpResponse(res: ExpressResponse, httpResponse: HttpResponse): void {
   if (httpResponse.headers) {
     res.set(httpResponse.headers);
   }
@@ -35,7 +36,7 @@ function applyHttpResponse(res: Response, httpResponse: HttpResponse): void {
  * This acts as an adapter layer, containing the only Express-specific logic.
  */
 export function createExpressAdapter(handler: HttpHandler): RequestHandler {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
     try {
       const httpRequest = toHttpRequest(req);
       const httpResponse = await handler(httpRequest);
