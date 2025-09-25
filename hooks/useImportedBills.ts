@@ -33,10 +33,22 @@ export const useImportedBills = () => {
 
         const updatedBillsPromises = activeImported.map(async (bill) => {
             try {
-                const response = await fetch(`/share/${bill.shareId}`);
-                if (!response.ok) return bill; 
+                // Send our last known timestamp to the server to check for new data.
+                const response = await fetch(`/share/${bill.shareId}?lastUpdatedAt=${bill.lastUpdatedAt}`);
+                
+                // If status is 304, there's no new data.
+                if (response.status === 304) {
+                    return bill;
+                }
+
+                if (!response.ok) {
+                    console.error(`Failed to poll for bill ${bill.id}, server responded with ${response.status}`);
+                    return bill; // Return original on error
+                }
 
                 const { encryptedData, lastUpdatedAt } = await response.json();
+                
+                // Although the server handles the check, this is a good defensive measure.
                 if (lastUpdatedAt > bill.lastUpdatedAt) {
                     const key = await cryptoService.importEncryptionKey(bill.shareEncryptionKey!);
                     const decryptedJson = await cryptoService.decrypt(encryptedData, key);

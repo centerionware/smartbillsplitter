@@ -122,16 +122,33 @@ export const shareHandler = async (req: HttpRequest): Promise<HttpResponse> => {
     }
   
     if (req.method === "GET") {
-      const { shareId } = req.params;
-      if (!shareId) {
-        throw new Error("Missing 'shareId' in path.");
-      }
-      const result = await retrieveShare(shareId);
-      return {
-        statusCode: 200,
-        headers: responseHeaders,
-        body: JSON.stringify(result)
-      };
+        const { shareId } = req.params;
+        if (!shareId) {
+            throw new Error("Missing 'shareId' in path.");
+        }
+
+        // Retrieve the full data from Redis. retrieveShare handles 404s if not found.
+        const serverData = await retrieveShare(shareId);
+        
+        // Check if the client sent its last known timestamp.
+        const clientTimestampStr = req.query.lastUpdatedAt as string;
+        if (clientTimestampStr) {
+            const clientTimestamp = parseInt(clientTimestampStr, 10);
+            // If client's data is current, send 304 Not Modified.
+            if (!isNaN(clientTimestamp) && serverData.lastUpdatedAt <= clientTimestamp) {
+                return {
+                    statusCode: 304,
+                    headers: responseHeaders,
+                };
+            }
+        }
+
+        // Otherwise, send the full, updated payload.
+        return {
+            statusCode: 200,
+            headers: responseHeaders,
+            body: JSON.stringify(serverData)
+        };
     }
 
     return {
