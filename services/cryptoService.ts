@@ -27,11 +27,22 @@ const uint8ArrayToBinaryString = (arr: Uint8Array): string => {
 };
 
 /**
- * Decodes a standard Base64 string into a Uint8Array, with robust error handling for atob.
- * @param base64 The standard Base64 string.
+ * Decodes a standard or URL-safe Base64 string into a Uint8Array, with robust error handling.
+ * @param base64Input The Base64 string (standard or URL-safe).
  * @throws An error with a specific message if decoding fails.
  */
-function decodeBase64(base64: string): Uint8Array {
+function decodeBase64(base64Input: string): Uint8Array {
+    // 1. Handle URL-safe characters by replacing them with standard Base64 equivalents.
+    let base64 = base64Input.replace(/-/g, '+').replace(/_/g, '/');
+
+    // 2. Add padding if it was stripped. Base64 strings should have a length divisible by 4.
+    const padding = base64.length % 4;
+    if (padding) {
+        if (padding === 2) base64 += '==';
+        else if (padding === 3) base64 += '=';
+        // If padding is 1, the string is malformed anyway, and atob will throw.
+    }
+
     try {
         const binaryString = atob(base64);
         const bytes = new Uint8Array(binaryString.length);

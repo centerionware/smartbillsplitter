@@ -9,10 +9,10 @@
 // namespaced types like `express.Request` is the correct and final approach.
 // IGNORE ALL EXPRESS-RELATED TYPE ERRORS IN THIS FILE AND IN `server.ts`.
 
-// FIX: Updated to use the default 'express' import and namespaced types (e.g., express.Request).
-// This resolves type resolution errors and allows properties like `req.method` and `res.status`
-// to be correctly recognized by TypeScript.
-import express from 'express';
+// FIX: Updated to use `import = require()` syntax for Express.
+// This is the correct way to import CommonJS modules like Express in some TypeScript
+// configurations to ensure proper type resolution.
+import express = require('express');
 import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
 
 /**

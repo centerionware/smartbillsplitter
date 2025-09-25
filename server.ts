@@ -1,6 +1,9 @@
 // The default `import express from 'express'` is correct for creating the application instance.
 // Type errors that may have appeared in this file were resolved by fixing the adapter.
-import express from 'express';
+// FIX: Updated to use `import = require()` syntax for Express.
+// This is the correct way to import CommonJS modules like Express in some TypeScript
+// configurations to ensure proper type resolution.
+import express = require('express');
 import { createExpressAdapter } from './express-adapter';
 
 // Import the framework-agnostic handlers
