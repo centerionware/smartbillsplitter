@@ -1,11 +1,11 @@
-import express, { Express } from 'express';
+import express from 'express';
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
 import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler } from './functions/stripe';
 import { shareHandler } from './functions/share';
 import { onetimeKeyHandler } from './functions/onetime-key';
 
-const app: Express = express();
+const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' })); // Increase limit for receipt images

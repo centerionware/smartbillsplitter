@@ -32,15 +32,11 @@ class ErrorBoundary extends Component<Props, State> {
   private handleHardReset = async () => {
     console.warn("Performing hard reset: Deleting IndexedDB database.");
     try {
-      // Close any open DB connections before deleting
-      // This is a best practice, though not always strictly necessary
-      // In our case, we don't have a direct handle to `db` here, so we proceed.
-      
       const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
       
       deleteRequest.onsuccess = () => {
         console.log("Database deleted successfully.");
-        localStorage.clear(); // Also clear localStorage for good measure
+        localStorage.clear();
         sessionStorage.clear();
         this.handleReload();
       };
@@ -92,10 +88,13 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
             {this.state.error && (
               <details className="mt-4 text-left text-xs text-slate-400 dark:text-slate-500">
-                <summary className="cursor-pointer">Error Details</summary>
-                <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-700 rounded overflow-auto whitespace-pre-wrap">
-                  <code>{this.state.error.toString()}</code>
-                </pre>
+                <summary className="cursor-pointer font-semibold">Error Details</summary>
+                <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-700 rounded overflow-auto whitespace-pre-wrap text-left">
+                  <p className="font-bold text-red-600 dark:text-red-400">{this.state.error.name}: {this.state.error.message}</p>
+                  <pre className="mt-1 text-slate-500 dark:text-slate-400">
+                    <code>{this.state.error.stack}</code>
+                  </pre>
+                </div>
               </details>
             )}
           </div>

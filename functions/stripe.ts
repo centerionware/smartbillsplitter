@@ -1,5 +1,5 @@
-// FIX: Changed import to use RequestHandler type for robust Express handler typing.
-import { RequestHandler, Response } from 'express';
+// FIX: Changed import to use Request and Response types for robust Express handler typing.
+import { Request, Response } from 'express';
 import Stripe from 'stripe';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
@@ -22,8 +22,8 @@ const checkStripeConfig = (res: Response): boolean => {
     return true;
 }
 
-// FIX: Explicitly typed the handler function with RequestHandler.
-export const createCheckoutSessionHandler: RequestHandler = async (req, res) => {
+// FIX: Explicitly typed the handler function with Request and Response types.
+export const createCheckoutSessionHandler = async (req: Request, res: Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { plan, origin } = req.body;
@@ -55,8 +55,8 @@ export const createCheckoutSessionHandler: RequestHandler = async (req, res) => 
     }
 };
 
-// FIX: Explicitly typed the handler function with RequestHandler.
-export const verifySessionHandler: RequestHandler = async (req, res) => {
+// FIX: Explicitly typed the handler function with Request and Response types.
+export const verifySessionHandler = async (req: Request, res: Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { sessionId } = req.body;
@@ -99,8 +99,8 @@ export const verifySessionHandler: RequestHandler = async (req, res) => {
     }
 };
 
-// FIX: Explicitly typed the handler function with RequestHandler.
-export const createCustomerPortalSessionHandler: RequestHandler = async (req, res) => {
+// FIX: Explicitly typed the handler function with Request and Response types.
+export const createCustomerPortalSessionHandler = async (req: Request, res: Response) => {
     if (!checkStripeConfig(res)) return;
 
     const { customerId, origin } = req.body;
