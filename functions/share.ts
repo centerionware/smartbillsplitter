@@ -63,8 +63,13 @@ async function retrieveShare(shareId: string): Promise<{ encryptedData: string; 
     }
     const payload = JSON.parse(sessionJson);
     
-    // Prioritize the new 'encryptedData' key, but fall back to the legacy 'data' key.
-    const encryptedContent = payload.encryptedData || payload.data;
+    // FIX: A more robust and explicit check for both new and legacy data formats.
+    // This ensures that even if old data exists, it is correctly processed and returned
+    // to the client in the expected format, preventing polling failures.
+    let encryptedContent = payload.encryptedData;
+    if (!encryptedContent && payload.data) {
+        encryptedContent = payload.data;
+    }
 
     if (!encryptedContent || typeof encryptedContent !== 'string') {
         throw new Error("Share session is corrupted and contains no valid data payload.");
@@ -72,7 +77,8 @@ async function retrieveShare(shareId: string): Promise<{ encryptedData: string; 
     if (!payload.lastUpdatedAt || typeof payload.lastUpdatedAt !== 'number') {
         throw new Error("Share session is corrupted and is missing a timestamp.");
     }
-
+    
+    // Always return the data under the 'encryptedData' key for client consistency.
     return {
         encryptedData: encryptedContent,
         lastUpdatedAt: payload.lastUpdatedAt,
