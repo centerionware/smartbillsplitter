@@ -1,7 +1,6 @@
-
 import { randomUUID } from 'crypto';
 import redisClient from '../services/redisClient.ts';
-import { HttpRequest, HttpResponse } from '../http-types';
+import { HttpRequest, HttpResponse } from '../http-types.ts';
 
 const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
@@ -21,19 +20,18 @@ async function createOrUpdateShare(encryptedData: string, shareId?: string): Pro
     const now = Date.now();
     
     try {
+        const sessionData = { encryptedData, lastUpdatedAt: now }; // Use 'encryptedData' key
         if (shareId) { // UPDATE
             const key = `share:${shareId}`;
             if (!(await redisClient.exists(key))) {
                 throw new Error("Cannot update. Share session not found or expired.");
             }
-            const sessionData = { data: encryptedData, lastUpdatedAt: now };
             await redisClient.set(key, JSON.stringify(sessionData), 'EX', EXPIRATION_SECONDS);
             console.log(`Updated shared bill ${shareId}.`);
             return { shareId, lastUpdatedAt: now };
         } else { // CREATE
             const id = randomUUID();
             const key = `share:${id}`;
-            const sessionData = { data: encryptedData, lastUpdatedAt: now };
             await redisClient.set(key, JSON.stringify(sessionData), 'EX', EXPIRATION_SECONDS);
             console.log(`Created shared bill ${id}.`);
             return { shareId: id, lastUpdatedAt: now };
@@ -61,7 +59,16 @@ async function retrieveShare(shareId: string): Promise<{ encryptedData: string; 
     if (!sessionJson) {
         throw new Error("Invalid or expired share ID.");
     }
-    return JSON.parse(sessionJson);
+    const payload = JSON.parse(sessionJson);
+
+    // For backward compatibility with links created before the fix.
+    // If the old 'data' property exists, rename it to 'encryptedData' to match client expectations.
+    if (payload.data && !payload.encryptedData) {
+        payload.encryptedData = payload.data;
+        delete payload.data;
+    }
+
+    return payload;
 }
 
 // --- Framework-Agnostic Handler ---
