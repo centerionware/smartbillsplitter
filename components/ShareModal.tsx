@@ -15,7 +15,7 @@ const ActionButton: React.FC<{ onClick: () => void; children: React.ReactNode; d
         onClick={onClick}
         disabled={disabled}
         title={title}
-        className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition-colors disabled:opacity-50 disabled:cursor-wait"
+        className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition-colors disabled:opacity-50 disabled:cursor-wait cursor-pointer"
     >
         {children}
     </button>
@@ -29,8 +29,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
   const getShareUrlForParticipant = useCallback(async (participant: Participant): Promise<string | null> => {
     setLoading(prev => new Set(prev).add(participant.id));
     try {
-      // The generateShareLink service now correctly handles caching and server-side checks.
-      // We no longer need a local cache in this component.
       const url = await generateShareLink(bill, participant.id, settings, onUpdateBill);
       return url;
     } catch (e: any) {
@@ -68,6 +66,12 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
           showNotification('Failed to share link', 'error');
         }
       }
+    } else {
+      // Fallback for browsers without navigator.share
+      navigator.clipboard.writeText(message);
+      showNotification('Share message with link copied.', 'success');
+      setCopied(p.id);
+      setTimeout(() => setCopied(null), 2000);
     }
   };
 
@@ -116,7 +120,15 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
                                 : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2-2H9a2 2 0 01-2-2V9z" /><path d="M4 3a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H4z" /></svg>
                                 }
                             </ActionButton>
-                            {navigator.share && <ActionButton title="Share..." onClick={() => handleShare(p)}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg></ActionButton>}
+                             <ActionButton 
+                                title={navigator.share ? "Share..." : "Copy Message & Link"} 
+                                onClick={() => handleShare(p)}
+                            >
+                                {navigator.share 
+                                    ? <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
+                                    : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm2 0v12h8V4H6zm1 9a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
+                                }
+                            </ActionButton>
                         </>
                     )}
                 </div>
