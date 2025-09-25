@@ -2,7 +2,7 @@ import type { Bill, Settings, Theme, RecurringBill, ImportedBill } from '../type
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 6; // Incremented version for new stores
+const DB_VERSION = 7; // Incremented version for migration
 
 // Object Store Names
 const STORES = {
@@ -46,23 +46,27 @@ export function initDB(): Promise<void> {
 
     request.onupgradeneeded = (event) => {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
-      if (!dbInstance.objectStoreNames.contains(STORES.BILLS)) {
-        dbInstance.createObjectStore(STORES.BILLS, { keyPath: 'id' });
-      }
-      if (!dbInstance.objectStoreNames.contains(STORES.RECURRING_BILLS)) {
-        dbInstance.createObjectStore(STORES.RECURRING_BILLS, { keyPath: 'id' });
-      }
-      if (!dbInstance.objectStoreNames.contains(STORES.SETTINGS)) {
-        dbInstance.createObjectStore(STORES.SETTINGS);
-      }
-       if (!dbInstance.objectStoreNames.contains(STORES.THEME)) {
-        dbInstance.createObjectStore(STORES.THEME);
-      }
-      if (!dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION)) {
-        dbInstance.createObjectStore(STORES.SUBSCRIPTION);
-      }
-      if (!dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION_DETAILS)) {
-        dbInstance.createObjectStore(STORES.SUBSCRIPTION_DETAILS);
+      const transaction = (event.target as IDBOpenDBRequest).transaction;
+
+      if (event.oldVersion < 1) {
+        if (!dbInstance.objectStoreNames.contains(STORES.BILLS)) {
+            dbInstance.createObjectStore(STORES.BILLS, { keyPath: 'id' });
+        }
+        if (!dbInstance.objectStoreNames.contains(STORES.RECURRING_BILLS)) {
+            dbInstance.createObjectStore(STORES.RECURRING_BILLS, { keyPath: 'id' });
+        }
+        if (!dbInstance.objectStoreNames.contains(STORES.SETTINGS)) {
+            dbInstance.createObjectStore(STORES.SETTINGS);
+        }
+        if (!dbInstance.objectStoreNames.contains(STORES.THEME)) {
+            dbInstance.createObjectStore(STORES.THEME);
+        }
+        if (!dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION)) {
+            dbInstance.createObjectStore(STORES.SUBSCRIPTION);
+        }
+        if (!dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION_DETAILS)) {
+            dbInstance.createObjectStore(STORES.SUBSCRIPTION_DETAILS);
+        }
       }
        if (event.oldVersion < 3) {
         if (!dbInstance.objectStoreNames.contains(STORES.CRYPTO_KEYS)) {
@@ -82,6 +86,29 @@ export function initDB(): Promise<void> {
         if (dbInstance.objectStoreNames.contains('share_keys')) {
             dbInstance.deleteObjectStore('share_keys');
         }
+      }
+      if (event.oldVersion < 7) {
+        // Migration to remove obsolete `shareInfo` from existing bills. This property
+        // is from the old sharing system and will cause crashes with the new code.
+        console.log('Upgrading database to version 7: Removing obsolete shareInfo from bills.');
+        if (!transaction) return;
+        
+        const billStore = transaction.objectStore(STORES.BILLS);
+        const cursorRequest = billStore.openCursor();
+
+        cursorRequest.onsuccess = e => {
+            const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const bill = cursor.value;
+                if ('shareInfo' in bill) {
+                    delete bill.shareInfo;
+                    cursor.update(bill);
+                }
+                cursor.continue();
+            } else {
+                console.log('Bill data migration to v7 complete.');
+            }
+        };
       }
     };
 

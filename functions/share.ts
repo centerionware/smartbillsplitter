@@ -1,10 +1,12 @@
-import { Request, Response } from 'express';
+// FIX: Changed import to use RequestHandler for robust Express handler typing.
+import type { RequestHandler } from 'express';
 import { randomUUID } from 'crypto';
 import redisClient from '../services/redisClient.ts';
 
 const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
-export const shareHandler = async (req: Request, res: Response) => {
+// FIX: Explicitly typed the handler with RequestHandler to ensure correct types for req and res.
+export const shareHandler: RequestHandler = async (req, res) => {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
