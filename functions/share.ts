@@ -20,7 +20,7 @@ async function createOrUpdateShare(encryptedData: string, shareId?: string): Pro
     const now = Date.now();
     
     try {
-        // FIX: Consistently use the 'encryptedData' key for all new and updated shares.
+        // The session data must use 'encryptedData' to be compatible with the client.
         const sessionData = { encryptedData, lastUpdatedAt: now };
         if (shareId) { // UPDATE
             const key = `share:${shareId}`;
@@ -47,6 +47,7 @@ async function createOrUpdateShare(encryptedData: string, shareId?: string): Pro
 
 /**
  * Retrieves data from a share session.
+ * This is backward-compatible and handles payloads that may use the legacy `data` key.
  * @param shareId The ID of the share to retrieve.
  * @returns An object containing the encrypted data and last update timestamp.
  */
@@ -61,15 +62,21 @@ async function retrieveShare(shareId: string): Promise<{ encryptedData: string; 
         throw new Error("Invalid or expired share ID.");
     }
     const payload = JSON.parse(sessionJson);
+    
+    // Prioritize the new 'encryptedData' key, but fall back to the legacy 'data' key.
+    const encryptedContent = payload.encryptedData || payload.data;
 
-    // For backward compatibility with links created before the fix.
-    // If the old 'data' property exists, rename it to 'encryptedData' to match client expectations.
-    if (payload.data && !payload.encryptedData) {
-        payload.encryptedData = payload.data;
-        delete payload.data;
+    if (!encryptedContent || typeof encryptedContent !== 'string') {
+        throw new Error("Share session is corrupted and contains no valid data payload.");
+    }
+    if (!payload.lastUpdatedAt || typeof payload.lastUpdatedAt !== 'number') {
+        throw new Error("Share session is corrupted and is missing a timestamp.");
     }
 
-    return payload;
+    return {
+        encryptedData: encryptedContent,
+        lastUpdatedAt: payload.lastUpdatedAt,
+    };
 }
 
 // --- Framework-Agnostic Handler ---
