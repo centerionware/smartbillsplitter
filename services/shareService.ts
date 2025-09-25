@@ -9,21 +9,24 @@ interface ShareBillInfo {
 }
 
 // Converts a UTF-8 string to a binary string where each character's code is 0-255,
-// making it suitable for the btoa function.
-const utf8ToBinary = (str: string): string => {
+// making it suitable for the btoa function. This is a robust way to handle Unicode.
+function utf8ToBinaryString(str: string): string {
   const encoder = new TextEncoder();
   const uint8Array = encoder.encode(str);
+  // This is a performant way to convert a Uint8Array to a binary string for btoa
+  // It avoids "Maximum call stack size exceeded" errors with large inputs.
+  const CHUNK_SIZE = 8192;
   let binary = '';
-  uint8Array.forEach(byte => {
-    binary += String.fromCharCode(byte);
-  });
+  for (let i = 0; i < uint8Array.length; i += CHUNK_SIZE) {
+    binary += String.fromCharCode.apply(null, uint8Array.subarray(i, i + CHUNK_SIZE) as unknown as number[]);
+  }
   return binary;
 }
 
+
 // Helper to Base64URL encode a string, making it safe for URLs
 function base64UrlEncode(str: string): string {
-    // Use the robust helper to prevent errors with Unicode characters before encoding.
-    return btoa(utf8ToBinary(str))
+    return btoa(utf8ToBinaryString(str))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=/g, '');

@@ -12,38 +12,55 @@ interface ViewSharedBillProps {
 
 type Status = 'loading' | 'fetching_key' | 'fetching_data' | 'verifying' | 'verified' | 'imported' | 'error' | 'expired';
 
-// Helper to decode a Base64URL string robustly.
+/**
+ * A robust helper to decode a Base64URL string with detailed error reporting.
+ * It correctly handles padding, reverses the URL-safe character encoding,
+ * decodes the Base64, and interprets the result as a UTF-8 string.
+ *
+ * @param base64Url The Base64URL-encoded string.
+ * @returns The decoded string.
+ * @throws An error with a specific message if decoding fails at any step.
+ */
 function base64UrlDecode(base64Url: string): string {
-    // Replace URL-safe characters with Base64 standard characters
+    // Replace URL-safe characters with standard Base64 characters
     let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     
-    // Add padding if necessary
+    // Add padding if it's missing
     const padding = base64.length % 4;
     if (padding) {
-        if (padding === 2) {
-            base64 += '==';
-        } else if (padding === 3) {
-            base64 += '=';
+        if (padding === 2) base64 += '==';
+        else if (padding === 3) base64 += '=';
+        else throw new Error('Malformed share link: The key data appears to be truncated (invalid length).');
+    }
+
+    try {
+        // atob decodes a Base64 string into a "binary string" (where each character's code is a byte value).
+        const binaryString = atob(base64);
+        
+        // Convert the binary string into a Uint8Array of actual bytes.
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Use TextDecoder to interpret the byte array as a UTF-8 string.
+        // This is the crucial step for correctly handling Unicode characters.
+        // `fatal: true` ensures an error is thrown for invalid byte sequences.
+        return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch (e: any) {
+        if (e instanceof DOMException && e.name === 'InvalidCharacterError') {
+             // This error comes directly from atob() if the input is not valid Base64.
+             throw new Error("Failed to decode share link key. The link is corrupted (invalid Base64 characters).");
+        } else if (e instanceof TypeError) {
+             // This error comes from TextDecoder if the byte sequence is not valid UTF-8.
+             throw new Error("Failed to decode share link key. The data contains an invalid character sequence (not valid UTF-8).");
         } else {
-            // A length that is 1 mod 4 is invalid, indicating a corrupted string.
-            throw new Error('Malformed share link: The key data appears to be truncated.');
+             // Catch any other unexpected errors.
+             throw new Error(`An unexpected error occurred during link decoding: ${e.message}`);
         }
     }
-    
-    try {
-        // First, decode from Base64 to a binary string (each char has a code from 0-255).
-        const binaryString = atob(base64);
-        // Then, convert this binary string into a Uint8Array of bytes.
-        const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
-        // Finally, use TextDecoder to interpret these bytes as a UTF-8 string.
-        // This correctly handles any multi-byte characters in the original JSON.
-        return new TextDecoder().decode(bytes);
-    } catch (e) {
-        // This catches errors from invalid characters within the base64 string itself.
-        console.error("atob failed:", e);
-        throw new Error('Malformed share link: The key data contains invalid characters.');
-    }
 }
+
 
 const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills }) => {
   const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(
