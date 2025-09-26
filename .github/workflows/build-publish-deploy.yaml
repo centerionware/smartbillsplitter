@@ -174,8 +174,10 @@ jobs:
           IMAGE_TAG=${{ needs.build.outputs.image_tag }}
           DEPLOYMENT_FILE="production-repo/charts/bill-splitter/templates/deployment.yaml"
           
-          sed -i 's#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONTEND_IMAGE_NAME }}:[^"]*"#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONTEND_IMAGE_NAME }}:${IMAGE_TAG}"#g' ${DEPLOYMENT_FILE}
-          sed -i 's#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:[^"]*"#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${IMAGE_TAG}"#g' ${DEPLOYMENT_FILE}
+          # Directly replace the placeholder tags with the new image tag from the build step.
+          # This is more robust than trying to match the entire image line.
+          sed -i "s/IMAGE_TAG_PLACEHOLDER_FRONTEND/${IMAGE_TAG}/g" ${DEPLOYMENT_FILE}
+          sed -i "s/IMAGE_TAG_PLACEHOLDER_BACKEND/${IMAGE_TAG}/g" ${DEPLOYMENT_FILE}
 
       - name: Bump Helm chart version
         id: bump_version
