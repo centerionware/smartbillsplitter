@@ -9,6 +9,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_OWNER: ${{ github.repository_owner }}
+  FRONTEND_IMAGE_NAME: bill-splitter-frontend
   BACKEND_IMAGE_NAME: bill-splitter-backend
 
 jobs:
@@ -58,6 +59,7 @@ jobs:
 
   publish-to-branches:
     name: Publish Artifacts to Branches
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -95,6 +97,7 @@ jobs:
 
   build-and-push-docker:
     name: Build and Push Docker Images
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -133,3 +136,59 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ needs.build.outputs.image_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  update-helm-chart:
+    name: Update and Publish Helm Chart
+    if: github.ref == 'refs/heads/main'
+    needs: [build, build-and-push-docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout production branch for deployment
+        uses: actions/checkout@v4
+        with:
+          ref: production
+          path: production
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Helm chart with new image tags
+        run: |
+          IMAGE_TAG=${{ needs.build.outputs.image_tag }}
+          DEPLOYMENT_FILE="production/charts/bill-splitter/templates/deployment.yaml"
+          
+          # Replace image tags for both frontend and backend. The regex handles both initial placeholders and subsequent SHAs.
+          sed -i 's#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONTEND_IMAGE_NAME }}:[^"]*"#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONTEND_IMAGE_NAME }}:${IMAGE_TAG}"#g' ${DEPLOYMENT_FILE}
+          sed -i 's#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:[^"]*"#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${IMAGE_TAG}"#g' ${DEPLOYMENT_FILE}
+
+      - name: Bump Helm chart version
+        id: bump_version
+        run: |
+          CHART_FILE="production/charts/bill-splitter/Chart.yaml"
+          # Read current version and bump the patch number
+          VERSION=$(grep '^version:' ${CHART_FILE} | awk '{print $2}')
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          
+          # Update the version in the Chart.yaml file
+          sed -i "s/^version: .*/version: ${NEW_VERSION}/" ${CHART_FILE}
+          
+          echo "Bumped Helm chart from ${VERSION} to ${NEW_VERSION}"
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Commit and push updated chart to production branch
+        run: |
+          cd production
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add charts/
+          # Check if there are changes to commit to avoid empty commits
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(helm): Bump chart to v${{ steps.bump_version.outputs.new_version }}, update images to tag ${{ needs.build.outputs.image_tag }}"
+            git push
+          else
+            echo "No changes to the Helm chart to commit."
+          fi
