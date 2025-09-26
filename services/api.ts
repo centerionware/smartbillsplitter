@@ -1,72 +1,68 @@
 // services/api.ts
 let API_BASE_URL: string | null = null;
 
-const discoverApiBaseUrl = async (): Promise<string> => {
-    // Vite replaces this with a string literal during build, or `undefined` if not set.
-    const envApiUrls = (import.meta as any).env.VITE_API_BASE_URLS;
-    let discoveredUrl: string | null = null;
+/**
+ * A self-contained helper to check if a backend URL is live.
+ * @param url The base URL to check.
+ * @returns A promise that resolves to true if the backend is healthy, false otherwise.
+ */
+const checkUrl = async (url: string): Promise<boolean> => {
+    try {
+        // Ping a known, lightweight health check endpoint with a short timeout.
+        // Use URL constructor to safely join paths and avoid double slashes.
+        const healthUrl = new URL('/health', url).toString();
+        const response = await fetch(healthUrl, { method: 'GET', signal: AbortSignal.timeout(2000) });
+        // Ensure the response is OK (status 200-299) and the body is exactly "OK".
+        if (response.ok && (await response.text()) === 'OK') {
+            return true;
+        }
+        return false;
+    } catch (error) {
+        // Any failure (network error, CORS, timeout, etc.) is caught here.
+        console.debug(`Health check for ${url} failed.`, error);
+        return false;
+    }
+};
 
+
+const discoverApiBaseUrl = async (): Promise<string> => {
     // --- Phase 1: Check build-time environment variables first ---
+    const envApiUrls = (import.meta as any).env.VITE_API_BASE_URLS;
     if (typeof envApiUrls === 'string' && envApiUrls.length > 0) {
-        const candidatesFromEnv = envApiUrls.split(',').map(url => url.trim()).filter(Boolean);
-        console.log("Checking for backend API from build-time candidates:", candidatesFromEnv);
-        for (const candidateUrl of candidatesFromEnv) {
-            try {
-                // Ping a known, lightweight health check endpoint with a short timeout.
-                const response = await fetch(`${candidateUrl}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
-                if (response.ok && (await response.text()) === 'OK') {
-                    console.log(`Discovered and connected to backend API at: ${candidateUrl}`);
-                    discoveredUrl = candidateUrl;
-                    break; // Exit the loop as soon as we find a working URL
-                }
-            } catch (error: any) {
-                // This is an expected failure if the URL is not the active backend, so we log it at a debug level.
-                console.debug(`Check for backend at ${candidateUrl} failed.`, error);
+        const candidates = envApiUrls.split(',').map(url => url.trim()).filter(Boolean);
+        console.log("Checking for backend API from build-time candidates:", candidates);
+        for (const url of candidates) {
+            if (await checkUrl(url)) {
+                console.log(`Discovered and connected to backend API at: ${url}`);
+                return url; // Success! Return immediately.
             }
         }
     }
 
-    if (discoveredUrl) {
-        return discoveredUrl;
-    }
-    
     // --- Phase 2: Fallback to dynamic subdomain discovery ---
-    if (!discoveredUrl) {
-        console.log("No backend found from build-time candidates. Falling back to dynamic discovery.");
-        const dynamicCandidates: string[] = [];
-        const currentHostname = window.location.hostname;
-        const currentProtocol = window.location.protocol;
-        
-        if (currentHostname !== 'localhost' && !currentHostname.startsWith('127.0.0.1')) {
-            const baseHost = currentHostname.startsWith('www.') ? currentHostname.substring(4) : currentHostname;
-            const prefixes = ['k', 'c', 'v', 'n', 'a', 'g', 'm'];
-            prefixes.forEach(prefix => {
-                dynamicCandidates.push(`${currentProtocol}//${prefix}.${baseHost}`);
-            });
-        }
+    console.log("No backend found from build-time candidates. Falling back to dynamic discovery.");
+    const dynamicCandidates: string[] = [];
+    const { hostname, protocol } = window.location;
+    
+    if (hostname !== 'localhost' && !hostname.startsWith('127.0.0.1')) {
+        const baseHost = hostname.startsWith('www.') ? hostname.substring(4) : hostname;
+        const prefixes = ['k', 'c', 'v', 'n', 'a', 'g', 'm'];
+        prefixes.forEach(prefix => {
+            dynamicCandidates.push(`${protocol}//${prefix}.${baseHost}`);
+        });
+    }
 
-        if (dynamicCandidates.length > 0) {
-            console.log("Checking dynamic candidates:", dynamicCandidates);
-            for (const candidateUrl of dynamicCandidates) {
-                try {
-                    const response = await fetch(`${candidateUrl}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
-                    if (response.ok && (await response.text()) === 'OK') {
-                        console.log(`Discovered backend via dynamic discovery at: ${candidateUrl}`);
-                        discoveredUrl = candidateUrl;
-                        break; // Exit loop on success
-                    }
-                } catch (error: any) {
-                    console.debug(`Dynamic check for backend at ${candidateUrl} failed.`, error);
-                }
+    if (dynamicCandidates.length > 0) {
+        console.log("Checking dynamic candidates:", dynamicCandidates);
+        for (const url of dynamicCandidates) {
+            if (await checkUrl(url)) {
+                console.log(`Discovered backend via dynamic discovery at: ${url}`);
+                return url; // Success! Return immediately.
             }
         }
     }
     
     // --- Final Fallback ---
-    if (discoveredUrl) {
-        return discoveredUrl;
-    }
-
     console.log("No backend discovered. Falling back to relative API paths.");
     return '';
 };
@@ -95,10 +91,14 @@ export const getApiUrl = (path: string): string => {
         console.error("getApiUrl() was called before initializeApi() completed. This is not recommended. Falling back to relative path.");
         return path;
     }
-    // Ensure path starts with a slash for consistency.
-    const sanitizedPath = path.startsWith('/') ? path : `/${path}`;
     
-    // If API_BASE_URL is an empty string, this correctly returns just the path (e.g., /scan-receipt),
-    // which the browser interprets as a relative URL. If it's set, it returns the full URL.
-    return `${API_BASE_URL}${sanitizedPath}`;
+    // If API_BASE_URL is an empty string, this means we should use relative paths.
+    if (API_BASE_URL === '') {
+        const sanitizedPath = path.startsWith('/') ? path : `/${path}`;
+        return sanitizedPath;
+    }
+
+    // Use the URL constructor for robust joining of the base URL and the path.
+    // This correctly handles cases where the base URL may or may not have a trailing slash.
+    return new URL(path, API_BASE_URL).toString();
 };
