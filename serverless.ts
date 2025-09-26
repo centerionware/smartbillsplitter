@@ -4,10 +4,6 @@ import { syncHandler } from './functions/sync';
 import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler } from './functions/stripe';
 import { shareHandler } from './functions/share';
 import { onetimeKeyHandler } from './functions/onetime-key';
-import { createRedisKVStore } from './services/redisClient.ts';
-import { createVercelKVStore } from './services/vercelKV.ts';
-import { createCloudflareKVStore } from './services/cloudflareKV.ts';
-import { createAwsDynamoDBStore } from './services/awsDynamoDB.ts';
 import { MultiCloudKVStore } from './services/multiCloudKV.ts';
 import type { KeyValueStore } from './services/keyValueStore.ts';
 
@@ -26,6 +22,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
   // Vercel KV is detected via process.env variables set by Vercel's runtime.
   if (process.env.KV_URL) {
     try {
+      const { createVercelKVStore } = await import('./services/vercelKV.ts');
       stores.push(createVercelKVStore());
       console.log('Vercel KV store initialized.');
     } catch (e: any) {
@@ -36,6 +33,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
   // Cloudflare KV is detected via the `env` binding passed from the Cloudflare adapter.
   if (env && env.KV_NAMESPACE) {
     try {
+      const { createCloudflareKVStore } = await import('./services/cloudflareKV.ts');
       stores.push(createCloudflareKVStore(env.KV_NAMESPACE));
       console.log('Cloudflare KV store initialized.');
     } catch (e: any) {
@@ -46,6 +44,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
   // AWS DynamoDB is detected via environment variables.
   if (process.env.AWS_REGION && process.env.DYNAMODB_TABLE_NAME) {
     try {
+      const { createAwsDynamoDBStore } = await import('./services/awsDynamoDB.ts');
       stores.push(createAwsDynamoDBStore());
       console.log('AWS DynamoDB store initialized.');
     } catch (e: any) {
@@ -58,6 +57,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
   // as Vercel's local dev environment might set both.
   if (process.env.REDIS_HOST && !process.env.KV_URL) {
      try {
+      const { createRedisKVStore } = await import('./services/redisClient.ts');
       stores.push(createRedisKVStore());
       console.log('Redis KV store initialized for local development.');
     } catch (e: any) {
