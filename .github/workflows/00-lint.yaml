@@ -15,47 +15,48 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check if package-lock.json exists
-        id: check_file
-        uses: andstor/file-existence-action@v3
-        with:
-          files: "package-lock.json"
+      - name: Check for package-lock.json
+        id: check_lockfile
+        run: |
+          if [ -f "package-lock.json" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
 
       # === Path 1: Lockfile exists, so we lint ===
       - name: Setup Node.js (with cache)
-        if: steps.check_file.outputs.exists == 'true'
+        if: steps.check_lockfile.outputs.exists == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies from lockfile
-        if: steps.check_file.outputs.exists == 'true'
+        if: steps.check_lockfile.outputs.exists == 'true'
         run: npm ci
 
       - name: Run TypeScript check
-        if: steps.check_file.outputs.exists == 'true'
+        if: steps.check_lockfile.outputs.exists == 'true'
         run: npx tsc --noEmit
 
       # === Path 2: Lockfile is missing, so we generate and push it ===
       - name: Setup Node.js (no cache)
-        if: steps.check_file.outputs.exists == 'false'
+        if: steps.check_lockfile.outputs.exists == 'false'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       
-      - name: Generate lockfile
-        if: steps.check_file.outputs.exists == 'false'
-        run: npm install
-
-      - name: Commit and push generated lockfile
-        if: steps.check_file.outputs.exists == 'false'
+      - name: Generate, commit, and push lockfile
+        if: steps.check_lockfile.outputs.exists == 'false'
         run: |
+          echo "package-lock.json not found. Generating..."
+          npm install
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add package-lock.json
-          # Check if there are changes to commit before committing
           if ! git diff --staged --quiet; then
+            echo "Committing and pushing generated package-lock.json..."
             git commit -m "chore: generate package-lock.json [ci skip]"
             git push
           else
