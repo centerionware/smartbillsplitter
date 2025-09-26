@@ -10,7 +10,8 @@
     "build": "vite build && npm run build:backend",
     "build:frontend": "vite build",
     "build:backend": "esbuild server.ts http-types.ts express-adapter.ts vercel-adapter.ts cloudflare-adapter.ts aws-lambda-adapter.ts lambda.ts serverless.ts api/handler.ts workers/index.ts functions/*.ts services/*.ts --bundle --platform=node --format=esm --outdir=dist-server",
-    "build:lambda": "npm run build:backend && mkdir -p dist-lambda && cd dist-server && zip -r ../dist-lambda/function.zip .",
+    "build:lambda:source": "esbuild lambda.ts --bundle --platform=node --format=esm --outfile=dist-lambda/lambda.js --external:@aws-sdk/client-dynamodb",
+    "build:lambda": "rm -rf dist-lambda && mkdir -p dist-lambda && npm run build:lambda:source && (cd dist-lambda && zip function.zip lambda.js)",
     "preview": "vite preview",
     "start:backend": "node dist-server/server.js"
   },
