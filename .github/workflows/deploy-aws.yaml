@@ -70,19 +70,24 @@ jobs:
         id: iam_role
         run: |
           ROLE_NAME="Lambda-SharedBills-ExecutionRole"
-          ROLE_ARN=$(aws iam get-role --role-name ${ROLE_NAME} --query 'Role.Arn' --output text 2>/dev/null)
           
-          if [ -z "$ROLE_ARN" ]; then
-            echo "Creating IAM role ${ROLE_NAME} for Lambda execution..."
+          # Use the aws command directly in the if condition to handle non-zero exit codes
+          if ! ROLE_ARN=$(aws iam get-role --role-name ${ROLE_NAME} --query 'Role.Arn' --output text 2>/dev/null); then
+            echo "IAM role ${ROLE_NAME} not found. Creating it..."
             TRUST_POLICY='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
             ROLE_ARN=$(aws iam create-role --role-name ${ROLE_NAME} --assume-role-policy-document "${TRUST_POLICY}" --query 'Role.Arn' --output text)
-            # Attach basic execution policy and DynamoDB access policy
+            
+            echo "Attaching policies to new role..."
             aws iam attach-role-policy --role-name ${ROLE_NAME} --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             aws iam attach-role-policy --role-name ${ROLE_NAME} --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess # Note: For production, use a more restrictive policy
+            
             echo "Waiting for IAM role to propagate..."
             sleep 15
+          else
+            echo "IAM role ${ROLE_NAME} already exists."
           fi
-          echo "EXECUTION_ROLE_ARN=$ROLE_ARN" >> $GITHUB_OUTPUT
+          
+          echo "EXECUTION_ROLE_ARN=${ROLE_ARN}" >> $GITHUB_OUTPUT
 
       - name: Deploy Lambda Function
         id: lambda_deploy
