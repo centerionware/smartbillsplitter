@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -11,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write # Required to trigger a workflow run
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,7 +42,7 @@ jobs:
         if: steps.check_lockfile.outputs.exists == 'true'
         run: npx tsc --noEmit
 
-      # === Path 2: Lockfile is missing, so we generate and push it ===
+      # === Path 2: Lockfile is missing, so we generate, push, and re-trigger ===
       - name: Setup Node.js (no cache)
         if: steps.check_lockfile.outputs.exists == 'false'
         uses: actions/setup-node@v4
@@ -49,7 +51,9 @@ jobs:
       
       - name: Generate, commit, and push lockfile
         if: steps.check_lockfile.outputs.exists == 'false'
+        id: push_lockfile
         run: |
+          echo "pushed=false" >> $GITHUB_OUTPUT
           echo "package-lock.json not found. Generating..."
           npm install
           git config --global user.name 'github-actions[bot]'
@@ -59,6 +63,18 @@ jobs:
             echo "Committing and pushing generated package-lock.json..."
             git commit -m "chore: generate package-lock.json [ci skip]"
             git push
+            echo "pushed=true" >> $GITHUB_OUTPUT
           else
             echo "No changes to package-lock.json to commit."
           fi
+
+      - name: Trigger new workflow run
+        if: steps.push_lockfile.outputs.pushed == 'true'
+        run: |
+          echo "Lockfile was pushed. Triggering a new workflow run to perform linting."
+          # Wait a few seconds to allow the push to be fully processed by GitHub before the new workflow starts.
+          sleep 5 
+          gh workflow run $(basename "${{ github.workflow_ref }}") --ref ${{ github.ref }}
+        env:
+          # The GITHUB_TOKEN is automatically used by gh CLI, but explicitly setting GH_TOKEN is best practice.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
