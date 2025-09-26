@@ -45,9 +45,7 @@ jobs:
 
       - name: Create DynamoDB Table if it does not exist
         run: |
-          aws dynamodb describe-table --table-name ${{ env.DYNAMODB_TABLE_NAME }} > /dev/null 2>&1
-          
-          if [ $? -ne 0 ]; then
+          if ! aws dynamodb describe-table --table-name ${{ env.DYNAMODB_TABLE_NAME }} > /dev/null 2>&1; then
             echo "DynamoDB table ${{ env.DYNAMODB_TABLE_NAME }} not found. Creating it..."
             aws dynamodb create-table \
               --table-name ${{ env.DYNAMODB_TABLE_NAME }} \
