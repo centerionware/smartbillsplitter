@@ -1,0 +1,52 @@
+name: 10. Kubernetes Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get_tag:
+    name: Generate Image Tag
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Extract Docker metadata for tag
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          tags: type=sha,prefix=,format=short
+
+  build_backend:
+    name: Build Backend
+    uses: ./.github/workflows/01-build-backend.yaml
+    secrets: inherit
+
+  build_frontend:
+    name: Build Frontend
+    uses: ./.github/workflows/03-build-frontend.yaml
+    with:
+      # This URL should point to where the backend will be exposed by the K8s ingress.
+      # This default matches the 'k' subdomain prefix in the Helm chart values.
+      api_urls: "https://k.sharedbills.app"
+    secrets: inherit
+
+  build_docker_images:
+    name: Build Docker Images
+    needs: [get_tag, build_backend, build_frontend]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/05-build-docker.yaml
+    with:
+      image_tag: ${{ needs.get_tag.outputs.image_tag }}
+    secrets: inherit
+  
+  update_helm_chart:
+    name: Update Helm Chart
+    needs: [get_tag, build_docker_images]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/06-update-helm.yaml
+    with:
+      image_tag: ${{ needs.get_tag.outputs.image_tag }}
+    secrets: inherit
