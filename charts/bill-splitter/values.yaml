@@ -6,6 +6,7 @@ image:
   owner: PLACEHOLDER_OWNER
 
 frontend:
+  enabled: true # Set to false if you are hosting the frontend on a CDN (e.g., Cloudflare Pages, Vercel)
   replicaCount: 2
   service:
     port: 80

@@ -14,6 +14,7 @@ spec:
     app: backend
     instance: {{ .Release.Name }}
 ---
+{{- if eq .Values.frontend.enabled true }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -28,3 +29,4 @@ spec:
   selector:
     app: frontend
     instance: {{ .Release.Name }}
+{{- end }}

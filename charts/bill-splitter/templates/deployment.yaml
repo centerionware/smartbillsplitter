@@ -60,6 +60,7 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
 ---
+{{- if eq .Values.frontend.enabled true }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -87,3 +88,4 @@ spec:
             - name: http
               containerPort: {{ .Values.frontend.service.port }}
               protocol: TCP
+{{- end }}

@@ -8,19 +8,10 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if .Values.ingress.tls }}
-  tls:
-    {{- range .Values.ingress.tls }}
-    - hosts:
-        - {{ $.Values.ingress.host | quote }}
-        {{- if ne .Values.ingress.backendSubdomainPrefix "" }}
-        - "{{ $.Values.ingress.backendSubdomainPrefix }}.{{ $.Values.ingress.host }}"
-        {{- end }}
-      secretName: {{ .secretName }}
-    {{- end }}
-  {{- end }}
   rules:
   {{- if ne .Values.ingress.backendSubdomainPrefix "" }}
+    {{- /* Subdomain-based routing */}}
+    {{- if eq .Values.frontend.enabled true }}
     - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
@@ -31,6 +22,7 @@ spec:
                 name: {{ include "bill-splitter.fullname" . }}-frontend
                 port:
                   number: {{ .Values.frontend.service.port }}
+    {{- end }}
     - host: "{{ .Values.ingress.backendSubdomainPrefix }}.{{ .Values.ingress.host }}"
       http:
         paths:
@@ -42,6 +34,7 @@ spec:
                 port:
                   number: {{ .Values.backend.service.port }}
   {{- else }}
+    {{- /* Path-based routing */}}
     - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
@@ -101,6 +94,7 @@ spec:
                 name: {{ include "bill-splitter.fullname" . }}-backend
                 port:
                   number: {{ .Values.backend.service.port }}
+          {{- if eq .Values.frontend.enabled true }}
           - path: /
             pathType: Prefix
             backend:
@@ -108,5 +102,6 @@ spec:
                 name: {{ include "bill-splitter.fullname" . }}-frontend
                 port:
                   number: {{ .Values.frontend.service.port }}
+          {{- end }}
   {{- end }}
 {{- end }}
