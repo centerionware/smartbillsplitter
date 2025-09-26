@@ -103,10 +103,15 @@ jobs:
               --zip-file fileb://dist-lambda/function.zip \
               --environment "Variables={API_KEY=${{ secrets.API_KEY }},STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},STRIPE_PRICE_ID_MONTHLY=${{ secrets.STRIPE_PRICE_ID_MONTHLY }},STRIPE_PRICE_ID_YEARLY=${{ secrets.STRIPE_PRICE_ID_YEARLY }},DYNAMODB_TABLE_NAME=${{ env.DYNAMODB_TABLE_NAME }}}"
           else
-            echo "Updating existing Lambda function: ${{ env.LAMBDA_FUNCTION_NAME }}"
+            echo "Updating existing Lambda function code: ${{ env.LAMBDA_FUNCTION_NAME }}"
             aws lambda update-function-code \
               --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
               --zip-file fileb://dist-lambda/function.zip
+            
+            echo "Waiting for function code update to complete..."
+            aws lambda wait function-updated --function-name ${{ env.LAMBDA_FUNCTION_NAME }}
+
+            echo "Updating existing Lambda function configuration: ${{ env.LAMBDA_FUNCTION_NAME }}"
             aws lambda update-function-configuration \
               --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
               --environment "Variables={API_KEY=${{ secrets.API_KEY }},STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},STRIPE_PRICE_ID_MONTHLY=${{ secrets.STRIPE_PRICE_ID_MONTHLY }},STRIPE_PRICE_ID_YEARLY=${{ secrets.STRIPE_PRICE_ID_YEARLY }},DYNAMODB_TABLE_NAME=${{ env.DYNAMODB_TABLE_NAME }}}"
