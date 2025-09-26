@@ -103,16 +103,18 @@ jobs:
             echo "::error::PROD_URL secret is not set."
             exit 1
           fi
-          CORS_CONFIG="{\"AllowOrigins\":[\"${{ secrets.PROD_URL }}\"],\"AllowMethods\":[\"*\"],\"AllowHeaders\":[\"content-type\",\"authorization\"]}"
+
+          # Using a single-quoted string for the JSON payload is more robust against shell expansion issues.
+          CORS_CONFIG='{"AllowOrigins":["${{ secrets.PROD_URL }}"],"AllowMethods":["*"],"AllowHeaders":["content-type","authorization"]}'
           
           URL_CONFIG=$(aws lambda get-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'FunctionUrl' --output text 2>/dev/null)
           
           if [ -z "$URL_CONFIG" ]; then
             echo "Function URL not found. Creating a new one with correct CORS settings..."
-            URL_CONFIG=$(aws lambda create-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --auth-type NONE --cors "${CORS_CONFIG}" --query 'FunctionUrl' --output text)
+            URL_CONFIG=$(aws lambda create-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --auth-type NONE --cors "$CORS_CONFIG" --query 'FunctionUrl' --output text)
           else
              echo "Function URL already exists. Updating CORS configuration..."
-             aws lambda update-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --cors "${CORS_CONFIG}"
+             aws lambda update-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --cors "$CORS_CONFIG"
              echo "CORS configuration updated."
           fi
           
