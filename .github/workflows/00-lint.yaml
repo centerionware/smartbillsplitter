@@ -74,7 +74,9 @@ jobs:
           echo "Lockfile was pushed. Triggering a new workflow run to perform linting."
           # Wait a few seconds to allow the push to be fully processed by GitHub before the new workflow starts.
           sleep 5 
-          gh workflow run $(basename "${{ github.workflow_ref }}") --ref ${{ github.ref }}
+          WORKFLOW_PATH="${{ github.workflow_ref%@*}"
+          WORKFLOW_FILE=$(basename "$WORKFLOW_PATH")
+          gh workflow run "$WORKFLOW_FILE" --ref ${{ github.ref }}
         env:
           # The GITHUB_TOKEN is automatically used by gh CLI, but explicitly setting GH_TOKEN is best practice.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
