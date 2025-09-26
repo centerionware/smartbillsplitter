@@ -1,0 +1,28 @@
+name: 10. Frontend Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_urls:
+        description: 'Comma-separated list of backend API base URLs for the frontend build'
+        required: true
+        default: 'https://k.sharedbills.app'
+
+jobs:
+  build_frontend:
+    name: Build Frontend
+    uses: ./.github/workflows/03-build-frontend.yaml
+    with:
+      api_urls: ${{ inputs.api_urls }}
+    secrets: inherit
+
+  publish_frontend:
+    name: Publish Frontend to gh-pages
+    needs: build_frontend
+    permissions:
+      contents: write
+    uses: ./.github/workflows/04-publish-to-branches.yaml
+    with:
+      publish_frontend: true
+      publish_backend: false
+    secrets: inherit
