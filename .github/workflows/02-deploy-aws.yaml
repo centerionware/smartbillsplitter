@@ -3,6 +3,9 @@ name: 2. Deploy Backend to AWS Lambda
 on:
   workflow_dispatch:
   workflow_call:
+    secrets:
+      PROD_URL:
+        required: true
     outputs:
       function_url:
         description: "The deployed AWS Lambda Function URL."
@@ -93,16 +96,26 @@ jobs:
             aws lambda update-function-configuration --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --environment "Variables={API_KEY=${{ secrets.API_KEY }},STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},STRIPE_PRICE_ID_MONTHLY=${{ secrets.STRIPE_PRICE_ID_MONTHLY }},STRIPE_PRICE_ID_YEARLY=${{ secrets.STRIPE_PRICE_ID_YEARLY }},DYNAMODB_TABLE_NAME=${{ env.DYNAMODB_TABLE_NAME }}}"
           fi
           
-      - name: Create or Get Lambda Function URL
+      - name: Create or Update Lambda Function URL
         id: lambda_url
         run: |
-          URL_CONFIG=$(aws lambda get-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'FunctionUrl' --output text 2>/dev/null)
-          if [ -z "$URL_CONFIG" ]; then
-            echo "Function URL not found. Creating a new one..."
-            URL_CONFIG=$(aws lambda create-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --auth-type NONE --cors "AllowOrigins=*" --query 'FunctionUrl' --output text)
-          else
-             echo "Function URL already exists."
+          if [ -z "${{ secrets.PROD_URL }}" ]; then
+            echo "::error::PROD_URL secret is not set."
+            exit 1
           fi
+          CORS_CONFIG="{\"AllowOrigins\":[\"${{ secrets.PROD_URL }}\"],\"AllowMethods\":[\"GET\",\"POST\",\"OPTIONS\"],\"AllowHeaders\":[\"content-type\",\"authorization\"]}"
+          
+          URL_CONFIG=$(aws lambda get-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'FunctionUrl' --output text 2>/dev/null)
+          
+          if [ -z "$URL_CONFIG" ]; then
+            echo "Function URL not found. Creating a new one with correct CORS settings..."
+            URL_CONFIG=$(aws lambda create-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --auth-type NONE --cors "${CORS_CONFIG}" --query 'FunctionUrl' --output text)
+          else
+             echo "Function URL already exists. Updating CORS configuration..."
+             aws lambda update-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --cors "${CORS_CONFIG}"
+             echo "CORS configuration updated."
+          fi
+          
           echo "Lambda Function URL is: ${URL_CONFIG}"
           echo "FUNCTION_URL=${URL_CONFIG}" >> $GITHUB_OUTPUT
       
