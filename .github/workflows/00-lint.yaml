@@ -6,8 +6,25 @@ on:
       - main
 
 jobs:
-  type-check:
+  check-lockfile:
+    name: Check for package-lock.json
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.check_file.outputs.exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check if package-lock.json exists
+        id: check_file
+        uses: andstor/file-existence-action@v3
+        with:
+          files: "package-lock.json"
+
+  lint:
     name: Run TypeScript Compiler Check
+    needs: check-lockfile
+    if: needs.check-lockfile.outputs.exists == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -24,3 +41,12 @@ jobs:
 
       - name: Run TypeScript check
         run: npx tsc --noEmit
+
+  generate-lockfile:
+    name: Generate Lockfile
+    needs: check-lockfile
+    if: needs.check-lockfile.outputs.exists == 'false'
+    permissions:
+      contents: write # Required for the called workflow to push to the repo
+    uses: ./.github/workflows/generate-lockfile.yaml
+    secrets: inherit
