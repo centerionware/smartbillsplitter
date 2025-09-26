@@ -172,6 +172,7 @@ export const verify = async (data: string, signature: string, publicKey: CryptoK
   const encodedData = new TextEncoder().encode(data);
   // Decode the signature using the robust helper
   const signatureBytes = decodeBase64(signature);
-  // Pass Uint8Array directly. It's a BufferSource and avoids ambiguity with ArrayBufferLike.
-  return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes, encodedData);
+  // Create clean copies to ensure the underlying buffers are standard ArrayBuffers,
+  // satisfying stricter TypeScript environments that might infer ArrayBufferLike.
+  return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes.slice(), encodedData.slice());
 };
