@@ -17,13 +17,13 @@ backend:
     port: 3000
   cors:
     # IMPORTANT: Set this to the full origin of your frontend application.
-    # For example: https://your-app.pages.dev or http://localhost:5173 for local dev
+    # For example: https://your-frontend-domain.com
     allowedOrigin: "https://your-frontend-domain.com"
 
 # Configuration for secrets
+# Set to true to create a new secret from the values below.
+# If false, you must ensure a secret with the correct name and keys exists.
 secret:
-  # Set to true to create a new secret from the values below.
-  # If false, you must ensure a secret with the correct name and keys exists.
   create: true
   
   # The Gemini API Key. MUST be provided if secret.create is true.

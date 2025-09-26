@@ -125,7 +125,6 @@ async function retrieveBatchShares(
 // --- Framework-Agnostic Handler ---
 export const shareHandler = async (req: HttpRequest, context: { kv: KeyValueStore }): Promise<HttpResponse> => {
   const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
