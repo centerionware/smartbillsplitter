@@ -14,17 +14,18 @@ const discoverApiBaseUrl = async (): Promise<string> => {
     
     // In a production-like environment (not localhost), try to discover the backend.
     if (currentHostname !== 'localhost' && !currentHostname.startsWith('127.0.0.1')) {
-        const hostnameParts = currentHostname.split('.');
+        // A more robust way to determine the base host for API discovery.
+        // We specifically handle the 'www' subdomain, as it's common to serve the same
+        // content from both the apex domain and 'www', while the API lives on a separate subdomain.
+        let baseHost = currentHostname;
+        if (baseHost.startsWith('www.')) {
+            baseHost = baseHost.substring(4);
+        }
         
-        // Derive the main domain. Handles 'sub.domain.com' -> 'domain.com' and 'domain.com' -> 'domain.com'.
-        const mainDomain = hostnameParts.length > 2
-            ? hostnameParts.slice(1).join('.')
-            : currentHostname;
-
         const prefixes = ['k', 'c', 'v', 'n', 'a', 'g', 'm'];
         
         for (const prefix of prefixes) {
-            const candidateHost = `${prefix}.${mainDomain}`;
+            const candidateHost = `${prefix}.${baseHost}`;
             const candidateUrl = `${currentProtocol}//${candidateHost}`;
             
             try {
