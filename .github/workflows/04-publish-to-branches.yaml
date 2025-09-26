@@ -42,7 +42,7 @@ jobs:
           publish_dir: ./dist
           publish_branch: gh-pages
           force_orphan: true
-          commit_message: "deploy(frontend): ${{ github.event.head_commit.message }} [ci skip]"
+          commit_message: "deploy(frontend): ${{ github.event.head_commit.message }}"
 
       - name: Deploy backend to backend-dist branch
         if: inputs.publish_backend
@@ -52,4 +52,4 @@ jobs:
           publish_dir: ./backend-dist
           publish_branch: backend-dist
           force_orphan: true
-          commit_message: "deploy(backend): ${{ github.event.head_commit.message }} [ci skip]"
+          commit_message: "deploy(backend): ${{ github.event.head_commit.message }}"
