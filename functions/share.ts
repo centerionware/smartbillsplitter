@@ -8,9 +8,9 @@ const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 // These functions contain the core logic for share sessions and are independent of the server framework.
 
 /**
- * Creates a new share session or updates an existing one.
+ * Creates a new share session or updates an existing one (upsert).
  * @param encryptedData The encrypted data payload.
- * @param shareId Optional ID for updating an existing share.
+ * @param shareId Optional ID for creating/updating a specific share. If not provided, a new UUID is generated.
  * @returns An object with the share ID and last update timestamp.
  */
 async function createOrUpdateShare(encryptedData: string, shareId?: string): Promise<{ shareId: string; lastUpdatedAt: number }> {
@@ -19,36 +19,28 @@ async function createOrUpdateShare(encryptedData: string, shareId?: string): Pro
     }
     const now = Date.now();
     
-    // Explicitly create the new payload with the correct, modern schema.
-    // This ensures that on update, any older format (e.g., using a 'data' key) is
-    // completely and cleanly replaced with the new format, guaranteeing the new timestamp is saved.
     const newSessionPayload = {
         encryptedData,
         lastUpdatedAt: now,
     };
 
     try {
-        if (shareId) { // UPDATE
-            const key = `share:${shareId}`;
-            if (!(await redisClient.exists(key))) {
-                throw new Error("Cannot update. Share session not found or expired.");
-            }
-            await redisClient.set(key, JSON.stringify(newSessionPayload), 'EX', EXPIRATION_SECONDS);
-            console.log(`Updated shared bill ${shareId}.`);
-            return { shareId, lastUpdatedAt: now };
-        } else { // CREATE
-            const id = randomUUID();
-            const key = `share:${id}`;
-            await redisClient.set(key, JSON.stringify(newSessionPayload), 'EX', EXPIRATION_SECONDS);
-            console.log(`Created shared bill ${id}.`);
-            return { shareId: id, lastUpdatedAt: now };
+        const idToUse = shareId || randomUUID();
+        const key = `share:${idToUse}`;
+        await redisClient.set(key, JSON.stringify(newSessionPayload), 'EX', EXPIRATION_SECONDS);
+
+        if (shareId) {
+            console.log(`Upserted shared bill ${shareId}.`);
+        } else {
+            console.log(`Created new shared bill ${idToUse}.`);
         }
+        return { shareId: idToUse, lastUpdatedAt: now };
     } catch (e: any) {
-        if (e.message.startsWith("Cannot update")) throw e;
         console.error('Redis error during share operation:', e);
         throw new Error("A database error occurred during the share operation.");
     }
 }
+
 
 /**
  * Retrieves data from a share session.

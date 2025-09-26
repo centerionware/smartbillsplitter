@@ -302,46 +302,76 @@ export const recreateShareSession = async (
     settings: Settings,
     updateBillCallback: (updatedBill: Bill) => Promise<void>
 ): Promise<Bill> => {
-    // Make a deep copy to avoid mutating the original object until the end.
     let updatedBill = JSON.parse(JSON.stringify(bill));
+    const oldShareId = updatedBill.shareInfo?.shareId;
 
-    // 1. Clean up old, invalid share info and signing key from the database.
+    // 1. Clean up old keys but preserve the shareId for the first attempt.
     await deleteBillSigningKeyDB(updatedBill.id);
     delete updatedBill.shareInfo;
     delete updatedBill.participantShareInfo;
 
-    // 2. Generate new keys and infrastructure for sharing.
+    // 2. Generate new keys.
     const signingKeyPair = await cryptoService.generateSigningKeyPair();
     await saveBillSigningKey(updatedBill.id, signingKeyPair.privateKey);
     const signingPublicKeyJwk = await cryptoService.exportKey(signingKeyPair.publicKey);
-    
     const billEncryptionKey = await cryptoService.generateEncryptionKey();
     const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
 
-    // 3. Encrypt the current bill state and create a new share session on the server.
+    // 3. Encrypt payload with new keys.
     const encryptedData = await encryptAndSignPayload(updatedBill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey);
     
-    const shareResponse = await fetch(getApiUrl('/share'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ encryptedData }),
-    });
+    let shareResult: { shareId: string };
     
-    const shareResult = await shareResponse.json();
-    if (!shareResponse.ok) {
-        throw new Error(shareResult.error || "Failed to create a new share session during re-creation.");
+    // 4. First, try to recreate/upsert with the old shareId.
+    if (oldShareId) {
+        try {
+            const shareResponse = await fetch(getApiUrl(`/share/${oldShareId}`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ encryptedData }),
+            });
+            if (!shareResponse.ok) {
+                // If it fails for any reason, we'll fall through to creating a new one.
+                console.warn(`Failed to recreate share with old ID ${oldShareId}. Status: ${shareResponse.status}. Falling back to new share ID.`);
+                throw new Error('Recreation with old ID failed.');
+            }
+            shareResult = await shareResponse.json();
+        } catch (error) {
+            // This catch block handles both fetch errors and the thrown error for non-ok responses.
+            console.log("Fallback: Creating a completely new share session.");
+            const newShareResponse = await fetch(getApiUrl('/share'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ encryptedData }),
+            });
+            const newShareResult = await newShareResponse.json();
+            if (!newShareResponse.ok) {
+                throw new Error(newShareResult.error || "Failed to create a new share session as a fallback.");
+            }
+            shareResult = newShareResult;
+        }
+    } else {
+        // If there was no oldShareId to begin with, just create a new one.
+        const newShareResponse = await fetch(getApiUrl('/share'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ encryptedData }),
+        });
+        const newShareResult = await newShareResponse.json();
+        if (!newShareResponse.ok) {
+            throw new Error(newShareResult.error || "Failed to create a new share session.");
+        }
+        shareResult = newShareResult;
     }
-    
-    // 4. Update the bill object with the new share information.
+
+    // 5. Update bill object with the new (or old) share info.
     updatedBill.shareInfo = { 
         shareId: shareResult.shareId, 
         encryptionKey: billEncryptionKeyJwk, 
         signingPublicKey: signingPublicKeyJwk 
     };
 
-    // 5. Persist the updated bill with the new shareInfo to the local database.
+    // 6. Persist and return.
     await updateBillCallback(updatedBill);
-
-    // 6. Return the updated bill object.
     return updatedBill;
 };
