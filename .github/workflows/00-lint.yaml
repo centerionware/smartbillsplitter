@@ -21,20 +21,24 @@ jobs:
         with:
           files: "package-lock.json"
 
-      # === Path 1: Lockfile exists ===
-      - name: Setup Node.js (with lockfile)
+      # === Path 1: Lockfile exists, so we lint ===
+      - name: Setup Node.js (with cache)
         if: steps.check_file.outputs.exists == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies with lockfile
+      - name: Install dependencies from lockfile
         if: steps.check_file.outputs.exists == 'true'
         run: npm ci
 
-      # === Path 2: No lockfile ===
-      - name: Setup Node.js (no lockfile)
+      - name: Run TypeScript check
+        if: steps.check_file.outputs.exists == 'true'
+        run: npx tsc --noEmit
+
+      # === Path 2: Lockfile is missing, so we generate and push it ===
+      - name: Setup Node.js (no cache)
         if: steps.check_file.outputs.exists == 'false'
         uses: actions/setup-node@v4
         with:
@@ -44,15 +48,16 @@ jobs:
         if: steps.check_file.outputs.exists == 'false'
         run: npm install
 
-      # === Common steps from here ===
-      - name: Run TypeScript check
-        run: npx tsc --noEmit
-
       - name: Commit and push generated lockfile
         if: steps.check_file.outputs.exists == 'false'
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add package-lock.json
-          git commit -m "chore: generate package-lock.json [ci skip]"
-          git push
+          # Check if there are changes to commit before committing
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: generate package-lock.json [ci skip]"
+            git push
+          else
+            echo "No changes to package-lock.json to commit."
+          fi
