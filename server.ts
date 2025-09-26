@@ -1,4 +1,6 @@
+// FIX: Split express import into value and type imports to resolve type resolution issues.
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { createExpressAdapter } from './express-adapter';
 import { mainHandler } from './serverless';
 
@@ -9,7 +11,7 @@ const port = process.env.PORT || 3000;
 const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN;
 if (allowedOrigin) {
   console.log(`CORS is configured to allow origin: ${allowedOrigin}`);
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -30,7 +32,7 @@ if (allowedOrigin) {
 app.use(express.json({ limit: '10mb' }));
 
 // A dedicated health check endpoint for Kubernetes liveness probes
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.status(200).send('OK');
 });
 

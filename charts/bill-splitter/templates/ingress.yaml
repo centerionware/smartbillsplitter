@@ -13,14 +13,14 @@ spec:
     {{- range .Values.ingress.tls }}
     - hosts:
         - {{ $.Values.ingress.host | quote }}
-        {{- if .Values.ingress.backendSubdomainPrefix }}
+        {{- if ne .Values.ingress.backendSubdomainPrefix "" }}
         - "{{ $.Values.ingress.backendSubdomainPrefix }}.{{ $.Values.ingress.host }}"
         {{- end }}
       secretName: {{ .secretName }}
     {{- end }}
   {{- end }}
   rules:
-  {{- if .Values.ingress.backendSubdomainPrefix }}
+  {{- if ne .Values.ingress.backendSubdomainPrefix "" }}
     - host: {{ .Values.ingress.host | quote }}
       http:
         paths:

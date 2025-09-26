@@ -1,21 +1,17 @@
-# Stage 1: Build the TypeScript backend
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-# Install production dependencies and dev dependencies needed for build
-RUN npm install
-COPY . .
-# Run the backend-specific build script
-RUN npm run build:backend
-
-# Stage 2: Create the minimal production image
+# Use a lightweight Node.js image
 FROM node:20-alpine
+
 WORKDIR /app
-# Copy only production dependencies from the builder
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-# Copy the compiled server code
-COPY --from=builder /app/dist-server ./dist-server
+
+# Copy package files from the pre-built artifact directory
+# The CI job places these artifacts in the `backend-dist` directory in the context.
+COPY backend-dist/package*.json ./
+
+# Install only production dependencies for a smaller, more secure image
+RUN npm install --production
+
+# Copy the compiled server code from the pre-built artifact directory
+COPY backend-dist/dist-server ./dist-server
 
 # Expose the port the server listens on
 EXPOSE 3000

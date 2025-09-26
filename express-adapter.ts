@@ -1,5 +1,5 @@
-// FIX: Changed to named imports for Express types to resolve TypeScript errors where properties were not being found.
-import { Request, Response, RequestHandler } from 'express';
+// FIX: Changed to a type-only import to resolve type resolution issues.
+import type { Request, Response, RequestHandler } from 'express';
 import { HttpRequest, HttpHandler } from './http-types';
 
 /**

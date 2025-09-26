@@ -34,9 +34,16 @@ const discoverApiBaseUrl = async (): Promise<string> => {
                     console.log(`Discovered backend API at: ${candidateUrl}`);
                     return candidateUrl;
                 }
-            } catch (error) {
-                // Ignore errors (timeout, CORS, network error) and try the next prefix.
-                console.debug(`Check for backend at ${candidateUrl} failed.`);
+            } catch (error: any) {
+                // Enhanced logging to help diagnose discovery failures.
+                let reason = 'unknown error';
+                if (error.name === 'AbortError') {
+                    reason = 'request timed out';
+                } else if (error instanceof TypeError) {
+                    // This is the most common error for CORS or network failures.
+                    reason = 'CORS or network error';
+                }
+                console.debug(`Check for backend at ${candidateUrl} failed: ${reason}. This is expected if the backend is not hosted at this address.`, error);
             }
         }
     }
