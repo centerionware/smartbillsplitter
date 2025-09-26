@@ -96,20 +96,23 @@ jobs:
       - name: Create or Get Lambda Function URL
         id: lambda_url
         run: |
-          if ! URL_CONFIG=$(aws lambda get-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'FunctionUrl' --output text 2>/dev/null); then
-            echo "Creating new Function URL..."
+          URL_CONFIG=$(aws lambda get-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'FunctionUrl' --output text 2>/dev/null)
+          if [ -z "$URL_CONFIG" ]; then
+            echo "Function URL not found. Creating a new one..."
             URL_CONFIG=$(aws lambda create-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --auth-type NONE --cors "AllowOrigins=*" --query 'FunctionUrl' --output text)
           else
              echo "Function URL already exists."
           fi
+          echo "Lambda Function URL is: ${URL_CONFIG}"
           echo "FUNCTION_URL=${URL_CONFIG}" >> $GITHUB_OUTPUT
       
       - name: Grant Public Access to Function URL
         run: |
-          POLICY=$(aws lambda get-policy --function-name ${{ env.LAMBDA_FUNCTION_NAME }} 2>/dev/null || echo "")
-          if ! echo "${POLICY}" | grep -q '"Sid":"FunctionURLAllowPublicAccess"'; then
-            echo "Adding public access permission to Lambda Function URL..."
-            aws lambda add-permission --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --statement-id FunctionURLAllowPublicAccess --action lambda:InvokeFunctionUrl --principal "*" --function-url-auth-type NONE
-          else
-            echo "Public access permission already exists. Skipping."
-          fi
+          echo "Attempting to grant public access to Lambda Function URL..."
+          aws lambda add-permission \
+            --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+            --statement-id FunctionURLAllowPublicAccess \
+            --action lambda:InvokeFunctionUrl \
+            --principal "*" \
+            --function-url-auth-type NONE \
+          || echo "Permission may already exist. This is not a fatal error and the workflow will continue."
