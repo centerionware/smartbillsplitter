@@ -4,34 +4,36 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "clean": "rm -rf dist dist-server dist-lambda",
+    "dev": "npm-run-all --parallel dev:frontend dev:backend",
+    "dev:frontend": "vite",
+    "dev:backend": "nodemon --watch './**/*.ts' --exec 'node --loader ts-node/esm server.ts'",
+    "build": "vite build && npm run build:backend",
     "build:frontend": "vite build",
-    "build:backend": "esbuild server.ts http-types.ts express-adapter.ts vercel-adapter.ts cloudflare-adapter.ts aws-lambda-adapter.ts lambda.ts serverless.ts api/handler.ts workers/index.ts functions/*.ts services/*.ts --bundle --platform=node --format=esm --outdir=dist-server --packages=external",
-    "build:lambda": "mkdir -p dist-lambda && npm run build:backend && cd dist-server && zip -r ../dist-lambda/function.zip .",
-    "build": "npm run clean && npm run build:frontend && npm run build:backend",
-    "start": "node dist-server/server.js",
-    "preview": "vite preview"
+    "build:backend": "esbuild server.ts http-types.ts express-adapter.ts vercel-adapter.ts cloudflare-adapter.ts aws-lambda-adapter.ts lambda.ts serverless.ts api/handler.ts workers/index.ts functions/*.ts services/*.ts --bundle --platform=node --format=esm --outdir=dist-server",
+    "build:lambda": "npm run build:backend && mkdir -p dist-lambda && cd dist-server && zip -r ../dist-lambda/function.zip .",
+    "preview": "vite preview",
+    "start:backend": "node dist-server/server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.633.0",
+    "@google/genai": "^1.20.0",
+    "express": "^5.1.0",
+    "ioredis": "^5.8.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "@google/genai": "^1.20.0",
-    "express": "^4.19.2",
-    "stripe": "^16.5.0",
-    "ioredis": "^5.4.1",
-    "@aws-sdk/client-dynamodb": "^3.633.0"
+    "stripe": "^18.5.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
     "@types/express": "^4.17.21",
-    "@types/ioredis": "^5.0.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0",
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
     "esbuild": "^0.23.0",
-    "@vercel/node": "^3.2.3",
-    "@cloudflare/workers-types": "^4.20240725.0",
-    "@types/aws-lambda": "^8.10.142"
+    "nodemon": "^3.1.4",
+    "npm-run-all": "^4.1.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.2"
   }
 }

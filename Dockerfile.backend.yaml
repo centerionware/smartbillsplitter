@@ -1,16 +1,11 @@
+
 # Use a lightweight Node.js image
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files from the pre-built artifact directory
-# The CI job places these artifacts in the `backend-dist` directory in the context.
-COPY backend-dist/package*.json ./
-
-# Install only production dependencies for a smaller, more secure image
-RUN npm install --production
-
-# Copy the compiled server code from the pre-built artifact directory
+# The build artifact from the CI job already contains all bundled dependencies.
+# We no longer need to run `npm install` inside the container.
 COPY backend-dist/dist-server ./dist-server
 
 # Expose the port the server listens on
