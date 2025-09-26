@@ -74,7 +74,11 @@ jobs:
           echo "Lockfile was pushed. Triggering a new workflow run to perform linting."
           # Wait a few seconds to allow the push to be fully processed by GitHub before the new workflow starts.
           sleep 5 
-          WORKFLOW_PATH="${{ github.workflow_ref%@*}"
+          # Assign the full context variable to a shell variable first
+          WORKFLOW_REF="${{ github.workflow_ref }}"
+          # Then, use shell parameter expansion to strip the part after '@'
+          WORKFLOW_PATH="${WORKFLOW_REF%@*}"
+          # Finally, get the basename to get just the filename
           WORKFLOW_FILE=$(basename "$WORKFLOW_PATH")
           gh workflow run "$WORKFLOW_FILE" --ref ${{ github.ref }}
         env:
