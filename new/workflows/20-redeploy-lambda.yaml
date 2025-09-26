@@ -1,0 +1,16 @@
+name: 20. Redeploy AWS Lambda
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    name: Destroy Existing Lambda
+    uses: ./.github/workflows/21-cleanup-lambda.yaml
+    secrets: inherit
+
+  deploy:
+    name: Deploy New Lambda
+    needs: cleanup
+    uses: ./.github/workflows/02-deploy-aws.yaml
+    secrets: inherit

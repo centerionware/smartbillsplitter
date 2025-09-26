@@ -1,0 +1,65 @@
+name: 6. Update and Publish Helm Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'The image tag to update the Helm chart with'
+        required: true
+  workflow_call:
+    inputs:
+      image_tag:
+        description: 'The image tag to update the Helm chart with'
+        required: true
+        type: string
+
+jobs:
+  update-and-publish:
+    name: Update and Publish Helm Chart
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main branch (for source files)
+        uses: actions/checkout@v4
+
+      - name: Clone production branch (for destination)
+        run: |
+          git clone --depth 1 --branch production "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" production-repo
+
+      - name: Sync chart files from main to production
+        run: |
+          rsync -av --delete ./charts/ production-repo/charts/
+
+      - name: Update Helm chart with new image tags
+        run: |
+          DEPLOYMENT_FILE="production-repo/charts/bill-splitter/templates/deployment.yaml"
+          sed -i "s/IMAGE_TAG_PLACEHOLDER_FRONTEND/${{ inputs.image_tag }}/g" ${DEPLOYMENT_FILE}
+          sed -i "s/IMAGE_TAG_PLACEHOLDER_BACKEND/${{ inputs.image_tag }}/g" ${DEPLOYMENT_FILE}
+
+      - name: Bump Helm chart version
+        id: bump_version
+        run: |
+          CHART_FILE="production-repo/charts/bill-splitter/Chart.yaml"
+          VERSION=$(grep '^version:' ${CHART_FILE} | awk '{print $2}')
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          sed -i "s/^version: .*/version: ${NEW_VERSION}/" ${CHART_FILE}
+          echo "Bumped Helm chart from ${VERSION} to ${NEW_VERSION}"
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Commit and push updated chart to production branch
+        run: |
+          cd production-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add charts/
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(helm): Bump chart to v${{ steps.bump_version.outputs.new_version }}, update images to tag ${{ inputs.image_tag }}"
+            git push
+          else
+            echo "No changes to the Helm chart to commit."
+          fi

@@ -2,46 +2,50 @@
 let API_BASE_URL: string | null = null;
 
 const discoverApiBaseUrl = async (): Promise<string> => {
-    // For local development, rely on the Vite environment variable if it's set.
-    const devApiUrl = (import.meta as any).env.VITE_API_BASE_URL;
-    if (typeof devApiUrl === 'string') {
-        console.log(`Using development API base URL: "${devApiUrl}"`);
-        return devApiUrl;
-    }
+    // Vite environment variables can provide a comma-separated list of candidate URLs.
+    const envApiUrls = (import.meta as any).env.VITE_API_BASE_URLS;
+    
+    const candidatesFromEnv = typeof envApiUrls === 'string' 
+        ? envApiUrls.split(',').map(url => url.trim()).filter(Boolean) 
+        : [];
 
+    const dynamicCandidates: string[] = [];
     const currentHostname = window.location.hostname;
     const currentProtocol = window.location.protocol;
     
-    // In a production-like environment (not localhost), try to discover the backend.
+    // In a production-like environment (not localhost), try to discover the backend via subdomains.
     if (currentHostname !== 'localhost' && !currentHostname.startsWith('127.0.0.1')) {
-        // A more robust way to determine the base host for API discovery.
-        // We specifically handle the 'www' subdomain, as it's common to serve the same
-        // content from both the apex domain and 'www', while the API lives on a separate subdomain.
         let baseHost = currentHostname;
         if (baseHost.startsWith('www.')) {
             baseHost = baseHost.substring(4);
         }
         
         const prefixes = ['k', 'c', 'v', 'n', 'a', 'g', 'm'];
-        
-        for (const prefix of prefixes) {
-            const candidateHost = `${prefix}.${baseHost}`;
-            const candidateUrl = `${currentProtocol}//${candidateHost}`;
-            
+        prefixes.forEach(prefix => {
+            dynamicCandidates.push(`${currentProtocol}//${prefix}.${baseHost}`);
+        });
+    }
+
+    // Combine all candidates, giving priority to those from the environment variable.
+    // Use a Set to ensure there are no duplicates.
+    const allCandidates = [...new Set([...candidatesFromEnv, ...dynamicCandidates])];
+    
+    if (allCandidates.length > 0) {
+        console.log("Attempting to discover backend API from candidates:", allCandidates);
+
+        for (const candidateUrl of allCandidates) {
             try {
                 // Ping a known, lightweight health check endpoint with a short timeout.
                 const response = await fetch(`${candidateUrl}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
                 if (response.ok && (await response.text()) === 'OK') {
-                    console.log(`Discovered backend API at: ${candidateUrl}`);
+                    console.log(`Discovered and connected to backend API at: ${candidateUrl}`);
                     return candidateUrl;
                 }
             } catch (error: any) {
-                // Enhanced logging to help diagnose discovery failures.
                 let reason = 'unknown error';
                 if (error.name === 'AbortError') {
                     reason = 'request timed out';
                 } else if (error instanceof TypeError) {
-                    // This is the most common error for CORS or network failures.
                     reason = 'CORS or network error';
                 }
                 console.debug(`Check for backend at ${candidateUrl} failed: ${reason}. This is expected if the backend is not hosted at this address.`, error);
@@ -49,8 +53,8 @@ const discoverApiBaseUrl = async (): Promise<string> => {
         }
     }
     
-    // Fallback: If no subdomain is found (or on localhost without env var), assume path-based routing on the same host.
-    console.log("No backend subdomain discovered. Falling back to relative API paths.");
+    // Fallback: If no candidate is found (or on localhost without env var), assume path-based routing on the same host.
+    console.log("No backend discovered from candidates. Falling back to relative API paths.");
     return '';
 };
 
