@@ -6,9 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "clean": "rm -rf dist dist-server",
     "build:frontend": "vite build",
-    "build:backend": "esbuild server.ts http-types.ts express-adapter.ts functions/*.ts services/redisClient.ts --bundle --platform=node --format=esm --outdir=dist-server --packages=external",
-    "build": "npm run build:frontend && npm run build:backend",
+    "build:backend": "esbuild server.ts http-types.ts express-adapter.ts vercel-adapter.ts cloudflare-adapter.ts serverless.ts api/handler.ts workers/index.ts functions/*.ts services/redisClient.ts --bundle --platform=node --format=esm --outdir=dist-server --packages=external",
+    "build": "npm run clean && npm run build:frontend && npm run build:backend",
     "start": "node dist-server/server.js",
     "preview": "vite preview"
   },
@@ -27,6 +28,8 @@
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "esbuild": "^0.23.0"
+    "esbuild": "^0.23.0",
+    "@vercel/node": "^3.2.3",
+    "@cloudflare/workers-types": "^4.20240725.0"
   }
 }

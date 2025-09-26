@@ -1,35 +1,26 @@
 server {
-    # Listen on port 80 for IPv4 requests
-    listen 80 default_server;
-    # Listen on port 80 for IPv6 requests
-    listen [::]:80 default_server;
+    listen 80;
+    server_name localhost;
 
-    # Set the root directory for static files, matching the Dockerfile COPY command
     root /usr/share/nginx/html;
+    index index.html;
 
-    # Default file to serve
-    index index.html index.htm;
-
-    # Handle all locations for SPA routing
+    # Always serve index.html for any path that is not a file
+    # This is crucial for single-page applications with client-side routing
     location / {
-        # First, try to serve the requested file as is ($uri).
-        # If it's a directory, try to serve its index file ($uri/).
-        # If neither is found, fall back to serving /index.html.
         try_files $uri $uri/ /index.html;
     }
 
-    # Optional: Improve performance by caching static assets
-    location ~* \.(?:css|js|jpg|jpeg|gif|png|ico|svg|webp)$ {
-        expires 1y;
-        add_header Cache-Control "public";
+    # Optional: Add headers to prevent caching of the index.html
+    # This helps ensure users get the latest version of the app shell
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        expires 0;
     }
 
-    # Optional: Gzip compression for performance
-    gzip on;
-    gzip_vary on;
-    gzip_proxied any;
-    gzip_comp_level 6;
-    gzip_buffers 16 8k;
-    gzip_http_version 1.1;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+    # Optional: Set longer cache times for static assets
+    location ~* \.(?:css|js|svg|png|jpg|jpeg|gif)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
 }

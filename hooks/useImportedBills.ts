@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ImportedBill, SharedBillPayload } from '../types.ts';
 import { getImportedBills, addImportedBill as addDB, updateImportedBill as updateDB, deleteImportedBillDB } from '../services/db.ts';
 import * as cryptoService from '../services/cryptoService.ts';
+import { getApiUrl } from '../services/api.ts';
 
 const POLLING_INTERVAL = 30000; // 30 seconds
 
@@ -39,7 +40,7 @@ export const useImportedBills = () => {
 
         try {
             // 2. Send a single batch request to the server.
-            const response = await fetch(`/share/batch-check`, {
+            const response = await fetch(getApiUrl('/share/batch-check'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(batchCheckPayload),

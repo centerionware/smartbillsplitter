@@ -3,6 +3,7 @@ import { useAuth } from './hooks/useAuth.ts';
 import App from './App.tsx';
 import Paywall from './components/Paywall.tsx';
 import PrivacyConsent from './components/PrivacyConsent.tsx';
+import { getApiUrl } from './services/api.ts';
 
 const AppGate: React.FC = () => {
   const { subscriptionStatus, login, selectFreeTier, isLoading: isAuthLoading } = useAuth();
@@ -24,7 +25,7 @@ const AppGate: React.FC = () => {
         setIsVerifying(true);
         setVerificationError(null);
         try {
-          const response = await fetch('/verify-session', {
+          const response = await fetch(getApiUrl('/verify-session'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId }),

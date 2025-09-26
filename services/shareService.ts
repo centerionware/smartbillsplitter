@@ -2,6 +2,7 @@ import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload } from
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import * as cryptoService from './cryptoService.ts';
 import { saveBillSigningKey } from './db.ts';
+import { getApiUrl } from './api.ts';
 
 interface ShareBillInfo {
     description: string;
@@ -132,7 +133,7 @@ export const generateOneTimeShareLink = async (bill: Bill, settings: Settings): 
     const billEncryptionKey = await cryptoService.generateEncryptionKey();
 
     const encryptedData = await encryptAndSignPayload(bill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey);
-    const shareResponse = await fetch('/share', {
+    const shareResponse = await fetch(getApiUrl('/share'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ encryptedData }),
@@ -146,7 +147,7 @@ export const generateOneTimeShareLink = async (bill: Bill, settings: Settings): 
     const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
     const encryptedBillKey = await cryptoService.encrypt(JSON.stringify(billEncryptionKeyJwk), fragmentKey);
 
-    const keyResponse = await fetch('/onetime-key', {
+    const keyResponse = await fetch(getApiUrl('/onetime-key'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ encryptedBillKey }),
@@ -194,7 +195,7 @@ export const generateShareLink = async (
         const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
 
         const encryptedData = await encryptAndSignPayload(updatedBill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey);
-        const shareResponse = await fetch('/share', {
+        const shareResponse = await fetch(getApiUrl('/share'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ encryptedData }),
@@ -221,7 +222,7 @@ export const generateShareLink = async (
     if (existingShareInfo && now < existingShareInfo.expires) {
         try {
             // Check server status of the key before reusing it.
-            const statusResponse = await fetch(`/onetime-key/${existingShareInfo.keyId}/status`);
+            const statusResponse = await fetch(getApiUrl(`/onetime-key/${existingShareInfo.keyId}/status`));
             if (statusResponse.ok) {
                 const { status } = await statusResponse.json();
                 if (status === 'available') {
@@ -243,7 +244,7 @@ export const generateShareLink = async (
         const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
         const encryptedBillKey = await cryptoService.encrypt(JSON.stringify(billEncryptionKeyJwk), fragmentKey);
 
-        const keyResponse = await fetch('/onetime-key', {
+        const keyResponse = await fetch(getApiUrl('/onetime-key'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ encryptedBillKey }),

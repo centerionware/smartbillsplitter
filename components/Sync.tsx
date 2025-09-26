@@ -4,6 +4,7 @@ import { exportData, importData } from '../services/db.ts';
 import * as cryptoService from '../services/cryptoService.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import { useQrScanner } from '../hooks/useQrScanner.ts';
+import { getApiUrl } from '../services/api.ts';
 
 interface SyncProps {
   onBack: () => void;
@@ -68,7 +69,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             const { c: code, k: keyJwk } = parsed;
 
             // 1. Fetch encrypted data from server
-            const response = await fetch(`/sync?code=${code}`);
+            const response = await fetch(getApiUrl(`/sync?code=${code}`));
             const resultText = await response.text();
             
             if (!response.ok) {
@@ -136,7 +137,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             const dataToExport = await exportData();
             const encryptedData = await cryptoService.encrypt(JSON.stringify(dataToExport), key);
 
-            const response = await fetch('/sync', {
+            const response = await fetch(getApiUrl('/sync'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ encryptedData }),

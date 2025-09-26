@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getApiUrl } from '../services/api.ts';
 
 interface PaywallProps {
   onSelectFreeTier: () => void;
@@ -16,7 +17,7 @@ const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => 
     try {
         const origin = window.location.origin;
 
-        const response = await fetch('/create-checkout-session', {
+        const response = await fetch(getApiUrl('/create-checkout-session'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ plan, origin }),

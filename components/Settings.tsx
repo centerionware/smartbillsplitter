@@ -5,6 +5,7 @@ import type { RequestConfirmationFn } from '../App.tsx';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import { exportData, importData } from '../services/db.ts';
 import * as notificationService from '../services/notificationService.ts';
+import { getApiUrl } from '../services/api.ts';
 
 interface SettingsProps {
   settings: Settings;
@@ -190,7 +191,7 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
     
     try {
         const origin = window.location.origin;
-        const response = await fetch('/create-customer-portal-session', {
+        const response = await fetch(getApiUrl('/create-customer-portal-session'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ customerId: subscriptionDetails.customerId, origin }),

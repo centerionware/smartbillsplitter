@@ -7,6 +7,7 @@ import { generateShareText, generateShareLink, encryptAndSignPayload } from '../
 import * as cryptoService from '../services/cryptoService.ts';
 import { getBillSigningKey } from '../services/db.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
+import { getApiUrl } from '../services/api.ts';
 
 interface BillDetailsProps {
   bill: Bill;
@@ -46,7 +47,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
             encryptionKey
         );
 
-        await fetch(`/share/${updatedBill.shareInfo.shareId}`, {
+        await fetch(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ encryptedData }),
