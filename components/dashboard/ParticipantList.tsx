@@ -1,5 +1,5 @@
 import React from 'react';
-import SwipeableParticipantCard from '../SwipeableParticipantCard.tsx';
+import SwipeableParticipantCard from '../SwipeableParticipantCard';
 
 export type ParticipantData = {
   name: string;

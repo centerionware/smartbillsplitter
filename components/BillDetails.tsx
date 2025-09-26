@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import type { Bill, Settings, Participant } from './types.ts';
+import type { Bill, Settings, Participant } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import ShareModal from './ShareModal.tsx';
 import ShareActionSheet from './ShareActionSheet.tsx';
