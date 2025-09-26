@@ -15,4 +15,4 @@ export interface HttpResponse {
 }
 
 // Defines the standard signature for all framework-agnostic handlers.
-export type HttpHandler = (req: HttpRequest) => Promise<HttpResponse>;
+export type HttpHandler = (req: HttpRequest, env?: any) => Promise<HttpResponse>;

@@ -1,8 +1,6 @@
-
-
 import { randomUUID } from 'crypto';
-import redisClient from '../services/redisClient.ts';
-import { HttpRequest, HttpResponse } from '../http-types';
+import { HttpRequest, HttpResponse } from '../http-types.ts';
+import type { KeyValueStore } from '../services/keyValueStore.ts';
 
 
 // Keys are short-lived, for the initial share only.
@@ -14,44 +12,43 @@ const EXPIRATION_SECONDS = 24 * 60 * 60; // 24 hours
 /**
  * Creates a new one-time key session, storing an encrypted key.
  * @param encryptedBillKey The encrypted key payload from the client.
+ * @param kv The KeyValueStore instance to use.
  * @returns An object containing the generated key ID.
  */
-async function createOnetimeKey(encryptedBillKey: string): Promise<{ keyId: string }> {
+async function createOnetimeKey(encryptedBillKey: string, kv: KeyValueStore): Promise<{ keyId: string }> {
     if (!encryptedBillKey || typeof encryptedBillKey !== 'string') {
         throw new Error("Invalid payload. 'encryptedBillKey' string is required.");
     }
     try {
         const keyId = randomUUID();
         const redisKey = `onetimekey:${keyId}`;
-        await redisClient.set(redisKey, encryptedBillKey, 'EX', EXPIRATION_SECONDS);
+        await kv.set(redisKey, encryptedBillKey, { EX: EXPIRATION_SECONDS });
         console.log(`Created one-time key with ID ${keyId}.`);
         return { keyId };
     } catch (e) {
-        console.error('Redis error during one-time key creation:', e);
+        console.error('KV error during one-time key creation:', e);
         throw new Error("A database error occurred while creating the one-time key.");
     }
 }
 
 /**
  * Atomically retrieves and deletes a one-time key.
+ * NOTE: This implementation is not truly atomic across different KV providers without distributed transactions.
+ * It performs a get followed by a delete, which is sufficient for this application's needs.
  * @param keyId The ID of the key to retrieve.
+ * @param kv The KeyValueStore instance to use.
  * @returns An object containing the retrieved encrypted key.
  */
-async function retrieveOnetimeKey(keyId: string): Promise<{ encryptedBillKey: string }> {
+async function retrieveOnetimeKey(keyId: string, kv: KeyValueStore): Promise<{ encryptedBillKey: string }> {
     if (!keyId) {
         throw new Error("Missing 'keyId'.");
     }
     const redisKey = `onetimekey:${keyId}`;
     
-    // Use a MULTI/EXEC transaction to atomically get and delete the key.
-    const transaction = redisClient.multi();
-    transaction.get(redisKey);
-    transaction.del(redisKey);
-    
-    const [result] = await transaction.exec() as [[null | Error, string | null]];
-    const encryptedBillKey = result[1];
+    const encryptedBillKey = await kv.get(redisKey);
 
     if (encryptedBillKey) {
+        await kv.del(redisKey); // Immediately delete after retrieval
         console.log(`One-time key ${keyId} retrieved and deleted.`);
         return { encryptedBillKey };
     } else {
@@ -62,14 +59,15 @@ async function retrieveOnetimeKey(keyId: string): Promise<{ encryptedBillKey: st
 /**
  * Checks if a one-time key exists without consuming it. Throws an error if not found.
  * @param keyId The ID of the key to check.
+ * @param kv The KeyValueStore instance to use.
  * @returns An object with the status 'available'.
  */
-async function checkOnetimeKeyStatus(keyId: string): Promise<{ status: 'available' }> {
+async function checkOnetimeKeyStatus(keyId: string, kv: KeyValueStore): Promise<{ status: 'available' }> {
     if (!keyId) {
         throw new Error("Missing 'keyId'.");
     }
     const redisKey = `onetimekey:${keyId}`;
-    const exists = await redisClient.exists(redisKey);
+    const exists = await kv.exists(redisKey);
     if (!exists) {
         throw new Error("Key not found or already consumed.");
     }
@@ -78,7 +76,7 @@ async function checkOnetimeKeyStatus(keyId: string): Promise<{ status: 'availabl
 
 
 // --- Framework-Agnostic Handler ---
-export const onetimeKeyHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+export const onetimeKeyHandler = async (req: HttpRequest, context: { kv: KeyValueStore }): Promise<HttpResponse> => {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -98,7 +96,7 @@ export const onetimeKeyHandler = async (req: HttpRequest): Promise<HttpResponse>
   try {
     if (req.method === "POST") {
         const { encryptedBillKey } = req.body;
-        const result = await createOnetimeKey(encryptedBillKey);
+        const result = await createOnetimeKey(encryptedBillKey, context.kv);
         return {
           statusCode: 201,
           headers: responseHeaders,
@@ -113,7 +111,7 @@ export const onetimeKeyHandler = async (req: HttpRequest): Promise<HttpResponse>
         }
         
         if (action === 'status') {
-            const result = await checkOnetimeKeyStatus(keyId);
+            const result = await checkOnetimeKeyStatus(keyId, context.kv);
             return {
                 statusCode: 200,
                 headers: responseHeaders,
@@ -121,7 +119,7 @@ export const onetimeKeyHandler = async (req: HttpRequest): Promise<HttpResponse>
             };
         }
 
-        const result = await retrieveOnetimeKey(keyId);
+        const result = await retrieveOnetimeKey(keyId, context.kv);
         return {
           statusCode: 200,
           headers: responseHeaders,

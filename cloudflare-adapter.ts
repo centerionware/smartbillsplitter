@@ -1,4 +1,4 @@
-import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
+import { HttpRequest, HttpHandler, HttpResponse } from './http-types.ts';
 
 /**
  * Transforms a Cloudflare Worker Request into a framework-agnostic HttpRequest.
@@ -43,12 +43,16 @@ function fromHttpResponse(httpResponse: HttpResponse): Response {
 
 /**
  * Creates a Cloudflare Worker fetch handler from a framework-agnostic HttpHandler.
+ * @param handler The generic HttpHandler to adapt.
+ * @returns A Cloudflare Worker-compatible fetch handler function.
  */
-export function createCloudflareAdapter(handler: HttpHandler): (req: Request) => Promise<Response> {
-  return async (req: Request) => {
+export function createCloudflareAdapter(handler: HttpHandler): (req: Request, env: any) => Promise<Response> {
+  return async (req: Request, env: any) => {
     try {
       const httpRequest = await toHttpRequest(req);
-      const httpResponse = await handler(httpRequest);
+      // Pass the `env` object from the worker runtime to the main handler.
+      // This allows the main handler to access bindings like KV namespaces.
+      const httpResponse = await handler(httpRequest, env);
       return fromHttpResponse(httpResponse);
     } catch (error: any) {
       console.error('Unhandled error in Cloudflare adapted handler:', error);

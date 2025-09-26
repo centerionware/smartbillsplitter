@@ -1,18 +1,17 @@
-
-import redisClient from '../services/redisClient.ts';
-import { HttpRequest, HttpResponse } from '../http-types';
+import { HttpRequest, HttpResponse } from '../http-types.ts';
+import type { KeyValueStore } from '../services/keyValueStore.ts';
 
 const EXPIRATION_SECONDS = 5 * 60; // 5 minutes
 
 /**
- * Generates a unique 6-digit code, ensuring it doesn't already exist in Redis.
+ * Generates a unique 6-digit code, ensuring it doesn't already exist in the KV store.
  */
-const generateCode = async (): Promise<string> => {
+const generateCode = async (kv: KeyValueStore): Promise<string> => {
   let code: string;
-  let exists: number;
+  let exists: boolean;
   do {
     code = Math.floor(100000 + Math.random() * 900000).toString();
-    exists = await redisClient.exists(`sync:${code}`);
+    exists = await kv.exists(`sync:${code}`);
   } while (exists);
   return code;
 };
@@ -24,20 +23,21 @@ const generateCode = async (): Promise<string> => {
 /**
  * Creates a new sync session, storing encrypted data and returning a unique code.
  * @param encryptedData The encrypted data payload from the client.
+ * @param kv The KeyValueStore instance to use for storage.
  * @returns An object containing the generated sync code.
  */
-async function createSyncSession(encryptedData: string): Promise<{ code: string }> {
+async function createSyncSession(encryptedData: string, kv: KeyValueStore): Promise<{ code: string }> {
   if (!encryptedData || typeof encryptedData !== 'string') {
     throw new Error("Invalid payload. 'encryptedData' string is required.");
   }
   
   try {
-    const code = await generateCode();
-    await redisClient.set(`sync:${code}`, encryptedData, 'EX', EXPIRATION_SECONDS);
+    const code = await generateCode(kv);
+    await kv.set(`sync:${code}`, encryptedData, { EX: EXPIRATION_SECONDS });
     console.log(`Created sync session ${code}.`);
     return { code };
   } catch(e) {
-      console.error('Redis error during sync session creation:', e);
+      console.error('KV error during sync session creation:', e);
       throw new Error("Could not create sync session due to a database error.");
   }
 }
@@ -45,29 +45,30 @@ async function createSyncSession(encryptedData: string): Promise<{ code: string 
 /**
  * Retrieves and deletes data from a sync session.
  * @param code The 6-digit sync code.
+ * @param kv The KeyValueStore instance to use for storage.
  * @returns An object containing the retrieved encrypted data.
  */
-async function retrieveSyncSession(code: string): Promise<{ encryptedData: string }> {
+async function retrieveSyncSession(code: string, kv: KeyValueStore): Promise<{ encryptedData: string }> {
     if (!code) {
         throw new Error("Missing 'code' parameter.");
     }
 
     const key = `sync:${code}`;
-    const encryptedData = await redisClient.get(key);
+    const encryptedData = await kv.get(key);
 
     if (!encryptedData) {
         throw new Error("Invalid or expired code.");
     }
     
     // Data is for one-time use. Delete it immediately after retrieval.
-    await redisClient.del(key);
+    await kv.del(key);
     console.log(`Sync session ${code} retrieved and deleted.`);
     
     return { encryptedData };
 }
 
 // --- Framework-Agnostic Handler ---
-export const syncHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+export const syncHandler = async (req: HttpRequest, context: { kv: KeyValueStore }): Promise<HttpResponse> => {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -87,7 +88,7 @@ export const syncHandler = async (req: HttpRequest): Promise<HttpResponse> => {
   try {
     if (req.method === "POST") {
       const { encryptedData } = req.body;
-      const result = await createSyncSession(encryptedData);
+      const result = await createSyncSession(encryptedData, context.kv);
       return {
         statusCode: 201,
         headers: responseHeaders,
@@ -97,7 +98,7 @@ export const syncHandler = async (req: HttpRequest): Promise<HttpResponse> => {
 
     if (req.method === "GET") {
       const code = req.query.code as string;
-      const result = await retrieveSyncSession(code);
+      const result = await retrieveSyncSession(code, context.kv);
       return {
         statusCode: 200,
         headers: responseHeaders,

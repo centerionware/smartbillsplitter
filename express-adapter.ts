@@ -25,7 +25,9 @@ export function createExpressAdapter(handler: HttpHandler): RequestHandler {
   return async (req: Request, res: Response) => {
     try {
       const httpRequest = toHttpRequest(req);
-      const httpResponse = await handler(httpRequest);
+      // Express doesn't use the `env` binding like Cloudflare, configuration comes from process.env.
+      // We pass an empty object to satisfy the handler's signature.
+      const httpResponse = await handler(httpRequest, {});
       
       if (httpResponse.headers) {
         res.set(httpResponse.headers);

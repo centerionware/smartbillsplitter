@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
+import { HttpRequest, HttpHandler, HttpResponse } from './http-types.ts';
 
 /**
  * Transforms a VercelRequest into a framework-agnostic HttpRequest.
@@ -39,7 +39,9 @@ export function createVercelAdapter(handler: HttpHandler): (req: VercelRequest, 
   return async (req: VercelRequest, res: VercelResponse) => {
     try {
       const httpRequest = toHttpRequest(req);
-      const httpResponse = await handler(httpRequest);
+      // Vercel doesn't use the `env` binding like Cloudflare, configuration comes from process.env.
+      // We pass an empty object to satisfy the handler's signature.
+      const httpResponse = await handler(httpRequest, {});
       applyHttpResponse(res, httpResponse);
     } catch (error) {
       console.error('Unhandled error in Vercel adapted handler:', error);

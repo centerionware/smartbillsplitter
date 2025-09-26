@@ -1,4 +1,3 @@
-
 {
   "name": "smart-bill-splitter",
   "private": true,
@@ -6,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "clean": "rm -rf dist dist-server",
+    "clean": "rm -rf dist dist-server dist-lambda",
     "build:frontend": "vite build",
-    "build:backend": "esbuild server.ts http-types.ts express-adapter.ts vercel-adapter.ts cloudflare-adapter.ts serverless.ts api/handler.ts workers/index.ts functions/*.ts services/redisClient.ts --bundle --platform=node --format=esm --outdir=dist-server --packages=external",
+    "build:backend": "esbuild server.ts http-types.ts express-adapter.ts vercel-adapter.ts cloudflare-adapter.ts aws-lambda-adapter.ts lambda.ts serverless.ts api/handler.ts workers/index.ts functions/*.ts services/*.ts --bundle --platform=node --format=esm --outdir=dist-server --packages=external",
+    "build:lambda": "npm run build:backend && cd dist-server && zip -r ../dist-lambda/function.zip .",
     "build": "npm run clean && npm run build:frontend && npm run build:backend",
     "start": "node dist-server/server.js",
     "preview": "vite preview"
@@ -19,7 +19,8 @@
     "@google/genai": "^1.20.0",
     "express": "^4.19.2",
     "stripe": "^16.5.0",
-    "ioredis": "^5.4.1"
+    "ioredis": "^5.4.1",
+    "@aws-sdk/client-dynamodb": "^3.633.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
@@ -30,6 +31,7 @@
     "vite": "^6.2.0",
     "esbuild": "^0.23.0",
     "@vercel/node": "^3.2.3",
-    "@cloudflare/workers-types": "^4.20240725.0"
+    "@cloudflare/workers-types": "^4.20240725.0",
+    "@types/aws-lambda": "^8.10.142"
   }
 }
