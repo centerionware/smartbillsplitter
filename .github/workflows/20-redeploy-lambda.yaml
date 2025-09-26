@@ -6,11 +6,17 @@ on:
 jobs:
   cleanup:
     name: Destroy Existing Lambda
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/21-cleanup-lambda.yaml
     secrets: inherit
 
   deploy:
     name: Deploy New Lambda
     needs: cleanup
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/02-deploy-aws.yaml
     secrets: inherit

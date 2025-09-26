@@ -24,6 +24,9 @@ jobs:
   deploy_lambda:
     name: Deploy AWS Lambda
     needs: build_backend
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/02-deploy-aws.yaml
     secrets: inherit
 
@@ -39,12 +42,17 @@ jobs:
     name: Publish to Branches
     if: success()
     needs: [build_backend, build_frontend]
+    permissions:
+      contents: write
     uses: ./.github/workflows/04-publish-to-branches.yaml
     secrets: inherit
 
   build_docker_images:
     name: Build Docker Images
     needs: [get_tag, build_backend, build_frontend]
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/05-build-docker.yaml
     with:
       image_tag: ${{ needs.get_tag.outputs.image_tag }}
@@ -53,6 +61,8 @@ jobs:
   update_helm_chart:
     name: Update Helm Chart
     needs: [get_tag, build_docker_images]
+    permissions:
+      contents: write
     uses: ./.github/workflows/06-update-helm.yaml
     with:
       image_tag: ${{ needs.get_tag.outputs.image_tag }}
