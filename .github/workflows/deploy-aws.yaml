@@ -136,8 +136,11 @@ jobs:
       
       - name: Grant Public Access to Function URL
         run: |
-          # Check if the policy already has our specific statement. The grep command will have a non-zero exit code if not found.
-          if ! aws lambda get-policy --function-name ${{ env.LAMBDA_FUNCTION_NAME }} 2>/dev/null | grep -q '"Sid":"FunctionURLAllowPublicAccess"'; then
+          # Get the policy, suppressing stderr and ignoring the exit code for the first command.
+          POLICY=$(aws lambda get-policy --function-name ${{ env.LAMBDA_FUNCTION_NAME }} 2>/dev/null || echo "")
+          
+          # Now check if the policy contains our statement ID.
+          if ! echo "${POLICY}" | grep -q '"Sid":"FunctionURLAllowPublicAccess"'; then
             echo "Adding public access permission to Lambda Function URL..."
             aws lambda add-permission \
               --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
