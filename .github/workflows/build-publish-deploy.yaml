@@ -144,16 +144,24 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Clone production branch
+      - name: Checkout main branch (for source files)
+        uses: actions/checkout@v4
+
+      - name: Clone production branch (for destination)
         run: |
           git clone --depth 1 --branch production "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" production-repo
+
+      - name: Sync chart files from main to production
+        run: |
+          # This copies all chart files from the main branch checkout over the top of the 
+          # production branch checkout, ensuring all template updates are included.
+          rsync -av --delete ./charts/ production-repo/charts/
 
       - name: Update Helm chart with new image tags
         run: |
           IMAGE_TAG=${{ needs.build.outputs.image_tag }}
           DEPLOYMENT_FILE="production-repo/charts/bill-splitter/templates/deployment.yaml"
           
-          # Replace image tags for both frontend and backend. The regex handles both initial placeholders and subsequent SHAs.
           sed -i 's#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONTEND_IMAGE_NAME }}:[^"]*"#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.FRONTEND_IMAGE_NAME }}:${IMAGE_TAG}"#g' ${DEPLOYMENT_FILE}
           sed -i 's#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:[^"]*"#image: "${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${IMAGE_TAG}"#g' ${DEPLOYMENT_FILE}
 
@@ -161,7 +169,6 @@ jobs:
         id: bump_version
         run: |
           CHART_FILE="production-repo/charts/bill-splitter/Chart.yaml"
-          # Read current version and bump the patch number
           VERSION=$(grep '^version:' ${CHART_FILE} | awk '{print $2}')
           MAJOR=$(echo $VERSION | cut -d. -f1)
           MINOR=$(echo $VERSION | cut -d. -f2)
@@ -169,7 +176,6 @@ jobs:
           NEW_PATCH=$((PATCH + 1))
           NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
           
-          # Update the version in the Chart.yaml file
           sed -i "s/^version: .*/version: ${NEW_VERSION}/" ${CHART_FILE}
           
           echo "Bumped Helm chart from ${VERSION} to ${NEW_VERSION}"
@@ -181,7 +187,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add charts/
-          # Check if there are changes to commit to avoid empty commits
           if ! git diff --staged --quiet; then
             git commit -m "chore(helm): Bump chart to v${{ steps.bump_version.outputs.new_version }}, update images to tag ${{ needs.build.outputs.image_tag }}"
             git push
