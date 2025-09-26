@@ -20,7 +20,7 @@ jobs:
       # Construct a comma-separated list of API URLs.
       # Start with the static Kubernetes URL.
       # If the lambda URL was found, append it to the list.
-      api_urls: ${{ join(filter(fromJSON('["https://k.sharedbills.app", "${{ needs.get_lambda_url.outputs.function_url }}"]'), item => item != ''), ',') }}
+      api_urls: ${{ needs.get_lambda_url.outputs.function_url && format('https://k.sharedbills.app,{0}', needs.get_lambda_url.outputs.function_url) || 'https://k.sharedbills.app' }}
     secrets: inherit
 
   publish_frontend:
