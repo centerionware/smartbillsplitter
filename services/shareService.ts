@@ -1,7 +1,7 @@
 import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import * as cryptoService from './cryptoService.ts';
-import { saveBillSigningKey, deleteBillSigningKeyDB } from './db.ts';
+import { getBillSigningKey, saveBillSigningKey, deleteBillSigningKeyDB } from './db.ts';
 import { getApiUrl } from './api.ts';
 
 interface ShareBillInfo {
@@ -184,6 +184,38 @@ export const generateShareLink = async (
     let updatedBill = JSON.parse(JSON.stringify(bill));
     let needsDBUpdate = false;
 
+    // If share info exists, verify it's still valid on the server before proceeding.
+    // This prevents generating a link that points to an expired/non-existent share.
+    if (updatedBill.shareInfo) {
+        try {
+            const res = await fetch(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), {
+                method: 'GET',
+                signal: AbortSignal.timeout(4000) // Use a timeout to prevent long waits
+            });
+            
+            // If the share is not found on the server, it has expired or been deleted.
+            // We must recreate it.
+            if (res.status === 404) {
+                console.warn(`Share session for bill ${updatedBill.id} not found on server. Recreating...`);
+                // recreateShareSession handles all the logic of generating new keys,
+                // saving them, updating the server, and persisting the updated bill locally.
+                updatedBill = await recreateShareSession(updatedBill, settings, updateBillCallback);
+            } else if (!res.ok) {
+                // For other server errors (e.g., 500), it's better to fail fast.
+                throw new Error(`Failed to verify existing share session. Status: ${res.status}`);
+            }
+            // If res.ok, the share exists and we can proceed.
+        } catch (error: any) {
+            console.error("Could not verify share session:", error);
+            // Re-throw a user-friendly error to be caught by the UI.
+            if (error.name === 'AbortError') {
+                throw new Error('Could not connect to the server to verify the share link. Please check your connection and try again.');
+            }
+            throw new Error(error.message || 'An unexpected error occurred while verifying the share link.');
+        }
+    }
+
+
     // 1. Ensure the main bill sharing infrastructure is set up.
     if (!updatedBill.shareInfo) {
         needsDBUpdate = true;
@@ -303,75 +335,51 @@ export const recreateShareSession = async (
     updateBillCallback: (updatedBill: Bill) => Promise<void>
 ): Promise<Bill> => {
     let updatedBill = JSON.parse(JSON.stringify(bill));
-    const oldShareId = updatedBill.shareInfo?.shareId;
 
-    // 1. Clean up old keys but preserve the shareId for the first attempt.
-    await deleteBillSigningKeyDB(updatedBill.id);
-    delete updatedBill.shareInfo;
+    // 1. Verify that we have the necessary keys and the original shareId to proceed.
+    const existingShareInfo = updatedBill.shareInfo;
+    const keyRecord = await getBillSigningKey(updatedBill.id);
+
+    if (!existingShareInfo?.shareId || !existingShareInfo.encryptionKey || !existingShareInfo.signingPublicKey || !keyRecord) {
+        // This is a critical state issue. We cannot proceed without the original cryptographic identity of the share.
+        // It's safer to fail than to create new keys and de-sync existing recipients.
+        console.error("Cannot recreate share session: Existing keys or shareId are missing.", { billId: updatedBill.id });
+        throw new Error("Cannot re-sync bill because its original sharing keys or ID are missing.");
+    }
+    
+    // 2. We will reuse the existing keys and shareId.
+    const { shareId, encryptionKey: encryptionKeyJwk, signingPublicKey: signingPublicKeyJwk } = existingShareInfo;
+    const { privateKey } = keyRecord;
+
+    // Import the keys for use.
+    const billEncryptionKey = await cryptoService.importEncryptionKey(encryptionKeyJwk);
+
+    // 3. Clear out all old participant-specific share links as they are now invalid because their
+    // one-time keys on the server have expired along with the main session.
     delete updatedBill.participantShareInfo;
 
-    // 2. Generate new keys.
-    const signingKeyPair = await cryptoService.generateSigningKeyPair();
-    await saveBillSigningKey(updatedBill.id, signingKeyPair.privateKey);
-    const signingPublicKeyJwk = await cryptoService.exportKey(signingKeyPair.publicKey);
-    const billEncryptionKey = await cryptoService.generateEncryptionKey();
-    const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
+    // 4. Re-encrypt the current bill payload using the original, persistent keys.
+    const encryptedData = await encryptAndSignPayload(updatedBill, settings, privateKey, signingPublicKeyJwk, billEncryptionKey);
 
-    // 3. Encrypt payload with new keys.
-    const encryptedData = await encryptAndSignPayload(updatedBill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey);
-    
-    let shareResult: { shareId: string };
-    
-    // 4. First, try to recreate/upsert with the old shareId.
-    if (oldShareId) {
-        try {
-            const shareResponse = await fetch(getApiUrl(`/share/${oldShareId}`), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ encryptedData }),
-            });
-            if (!shareResponse.ok) {
-                // If it fails for any reason, we'll fall through to creating a new one.
-                console.warn(`Failed to recreate share with old ID ${oldShareId}. Status: ${shareResponse.status}. Falling back to new share ID.`);
-                throw new Error('Recreation with old ID failed.');
-            }
-            shareResult = await shareResponse.json();
-        } catch (error) {
-            // This catch block handles both fetch errors and the thrown error for non-ok responses.
-            console.log("Fallback: Creating a completely new share session.");
-            const newShareResponse = await fetch(getApiUrl('/share'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ encryptedData }),
-            });
-            const newShareResult = await newShareResponse.json();
-            if (!newShareResponse.ok) {
-                throw new Error(newShareResult.error || "Failed to create a new share session as a fallback.");
-            }
-            shareResult = newShareResult;
-        }
-    } else {
-        // If there was no oldShareId to begin with, just create a new one.
-        const newShareResponse = await fetch(getApiUrl('/share'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ encryptedData }),
-        });
-        const newShareResult = await newShareResponse.json();
-        if (!newShareResponse.ok) {
-            throw new Error(newShareResult.error || "Failed to create a new share session.");
-        }
-        shareResult = newShareResult;
+    // 5. POST to the server to "revive" the share session using the original shareId.
+    // The backend is designed to handle this as an upsert operation.
+    const shareResponse = await fetch(getApiUrl(`/share/${shareId}`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ encryptedData }),
+    });
+
+    const shareResult = await shareResponse.json();
+    if (!shareResponse.ok) {
+        // If this fails, there's a server-side issue, and we cannot recover automatically.
+        throw new Error(shareResult.error || `Failed to revive the share session on the server for shareId: ${shareId}.`);
     }
 
-    // 5. Update bill object with the new (or old) share info.
-    updatedBill.shareInfo = { 
-        shareId: shareResult.shareId, 
-        encryptionKey: billEncryptionKeyJwk, 
-        signingPublicKey: signingPublicKeyJwk 
-    };
-
-    // 6. Persist and return.
+    // 6. The bill object itself hasn't changed besides clearing participantShareInfo.
+    // The key thing is that the server data is now fresh.
+    // We only need to persist the cleared participantShareInfo.
     await updateBillCallback(updatedBill);
+    
+    // 7. Return the (slightly modified) bill object.
     return updatedBill;
 };
