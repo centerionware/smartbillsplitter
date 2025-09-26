@@ -3,7 +3,7 @@ import type { Bill, Settings, Participant } from './types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import ShareModal from './ShareModal.tsx';
 import ShareActionSheet from './ShareActionSheet.tsx';
-import { generateShareText, generateShareLink, encryptAndSignPayload } from '../services/shareService.ts';
+import { generateShareText, generateShareLink, encryptAndSignPayload, recreateShareSession } from '../services/shareService.ts';
 import * as cryptoService from '../services/cryptoService.ts';
 import { getBillSigningKey } from '../services/db.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
@@ -33,7 +33,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
     try {
         const keyRecord = await getBillSigningKey(updatedBill.id);
         if (!keyRecord) {
-            console.error("Signing key not found for shared bill:", updatedBill.id);
+            console.warn(`Signing key not found for bill ${updatedBill.id}, which is marked as shared. This indicates inconsistent data. Re-creating share session from scratch.`);
+            const newlySharedBill = await recreateShareSession(updatedBill, settings, onUpdateBill);
+            console.log(`Successfully re-created and updated share for bill ${newlySharedBill.id}. New shareId: ${newlySharedBill.shareInfo?.shareId}`);
+            showNotification('Shared bill re-synced successfully.', 'info');
             return;
         }
         
@@ -47,17 +50,30 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
             encryptionKey
         );
 
-        await fetch(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), {
+        const response = await fetch(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ encryptedData }),
         });
-        console.log(`Pushed update for shared bill: ${updatedBill.id}`);
-    } catch (error) {
+
+        // A 404 or a 204 from a proxy indicates the share session is gone. Re-create it.
+        if (response.status === 404 || response.status === 204) {
+            console.warn(`Share session for bill ${updatedBill.id} not found on server (status: ${response.status}). Re-creating share...`);
+            const newlySharedBill = await recreateShareSession(updatedBill, settings, onUpdateBill);
+            console.log(`Successfully re-created and updated share for bill ${newlySharedBill.id}. New shareId: ${newlySharedBill.shareInfo?.shareId}`);
+            showNotification('Shared bill re-synced successfully.', 'info');
+        } else if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Failed to push share update. Status: ${response.status}`);
+        } else {
+            console.log(`Pushed update for shared bill: ${updatedBill.id}`);
+        }
+        
+    } catch (error: any) {
         console.error("Failed to push share update:", error);
-        // This is a background task, so we don't show a blocking UI error.
+        showNotification('Failed to sync shared bill changes.', 'error');
     }
-  }, [settings]);
+  }, [settings, onUpdateBill, showNotification]);
 
   // FIX: Made function async to await the bill update and share push operations.
   const handleParticipantPaidToggle = async (participantId: string) => {

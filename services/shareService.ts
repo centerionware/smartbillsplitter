@@ -1,7 +1,7 @@
 import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import * as cryptoService from './cryptoService.ts';
-import { saveBillSigningKey } from './db.ts';
+import { saveBillSigningKey, deleteBillSigningKeyDB } from './db.ts';
 import { getApiUrl } from './api.ts';
 
 interface ShareBillInfo {
@@ -296,3 +296,52 @@ export async function encryptAndSignPayload(
     };
     return cryptoService.encrypt(JSON.stringify(payload), encryptionKey);
 }
+
+export const recreateShareSession = async (
+    bill: Bill,
+    settings: Settings,
+    updateBillCallback: (updatedBill: Bill) => Promise<void>
+): Promise<Bill> => {
+    // Make a deep copy to avoid mutating the original object until the end.
+    let updatedBill = JSON.parse(JSON.stringify(bill));
+
+    // 1. Clean up old, invalid share info and signing key from the database.
+    await deleteBillSigningKeyDB(updatedBill.id);
+    delete updatedBill.shareInfo;
+    delete updatedBill.participantShareInfo;
+
+    // 2. Generate new keys and infrastructure for sharing.
+    const signingKeyPair = await cryptoService.generateSigningKeyPair();
+    await saveBillSigningKey(updatedBill.id, signingKeyPair.privateKey);
+    const signingPublicKeyJwk = await cryptoService.exportKey(signingKeyPair.publicKey);
+    
+    const billEncryptionKey = await cryptoService.generateEncryptionKey();
+    const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
+
+    // 3. Encrypt the current bill state and create a new share session on the server.
+    const encryptedData = await encryptAndSignPayload(updatedBill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey);
+    
+    const shareResponse = await fetch(getApiUrl('/share'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ encryptedData }),
+    });
+    
+    const shareResult = await shareResponse.json();
+    if (!shareResponse.ok) {
+        throw new Error(shareResult.error || "Failed to create a new share session during re-creation.");
+    }
+    
+    // 4. Update the bill object with the new share information.
+    updatedBill.shareInfo = { 
+        shareId: shareResult.shareId, 
+        encryptionKey: billEncryptionKeyJwk, 
+        signingPublicKey: signingPublicKeyJwk 
+    };
+
+    // 5. Persist the updated bill with the new shareInfo to the local database.
+    await updateBillCallback(updatedBill);
+
+    // 6. Return the updated bill object.
+    return updatedBill;
+};
