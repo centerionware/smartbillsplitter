@@ -128,6 +128,21 @@ jobs:
           fi
           
           echo "FUNCTION_URL=$URL_CONFIG" >> $GITHUB_OUTPUT
+      
+      - name: Grant Public Access to Function URL
+        run: |
+          # Check if the policy already has our specific statement. The grep command will have a non-zero exit code if not found.
+          if ! aws lambda get-policy --function-name ${{ env.LAMBDA_FUNCTION_NAME }} 2>/dev/null | grep -q '"Sid":"FunctionURLAllowPublicAccess"'; then
+            echo "Adding public access permission to Lambda Function URL..."
+            aws lambda add-permission \
+              --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
+              --statement-id FunctionURLAllowPublicAccess \
+              --action lambda:InvokeFunctionUrl \
+              --principal "*" \
+              --function-url-auth-type NONE
+          else
+            echo "Public access permission already exists. Skipping."
+          fi
           
       - name: Log Deployment URL
         run: |
