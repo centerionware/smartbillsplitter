@@ -8,7 +8,7 @@
     "clean": "rm -rf dist dist-server dist-lambda",
     "build:frontend": "vite build",
     "build:backend": "esbuild server.ts http-types.ts express-adapter.ts vercel-adapter.ts cloudflare-adapter.ts aws-lambda-adapter.ts lambda.ts serverless.ts api/handler.ts workers/index.ts functions/*.ts services/*.ts --bundle --platform=node --format=esm --outdir=dist-server --packages=external",
-    "build:lambda": "npm run build:backend && cd dist-server && zip -r ../dist-lambda/function.zip .",
+    "build:lambda": "mkdir -p dist-lambda && npm run build:backend && cd dist-server && zip -r ../dist-lambda/function.zip .",
     "build": "npm run clean && npm run build:frontend && npm run build:backend",
     "start": "node dist-server/server.js",
     "preview": "vite preview"
