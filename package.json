@@ -1,3 +1,4 @@
+
 {
   "name": "smart-bill-splitter",
   "private": true,
@@ -7,8 +8,8 @@
     "dev": "vite",
     "build:frontend": "vite build",
     "build:backend": "esbuild server.ts http-types.ts express-adapter.ts vercel-adapter.ts cloudflare-adapter.ts aws-lambda-adapter.ts lambda.ts serverless.ts api/handler.ts workers/index.ts functions/*.ts services/*.ts --bundle --platform=node --format=esm --outdir=dist-server",
-    "build:lambda:source": "esbuild lambda.ts --bundle --platform=node --format=esm --outfile=dist-lambda/lambda.mjs --external:@aws-sdk/client-dynamodb",
-    "build:lambda": "mkdir -p dist-lambda && npm run build:lambda:source && cd dist-lambda && zip function.zip lambda.mjs",
+    "build:lambda:source": "esbuild lambda.ts --bundle --platform=node --format=cjs --outfile=dist-lambda/lambda.js --external:@aws-sdk/client-dynamodb",
+    "build:lambda": "mkdir -p dist-lambda && npm run build:lambda:source && cd dist-lambda && zip function.zip lambda.js",
     "build": "npm run build:frontend && npm run build:backend",
     "preview": "vite preview"
   },
