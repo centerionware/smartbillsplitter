@@ -3,67 +3,61 @@ let API_BASE_URL: string | null = null;
 
 const discoverApiBaseUrl = async (): Promise<string> => {
     // Vite replaces this with a string literal during build, or `undefined` if not set.
-    // FIX: Cast `import.meta` to `any` to access Vite-specific environment variables without causing a TypeScript type error when Vite's client types are not globally available.
     const envApiUrls = (import.meta as any).env.VITE_API_BASE_URLS;
     
-    const candidates: string[] = [];
-
-    // 1. Add candidates from the build-time environment variable first. This is the highest priority.
+    // --- Phase 1: Check build-time environment variables first ---
     if (typeof envApiUrls === 'string' && envApiUrls.length > 0) {
-        const urlsFromEnv = envApiUrls.split(',').map(url => url.trim()).filter(Boolean);
-        candidates.push(...urlsFromEnv);
+        const candidatesFromEnv = envApiUrls.split(',').map(url => url.trim()).filter(Boolean);
+        console.log("Checking for backend API from build-time candidates:", candidatesFromEnv);
+        for (const candidateUrl of candidatesFromEnv) {
+            try {
+                // Ping a known, lightweight health check endpoint with a short timeout.
+                const response = await fetch(`${candidateUrl}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
+                if (response.ok && (await response.text()) === 'OK') {
+                    console.log(`Discovered and connected to backend API at: ${candidateUrl}`);
+                    return candidateUrl;
+                }
+            } catch (error: any) {
+                // This is an expected failure if the URL is not the active backend, so we log it at a debug level.
+                console.debug(`Check for backend at ${candidateUrl} failed.`, error);
+            }
+        }
+        console.log("No backend found from build-time candidates.");
     }
 
-    // 2. Add dynamically generated candidates based on the current hostname as a fallback.
+    // --- Phase 2: Fallback to dynamic subdomain discovery ---
+    const dynamicCandidates: string[] = [];
     const currentHostname = window.location.hostname;
     const currentProtocol = window.location.protocol;
     
     if (currentHostname !== 'localhost' && !currentHostname.startsWith('127.0.0.1')) {
-        let baseHost = currentHostname;
-        if (baseHost.startsWith('www.')) {
-            baseHost = baseHost.substring(4);
-        }
-        
+        const baseHost = currentHostname.startsWith('www.') ? currentHostname.substring(4) : currentHostname;
         const prefixes = ['k', 'c', 'v', 'n', 'a', 'g', 'm'];
         prefixes.forEach(prefix => {
-            const dynamicUrl = `${currentProtocol}//${prefix}.${baseHost}`;
-            // Avoid adding duplicates if they were somehow also in the env var
-            if (!candidates.includes(dynamicUrl)) {
-                candidates.push(dynamicUrl);
-            }
+            dynamicCandidates.push(`${currentProtocol}//${prefix}.${baseHost}`);
         });
     }
 
-    if (candidates.length === 0) {
-        console.log("No API candidates found. Falling back to relative API paths.");
-        return '';
-    }
-    
-    console.log("Attempting to discover backend API from candidates:", candidates);
-    
-    for (const candidateUrl of candidates) {
-        try {
-            // Ping a known, lightweight health check endpoint with a short timeout.
-            const response = await fetch(`${candidateUrl}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
-            if (response.ok && (await response.text()) === 'OK') {
-                console.log(`Discovered and connected to backend API at: ${candidateUrl}`);
-                return candidateUrl;
+    if (dynamicCandidates.length > 0) {
+        console.log("Falling back to dynamic discovery. Checking candidates:", dynamicCandidates);
+        for (const candidateUrl of dynamicCandidates) {
+            try {
+                const response = await fetch(`${candidateUrl}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
+                if (response.ok && (await response.text()) === 'OK') {
+                    console.log(`Discovered backend via dynamic discovery at: ${candidateUrl}`);
+                    return candidateUrl;
+                }
+            } catch (error: any) {
+                console.debug(`Dynamic check for backend at ${candidateUrl} failed.`, error);
             }
-        } catch (error: any) {
-            let reason = 'unknown error';
-            if (error.name === 'AbortError') {
-                reason = 'request timed out';
-            } else if (error instanceof TypeError) {
-                reason = 'CORS or network error';
-            }
-            console.debug(`Check for backend at ${candidateUrl} failed: ${reason}. This is expected if the backend is not hosted at this address.`, error);
         }
     }
     
-    // Fallback: If no candidate is found, assume path-based routing on the same host.
-    console.log("No backend discovered from candidates. Falling back to relative API paths.");
+    // --- Final Fallback ---
+    console.log("No backend discovered. Falling back to relative API paths.");
     return '';
 };
+
 
 /**
  * Initializes the API service by discovering the backend URL.
