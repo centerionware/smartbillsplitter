@@ -5,6 +5,7 @@ import { AuthProvider } from './hooks/useAuth.ts';
 import { AppControlContext } from './contexts/AppControlContext.tsx';
 import { initDB } from './services/db.ts';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
+import { initializeApi } from './services/api.ts';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match db.ts for the hard reset
 
@@ -137,8 +138,20 @@ try {
     );
   }
 
-  // Initialize the database before rendering the app
-  initDB().then(() => {
+  const startup = async () => {
+    try {
+      await initializeApi();
+    } catch (apiErr) {
+      // API discovery is not critical, the app can fall back to relative paths.
+      // The discovery function itself handles fallbacks and logging. We just log the failure here.
+      console.warn("API discovery process encountered an error.", apiErr);
+    }
+    // initDB will throw if it fails, and this will be caught by the final .catch()
+    await initDB();
+  };
+
+  // Initialize the app
+  startup().then(() => {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
       <React.StrictMode>
@@ -148,7 +161,7 @@ try {
       </React.StrictMode>
     );
   }).catch(err => {
-    // This specifically catches errors from initDB (e.g., IndexedDB not supported)
+    // This catches critical errors from initDB
     console.error("Failed to initialize the database.", err);
     renderErrorFallback(err);
   });

@@ -14,6 +14,10 @@ backend:
   replicaCount: 1
   service:
     port: 3000
+  cors:
+    # IMPORTANT: Set this to the full origin of your frontend application.
+    # For example: https://your-app.pages.dev or http://localhost:5173 for local dev
+    allowedOrigin: "https://your-frontend-domain.com"
 
 # Configuration for secrets
 secret:
@@ -36,6 +40,9 @@ secret:
 ingress:
   enabled: true
   host: YOUR_DOMAIN_HERE # <-- IMPORTANT: Replace with your domain
+  # The subdomain prefix for the backend service. For example, "k" will result in the backend being hosted at "k.YOUR_DOMAIN_HERE".
+  # Set to "" (empty string) to disable subdomain routing and serve the backend via paths on the main host.
+  backendSubdomainPrefix: "k"
   # tls:
   #   - secretName: sharedbills-tls-secret
   #     hosts:

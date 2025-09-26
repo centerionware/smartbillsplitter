@@ -1,10 +1,11 @@
-import express from 'express';
+// FIX: Changed to named imports for Express types to resolve TypeScript errors where properties were not being found.
+import { Request, Response, RequestHandler } from 'express';
 import { HttpRequest, HttpHandler } from './http-types';
 
 /**
  * Transforms an Express request into a framework-agnostic HttpRequest.
  */
-function toHttpRequest(req: express.Request): HttpRequest {
+function toHttpRequest(req: Request): HttpRequest {
   const url = new URL(req.originalUrl, `${req.protocol}://${req.get('host')}`);
   return {
     method: req.method.toUpperCase() as HttpRequest['method'],
@@ -20,8 +21,8 @@ function toHttpRequest(req: express.Request): HttpRequest {
  * Creates an Express request handler from our generic, framework-agnostic HttpHandler.
  * This acts as an adapter layer, containing the only Express-specific logic.
  */
-export function createExpressAdapter(handler: HttpHandler): express.RequestHandler {
-  return async (req: express.Request, res: express.Response) => {
+export function createExpressAdapter(handler: HttpHandler): RequestHandler {
+  return async (req: Request, res: Response) => {
     try {
       const httpRequest = toHttpRequest(req);
       const httpResponse = await handler(httpRequest);

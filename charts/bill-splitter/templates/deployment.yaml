@@ -31,6 +31,8 @@ spec:
               value: "{{ .Release.Name }}-redis-master"
             - name: REDIS_PORT
               value: "6379"
+            - name: CORS_ALLOWED_ORIGIN
+              value: {{ .Values.backend.cors.allowedOrigin | quote }}
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
