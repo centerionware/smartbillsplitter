@@ -92,9 +92,8 @@ jobs:
       - name: Deploy Lambda Function
         id: lambda_deploy
         run: |
-          FUNCTION_ARN=$(aws lambda get-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'Configuration.FunctionArn' --output text 2>/dev/null)
-          
-          if [ -z "$FUNCTION_ARN" ]; then
+          # Use the aws command directly in the if condition to handle non-zero exit codes when the function does not exist.
+          if ! aws lambda get-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} > /dev/null 2>&1; then
             echo "Creating new Lambda function: ${{ env.LAMBDA_FUNCTION_NAME }}"
             aws lambda create-function \
               --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
@@ -116,9 +115,8 @@ jobs:
       - name: Create or Update Lambda Function URL
         id: lambda_url
         run: |
-          URL_CONFIG=$(aws lambda get-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'FunctionUrl' --output text 2>/dev/null)
-          
-          if [ -z "$URL_CONFIG" ] || [ "$URL_CONFIG" == "None" ]; then
+          # Try to get the URL config. If the command fails (e.g., it doesn't exist), the 'if' condition will be true.
+          if ! URL_CONFIG=$(aws lambda get-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'FunctionUrl' --output text 2>/dev/null); then
             echo "Creating new Function URL..."
             URL_CONFIG=$(aws lambda create-function-url-config \
               --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
