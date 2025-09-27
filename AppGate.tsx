@@ -16,19 +16,30 @@ const AppGate: React.FC = () => {
   );
 
   useEffect(() => {
-    // This effect handles the redirect from a successful Stripe checkout.
     const verifyServerSidePayment = async () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session_id');
+      const stripeSessionId = urlParams.get('session_id');
+      const paypalSubscriptionId = urlParams.get('subscription_id');
 
-      if (sessionId) {
+      let provider: 'stripe' | 'paypal' | null = null;
+      let sessionId: string | null = null;
+
+      if (stripeSessionId) {
+          provider = 'stripe';
+          sessionId = stripeSessionId;
+      } else if (paypalSubscriptionId) {
+          provider = 'paypal';
+          sessionId = paypalSubscriptionId;
+      }
+
+      if (provider && sessionId) {
         setIsVerifying(true);
         setVerificationError(null);
         try {
-          const response = await fetch(getApiUrl('/verify-session'), {
+          const response = await fetch(getApiUrl('/verify-payment'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId }),
+            body: JSON.stringify({ provider, sessionId }),
           });
           
           const data = await response.json();
@@ -39,6 +50,7 @@ const AppGate: React.FC = () => {
 
           if (data.status === 'success') {
             await login({
+              provider: data.provider,
               duration: data.duration,
               customerId: data.customerId,
               subscriptionId: data.subscriptionId,

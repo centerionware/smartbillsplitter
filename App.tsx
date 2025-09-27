@@ -196,7 +196,7 @@ const App: React.FC = () => {
   // Effect to update user 'last seen' timestamp in Stripe metadata once per day.
   useEffect(() => {
     const updateLastSeen = async () => {
-        if (subscriptionStatus === 'subscribed' && subscriptionDetails?.customerId) {
+        if (subscriptionStatus === 'subscribed' && subscriptionDetails?.provider === 'stripe' && subscriptionDetails?.customerId) {
             const lastUpdateKey = `lastStripeUpdate_${subscriptionDetails.customerId}`;
             const lastUpdate = localStorage.getItem(lastUpdateKey);
             const now = Date.now();

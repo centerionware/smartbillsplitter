@@ -190,8 +190,8 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
   };
   
   const handleManageSubscription = async () => {
-    if (!subscriptionDetails?.customerId) {
-        setPortalError("Could not find your customer ID. Please contact support.");
+    if (!subscriptionDetails) {
+        setPortalError("Could not find your subscription details.");
         return;
     }
     
@@ -200,10 +200,10 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
     
     try {
         const origin = window.location.origin;
-        const response = await fetch(getApiUrl('/create-customer-portal-session'), {
+        const response = await fetch(getApiUrl('/manage-subscription'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ customerId: subscriptionDetails.customerId, origin }),
+            body: JSON.stringify({ ...subscriptionDetails, origin }),
         });
         const data = await response.json();
         

@@ -25,8 +25,9 @@ const MY_KEY_PAIR_ID = 'myKeyPair';
 let db: IDBDatabase;
 
 export interface SubscriptionDetails {
-  customerId: string;
-  subscriptionId: string;
+  provider: 'stripe' | 'paypal';
+  customerId: string; // Stripe Customer ID or PayPal Payer ID
+  subscriptionId: string; // Stripe Subscription ID or PayPal Subscription ID
   startDate: string;
   duration: 'monthly' | 'yearly';
 }

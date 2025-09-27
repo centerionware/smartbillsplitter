@@ -1,0 +1,45 @@
+# Development environment overrides for the bill-splitter chart.
+# Use this file with `helm install/upgrade -f values.dev.yaml`.
+
+# For local development, you might not deploy the frontend via Helm.
+frontend:
+  enabled: true
+  replicaCount: 1
+
+backend:
+  replicaCount: 1
+  # Allow requests from the local Vite dev server
+  cors:
+    allowedOrigin: "http://localhost:5173"
+  # Use paypal as the default for dev, but can be overridden.
+  paymentProvider: "paypal"
+
+# Provide your development/sandbox secrets below.
+secret:
+  create: true
+  
+  # The Gemini API Key. MUST be provided for development.
+  API_KEY: "YOUR_DEV_GEMINI_API_KEY"
+  
+  # --- Stripe Sandbox Configuration ---
+  STRIPE_SECRET_KEY: "sk_test_..."
+  STRIPE_PRICE_ID_MONTHLY: "price_..." # Your Stripe test mode monthly price ID
+  STRIPE_PRICE_ID_YEARLY: "price_..."  # Your Stripe test mode yearly price ID
+  
+  # --- PayPal Sandbox Configuration ---
+  PAYPAL_CLIENT_ID: "YOUR_PAYPAL_SANDBOX_CLIENT_ID"
+  PAYPAL_CLIENT_SECRET: "YOUR_PAYPAL_SANDBOX_SECRET"
+  PAYPAL_PLAN_ID_MONTHLY: "P-..." # Your PayPal sandbox monthly plan ID
+  PAYPAL_PLAN_ID_YEARLY: "P-..."  # Your PayPal sandbox yearly plan ID
+
+
+ingress:
+  enabled: true
+  host: dev.sharedbills.local # A local domain for development
+  # Use a different subdomain or path for the dev backend
+  backendSubdomainPrefix: "k-dev"
+
+# You can disable the Redis dependency for simpler local setups if the backend
+# supports an in-memory fallback (which it doesn't currently).
+redis:
+  enabled: true

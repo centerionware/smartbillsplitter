@@ -33,6 +33,8 @@ spec:
               value: "6379"
             - name: CORS_ALLOWED_ORIGIN
               value: {{ .Values.backend.cors.allowedOrigin | quote }}
+            - name: PAYMENT_PROVIDER
+              value: {{ .Values.backend.paymentProvider | quote }}
             - name: API_KEY
               valueFrom:
                 secretKeyRef:
@@ -53,6 +55,26 @@ spec:
                 secretKeyRef:
                   name: {{ include "bill-splitter.fullname" . }}-secret
                   key: STRIPE_PRICE_ID_YEARLY
+            - name: PAYPAL_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bill-splitter.fullname" . }}-secret
+                  key: PAYPAL_CLIENT_ID
+            - name: PAYPAL_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bill-splitter.fullname" . }}-secret
+                  key: PAYPAL_CLIENT_SECRET
+            - name: PAYPAL_PLAN_ID_MONTHLY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bill-splitter.fullname" . }}-secret
+                  key: PAYPAL_PLAN_ID_MONTHLY
+            - name: PAYPAL_PLAN_ID_YEARLY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bill-splitter.fullname" . }}-secret
+                  key: PAYPAL_PLAN_ID_YEARLY
           livenessProbe:
             httpGet:
               path: /health
