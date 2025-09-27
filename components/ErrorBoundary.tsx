@@ -1,7 +1,4 @@
-// FIX: Changed the React import to use a namespace import (`* as React`).
-// This is necessary to correctly resolve the type for `React.Component` and its properties
-// like `props` and `setState`, especially in projects without `esModuleInterop` enabled.
-import * as React from 'react';
+import React from 'react';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match the name in db.ts
 
@@ -20,6 +17,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
     hasError: false,
   };
 
+  constructor(props: Props) {
+    super(props);
+    this.handleReset = this.handleReset.bind(this);
+    this.handleHardReset = this.handleHardReset.bind(this);
+  }
+
   static getDerivedStateFromError(error: Error): State {
     // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
@@ -29,14 +32,15 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
-  private handleReset = () => {
+  // FIX: Converted from an arrow function property to a standard class method and bound `this` in the constructor. This resolves a TypeScript error where `this.setState` was not found on the component instance.
+  private handleReset() {
     this.setState({ hasError: false });
     // This is a bit of a heavy hammer, but it's the most reliable way to
     // fully reset state after a boundary-level error.
     window.location.replace('/');
-  };
+  }
   
-  private handleHardReset = () => {
+  private handleHardReset() {
       console.warn("Performing hard reset from error boundary.");
       const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
       
@@ -54,7 +58,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       deleteRequest.onblocked = () => {
         alert("Database is locked, likely by another open tab. To reset the app, please close all other tabs for this site and then reload this page to try again.");
       };
-  };
+  }
 
   public render() {
     if (this.state.hasError) {
@@ -90,6 +94,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
+    // FIX: The error on this line was a symptom of the same typing issue affecting the class methods. Refactoring the methods to be explicitly bound resolves this error as well.
     return this.props.children;
   }
 }
