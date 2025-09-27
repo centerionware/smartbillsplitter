@@ -115,7 +115,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
                         <span>Breakdown</span>
                     </button>
                 )}
-                {hasPaymentInfo && myParticipant && !myParticipant.paid && !importedBill.localStatus.myPortionPaid && (
+                {hasPaymentInfo && myParticipant && !myParticipant.paid && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onSettleUp(); }}
                         className="px-4 py-2 rounded-full font-semibold text-sm transition-colors bg-emerald-500 text-white hover:bg-emerald-600"

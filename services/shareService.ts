@@ -168,7 +168,7 @@ export const generateAggregateBill = async (
     id: `p-summary-${participantName.replace(/\s/g, '')}`,
     name: participantName,
     amountOwed: totalOwed,
-    paid: false,
+    paid: totalOwed < 0.01,
   };
 
   const summaryBill = {

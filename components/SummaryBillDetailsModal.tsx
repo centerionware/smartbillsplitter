@@ -50,19 +50,35 @@ const SummaryBillDetailsModal: React.FC<SummaryBillDetailsModalProps> = ({ summa
       {(summaryBill.items || []).map(item => {
         const { name, price, originalBillData } = item;
         if (!originalBillData) return null;
-        const isPaid = importedBill?.localStatus.paidItems?.[item.id] ?? false;
+        
+        const myNameInSummary = summaryBill.participants.find(p => p.id === myParticipantId)?.name;
+        const myParticipantInOriginalBill = myNameInSummary
+            ? originalBillData.participants.find(p => p.name.toLowerCase().trim() === myNameInSummary.toLowerCase().trim())
+            : null;
+        const isPaidByCreator = myParticipantInOriginalBill?.paid ?? false;
+        
+        const isPaidByMeLocally = importedBill?.localStatus.paidItems?.[item.id] ?? false;
 
         return (
           <li key={item.id}>
-            <div className={`w-full p-4 rounded-lg transition-colors text-left ${isPaid ? 'bg-emerald-50 dark:bg-emerald-900/40' : 'bg-slate-50 dark:bg-slate-700/50'}`}>
+            <div className={`w-full p-4 rounded-lg transition-colors text-left ${isPaidByCreator || isPaidByMeLocally ? 'bg-emerald-50 dark:bg-emerald-900/40' : 'bg-slate-50 dark:bg-slate-700/50'}`}>
                 <div className="flex justify-between items-start">
                     <p className="font-semibold text-slate-800 dark:text-slate-100 flex-1 break-words pr-2">{name}</p>
-                    <div className="text-right flex-shrink-0">
-                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">You Owe</p>
-                        <p className={`font-bold text-xl ${isPaid ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-100'}`}>
-                        ${price.toFixed(2)}
-                        </p>
-                    </div>
+                    
+                    {isPaidByCreator ? (
+                         <div className="flex-shrink-0">
+                            <span className="px-3 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                                Paid
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="text-right flex-shrink-0">
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">You Owe</p>
+                            <p className={`font-bold text-xl ${isPaidByMeLocally ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-100'}`}>
+                                ${price.toFixed(2)}
+                            </p>
+                        </div>
+                    )}
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                     <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -70,7 +86,7 @@ const SummaryBillDetailsModal: React.FC<SummaryBillDetailsModalProps> = ({ summa
                     </div>
                     <div className="flex items-center gap-2">
                         <button onClick={() => handleSelectItem(item)} className="px-3 py-1.5 text-xs font-semibold rounded-full bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500">Details</button>
-                        {!isPaid && <button onClick={() => setPaymentModalItem(item)} className="px-3 py-1.5 text-xs font-semibold rounded-full bg-emerald-500 text-white hover:bg-emerald-600">Settle Up</button>}
+                        {!isPaidByCreator && <button onClick={() => setPaymentModalItem(item)} className="px-3 py-1.5 text-xs font-semibold rounded-full bg-emerald-500 text-white hover:bg-emerald-600">Settle Up</button>}
                     </div>
                 </div>
             </div>
@@ -83,7 +99,12 @@ const SummaryBillDetailsModal: React.FC<SummaryBillDetailsModalProps> = ({ summa
   const renderDetailView = () => {
     if (!selectedItem || !selectedItem.originalBillData) return null;
     
-    const isPaidByCreator = selectedItem.originalBillData.participants.find(p => p.id === myParticipantId)?.paid ?? false;
+    const myNameInSummary = summaryBill.participants.find(p => p.id === myParticipantId)?.name;
+    const myParticipantInOriginalBill = myNameInSummary
+        ? selectedItem.originalBillData.participants.find(p => p.name.toLowerCase().trim() === myNameInSummary.toLowerCase().trim())
+        : null;
+    const isPaidByCreator = myParticipantInOriginalBill?.paid ?? false;
+
     const isPaidByMe = importedBill?.localStatus.paidItems?.[selectedItem.id] ?? false;
     const { receiptImage, additionalInfo, participants } = selectedItem.originalBillData;
 
@@ -105,7 +126,7 @@ const SummaryBillDetailsModal: React.FC<SummaryBillDetailsModalProps> = ({ summa
             </div>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                 {!isPaidByCreator && !isPaidByMe && (
+                 {!isPaidByCreator && (
                      <button onClick={() => setPaymentModalItem(selectedItem)} className="w-full flex-1 px-6 py-3 bg-emerald-500 text-white font-bold rounded-lg hover:bg-emerald-600 transition-colors">
                         Settle Up
                     </button>
