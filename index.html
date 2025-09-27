@@ -169,14 +169,12 @@
   <body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
     
     <!-- A-ADS Verification (Hidden) -->
-    <!-- This wrapper div ensures the verification frame is not visible to users. -->
-    <div style="position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; overflow: hidden; z-index: -1;" aria-hidden="true">
-      <!-- This is the exact frame A-ADS requires for verification. Do not modify. Vite replaces the ID at build time. -->
-      <div id="frame" style="width: 100%;margin: auto;position: relative; z-index: 99998;">
-        <iframe data-aa='%VITE_AADS_ID%' src='//acceptable.a-ads.com/%VITE_AADS_ID%/?size=Adaptive'
-                          style='border:0; padding:0; width:70%; height:auto; overflow:hidden;display: block;margin: auto'></iframe>
-      </div>
+    <!-- This is the exact frame A-ADS requires for verification. Do not modify. Vite replaces the ID at build time. -->
+    <div id="frame" style="width: 100%;margin: auto;position: relative; z-index: 99998;">
+      <iframe data-aa='%VITE_AADS_ID%' src='//acceptable.a-ads.com/%VITE_AADS_ID%/?size=Adaptive'
+                        style='border:0; padding:0; width:70%; height:auto; overflow:hidden;display: block;margin: auto'></iframe>
     </div>
+    
     
     <div id="root"></div>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
