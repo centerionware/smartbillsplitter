@@ -223,6 +223,37 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
         setIsPortalLoading(false);
     }
   };
+
+  const handleManagePayPalSubscription = async () => {
+    if (isPortalLoading) return;
+    
+    setIsPortalLoading(true);
+    setPortalError(null);
+    
+    try {
+        const response = await fetch(getApiUrl('/manage-subscription'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider: 'paypal' }),
+        });
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to get PayPal portal link.");
+        }
+        
+        if (data.url) {
+            window.open(data.url, '_blank', 'noopener,noreferrer');
+        } else {
+            throw new Error("PayPal portal URL not found in server response.");
+        }
+
+    } catch(err: any) {
+        setPortalError(err.message || "An unknown error occurred.");
+    } finally {
+        setIsPortalLoading(false);
+    }
+  };
   
   const Divider = () => <div className="my-8 border-t border-slate-200 dark:border-slate-700" />;
 
@@ -271,6 +302,7 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
         <SubscriptionManagement
             subscriptionStatus={subscriptionStatus}
             onManageStripeSubscription={handleManageStripeSubscription}
+            onManagePayPalSubscription={handleManagePayPalSubscription}
             onGoToManagePayPalSubscription={onGoToManageSubscriptionPage}
             isPortalLoading={isPortalLoading}
             portalError={portalError}

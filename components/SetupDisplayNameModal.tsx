@@ -26,9 +26,9 @@ const SetupDisplayNameModal: React.FC<SetupDisplayNameModalProps> = ({ onSave, c
   return (
     <div className="fixed inset-0 bg-slate-900 bg-opacity-80 z-50 flex justify-center items-center p-4">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md p-8 text-center">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Welcome!</h2>
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">Set Your Name</h2>
         <p className="text-slate-600 dark:text-slate-300 mb-6">
-          Please set your display name. This will be used to identify you in new bills and when sharing with friends.
+          Your name is required before creating a bill. This is how others will see you when you share bills, so please use your real name.
         </p>
         <div className="mb-4 text-left">
           <label htmlFor="displayNameSetup" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">

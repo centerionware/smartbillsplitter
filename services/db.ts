@@ -46,14 +46,38 @@ export function initDB(): Promise<void> {
 
     request.onupgradeneeded = (event) => {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
-      const transaction = (event.target as IDBOpenDBRequest).transaction;
-      if (!transaction) return;
 
-      // ... existing migrations ...
-      if (event.oldVersion < 10) {
-        if (!dbInstance.objectStoreNames.contains(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS)) {
+      // This sequential upgrade path ensures that all users, new or existing,
+      // get the correct database schema. It runs for both new databases (oldVersion = 0)
+      // and for upgrades.
+      switch (event.oldVersion) {
+        case 0:
+          // A new user is creating the database. Create all stores from scratch.
+          dbInstance.createObjectStore(STORES.BILLS, { keyPath: 'id' });
+          dbInstance.createObjectStore(STORES.RECURRING_BILLS, { keyPath: 'id' });
+          dbInstance.createObjectStore(STORES.IMPORTED_BILLS, { keyPath: 'id' });
+          dbInstance.createObjectStore(STORES.SETTINGS);
+          dbInstance.createObjectStore(STORES.THEME);
+          dbInstance.createObjectStore(STORES.SUBSCRIPTION);
+          dbInstance.createObjectStore(STORES.SUBSCRIPTION_DETAILS);
+          // Using 'billId' as keyPath based on how it's saved and retrieved.
+          dbInstance.createObjectStore(STORES.BILL_SIGNING_KEYS, { keyPath: 'billId' });
+          // Note: STORES.CRYPTO_KEYS is legacy and intentionally not created.
+        
+        // Fallthrough for upgrades: cases below will run for new users as well.
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+        case 8:
+        case 9:
+          // Migration to version 10: add the managed_paypal_subscriptions store.
+          if (!dbInstance.objectStoreNames.contains(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS)) {
             dbInstance.createObjectStore(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS);
-        }
+          }
       }
     };
 

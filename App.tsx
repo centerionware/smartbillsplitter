@@ -63,6 +63,7 @@ const App: React.FC = () => {
     onConfirm: () => void;
   } & RequestConfirmationOptions | null>(null);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+  const [postSetupAction, setPostSetupAction] = useState<(() => void) | null>(null);
   const initRef = useRef(false);
 
   // --- Navigation ---
@@ -175,13 +176,6 @@ const App: React.FC = () => {
         setCurrentView(View.Dashboard);
     }
   }, [currentPath, bills, recurringBills, importedBills, billsLoading, recurringBillsLoading, importedBillsLoading, navigate]);
-
-  // Effect to enforce display name setup.
-  useEffect(() => {
-    if (!settingsLoading && settings && (!settings.myDisplayName.trim() || settings.myDisplayName.trim().toLowerCase() === 'myself')) {
-        setIsSetupModalOpen(true);
-    }
-  }, [settings, settingsLoading]);
 
   // Effect to update user 'last seen' timestamp in Stripe metadata once per day.
   useEffect(() => {
@@ -337,7 +331,15 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCreateNewBill = () => navigate('#/create');
+  const handleCreateNewBill = () => {
+    if (settings && (!settings.myDisplayName.trim() || settings.myDisplayName.trim().toLowerCase() === 'myself')) {
+      // Store the action to be performed after the name is successfully set.
+      setPostSetupAction(() => () => navigate('#/create'));
+      setIsSetupModalOpen(true);
+    } else {
+      navigate('#/create');
+    }
+  };
   const handleSelectBill = (bill: Bill) => navigate(`#/bill/${bill.id}`);
   const handleSelectImportedBill = (bill: ImportedBill) => navigate(`#/imported-bill/${bill.id}`);
   const handleGoToSettings = () => navigate('#/settings');
@@ -450,6 +452,11 @@ const App: React.FC = () => {
     if (newName.trim()) {
         updateSettings({ myDisplayName: newName.trim() });
         setIsSetupModalOpen(false);
+        // If there was a pending action, execute it now.
+        if (postSetupAction) {
+            postSetupAction();
+            setPostSetupAction(null); // Clear the action after executing.
+        }
     }
   };
 

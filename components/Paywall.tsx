@@ -10,7 +10,7 @@ interface PaywallProps {
 // The payment provider is now determined at build time from a CI environment variable.
 // Vite exposes variables prefixed with `VITE_` to the client-side code.
 // It defaults to 'paypal' if the variable is not set or is not 'stripe'.
-const PAYMENT_PROVIDER = (import.meta as any).env.VITE_PAYMENT_PROVIDER === 'stripe' ? 'stripe' : 'paypal';
+const PAYMENT_PROVIDER = (import.meta as any)?.env?.VITE_PAYMENT_PROVIDER === 'stripe' ? 'stripe' : 'paypal';
 
 
 const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => {

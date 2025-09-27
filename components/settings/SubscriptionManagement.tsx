@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth.ts';
 interface SubscriptionManagementProps {
     subscriptionStatus: SubscriptionStatus;
     onManageStripeSubscription: () => void;
+    onManagePayPalSubscription: () => void;
     onGoToManagePayPalSubscription: () => void;
     isPortalLoading: boolean;
     portalError: string | null;
@@ -14,20 +15,13 @@ interface SubscriptionManagementProps {
 const SubscriptionManagement: React.FC<SubscriptionManagementProps> = ({
     subscriptionStatus,
     onManageStripeSubscription,
+    onManagePayPalSubscription,
     onGoToManagePayPalSubscription,
     isPortalLoading,
     portalError,
     onLogout
 }) => {
     const { subscriptionDetails } = useAuth();
-
-    const handleManageClick = () => {
-        if (subscriptionDetails?.provider === 'stripe') {
-            onManageStripeSubscription();
-        } else if (subscriptionDetails?.provider === 'paypal') {
-            onGoToManagePayPalSubscription();
-        }
-    };
 
     return (
         <div className="space-y-4">
@@ -42,20 +36,46 @@ const SubscriptionManagement: React.FC<SubscriptionManagementProps> = ({
                            <span className="font-medium">Error:</span> {portalError}
                         </div>
                      )}
-                    <button
-                        onClick={handleManageClick}
-                        disabled={isPortalLoading}
-                        className="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors duration-300 flex items-center justify-center gap-2 disabled:bg-slate-400 dark:disabled:bg-slate-600"
-                    >
-                         {isPortalLoading ? (
-                            <>
-                               <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                               <span>Redirecting...</span>
-                            </>
-                         ) : (
-                             <span>Manage Subscription</span>
-                         )}
-                    </button>
+                    {subscriptionDetails?.provider === 'stripe' && (
+                        <button
+                            onClick={onManageStripeSubscription}
+                            disabled={isPortalLoading}
+                            className="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors duration-300 flex items-center justify-center gap-2 disabled:bg-slate-400 dark:disabled:bg-slate-600"
+                        >
+                            {isPortalLoading ? (
+                                <>
+                                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                   <span>Redirecting...</span>
+                                </>
+                            ) : (
+                                 <span>Manage Subscription</span>
+                            )}
+                        </button>
+                    )}
+                    {subscriptionDetails?.provider === 'paypal' && (
+                         <div className="space-y-3">
+                            <button
+                                onClick={onManagePayPalSubscription}
+                                disabled={isPortalLoading}
+                                className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300 flex items-center justify-center gap-2 disabled:bg-slate-400 dark:disabled:bg-slate-600"
+                            >
+                                {isPortalLoading ? (
+                                    <>
+                                       <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                       <span>Opening...</span>
+                                    </>
+                                 ) : (
+                                     <span>Manage on PayPal.com</span>
+                                 )}
+                            </button>
+                            <button
+                                onClick={onGoToManagePayPalSubscription}
+                                className="w-full bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors"
+                            >
+                                Cancel Subscriptions In-App
+                            </button>
+                         </div>
+                    )}
                  </>
             ) : (
                  <>
