@@ -32,6 +32,7 @@ interface DashboardProps {
   onArchiveImportedBill: (billId: string) => void;
   onUnarchiveImportedBill: (billId: string) => void;
   onDeleteImportedBill: (billId: string) => void;
+  onShowSummaryDetails: (bill: ImportedBill) => void;
   // Navigation State & Handlers
   dashboardView: 'bills' | 'participants';
   selectedParticipant: string | null;
@@ -51,6 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onSelectBill, onSelectImportedBill, 
   onArchiveBill, onUnarchiveBill, onDeleteBill, onUpdateMultipleBills, 
   onUpdateImportedBill, onArchiveImportedBill, onUnarchiveImportedBill, onDeleteImportedBill,
+  onShowSummaryDetails,
   dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter,
   onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant
 }) => {
@@ -314,7 +316,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         return <ParticipantDetailView participantBills={participantBills} onSelectBill={onSelectBill} onArchiveBill={onArchiveBill} onUnarchiveBill={onUnarchiveBill} onDeleteBill={onDeleteBill} dashboardStatusFilter={dashboardStatusFilter} searchQuery={searchQuery} selectedParticipant={selectedParticipant} />;
     } else {
         if (filteredBills.length > 0 || filteredImportedBills.length > 0) {
-            return <BillList filteredBills={filteredBills} filteredImportedBills={filteredImportedBills} visibleCount={visibleCount} subscriptionStatus={subscriptionStatus} archivingBillIds={archivingBillIds} onSelectBill={onSelectBill} onArchiveBill={onArchiveBill} onUnarchiveBill={onUnarchiveBill} onDeleteBill={onDeleteBill} onSelectImportedBill={onSelectImportedBill} onUpdateImportedBill={onUpdateImportedBill} onArchiveImportedBill={onArchiveImportedBill} onUnarchiveImportedBill={onUnarchiveImportedBill} onDeleteImportedBill={onDeleteImportedBill} onSettleUp={handleSettleUp} loadMoreRef={loadMoreRef} hasMore={hasMore} />;
+            return <BillList filteredBills={filteredBills} filteredImportedBills={filteredImportedBills} visibleCount={visibleCount} subscriptionStatus={subscriptionStatus} archivingBillIds={archivingBillIds} onSelectBill={onSelectBill} onArchiveBill={onArchiveBill} onUnarchiveBill={onUnarchiveBill} onDeleteBill={onDeleteBill} onSelectImportedBill={onSelectImportedBill} onUpdateImportedBill={onUpdateImportedBill} onArchiveImportedBill={onArchiveImportedBill} onUnarchiveImportedBill={onUnarchiveImportedBill} onDeleteImportedBill={onDeleteImportedBill} onShowSummaryDetails={onShowSummaryDetails} onSettleUp={handleSettleUp} loadMoreRef={loadMoreRef} hasMore={hasMore} />;
         }
     }
     

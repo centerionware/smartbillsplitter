@@ -4,6 +4,7 @@ import * as cryptoService from '../services/cryptoService.ts';
 import PrivacyConsent from './PrivacyConsent.tsx';
 import { getApiUrl } from '../services/api.ts';
 import PaymentMethodsModal from './PaymentMethodsModal.tsx';
+import SummaryBillDetailsModal from './SummaryBillDetailsModal.tsx';
 
 interface ViewSharedBillProps {
   onImportComplete: () => void;
@@ -81,6 +82,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
   const isAlreadyImported = sharedData ? importedBills.some(b => b.id === sharedData.bill.id) : false;
 
@@ -248,11 +250,21 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
     if (sharedData) {
         const { bill, paymentDetails, creatorName } = sharedData;
         const myParticipant = bill.participants.find(p => p.id === myParticipantId);
+        const isSummary = bill.id.startsWith('summary-');
         
         const hasPaymentInfo = paymentDetails && (paymentDetails.venmo || paymentDetails.paypal || paymentDetails.cashApp || paymentDetails.zelle || paymentDetails.customMessage);
 
         return (
             <>
+                {isSummaryModalOpen && isSummary && (
+                    <SummaryBillDetailsModal
+                        summaryBill={bill}
+                        paymentDetails={paymentDetails}
+                        creatorName={creatorName}
+                        myParticipantId={myParticipantId}
+                        onClose={() => setIsSummaryModalOpen(false)}
+                    />
+                )}
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
                     <div className="flex flex-col md:flex-row justify-between md:items-start mb-2">
                         <div className="flex-grow">
@@ -267,6 +279,12 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
                     <div className="my-2 flex flex-wrap gap-x-4 gap-y-2">
                         {bill.receiptImage && (<button onClick={() => setIsReceiptModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>View Scanned Receipt</button>)}
                         {bill.additionalInfo && Object.keys(bill.additionalInfo).length > 0 && (<button onClick={() => setIsInfoModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>View Additional Info</button>)}
+                        {isSummary && (
+                             <button onClick={() => setIsSummaryModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
+                                View Bill Breakdown
+                            </button>
+                        )}
                     </div>
                     
                     <div className="my-6 border-t border-slate-200 dark:border-slate-700" />

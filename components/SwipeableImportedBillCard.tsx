@@ -9,13 +9,14 @@ interface SwipeableImportedBillCardProps {
   onUnarchive: (billId: string) => void;
   onDelete: (billId: string) => void;
   onClick: () => void;
+  onShowSummaryDetails: () => void;
   onSettleUp: () => void;
 }
 
 const ACTION_BUTTON_WIDTH = 70; // Width of each action button
 
 const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = ({ 
-    importedBill, onUpdate, onArchive, onUnarchive, onDelete, onClick, onSettleUp
+    importedBill, onUpdate, onArchive, onUnarchive, onDelete, onClick, onShowSummaryDetails, onSettleUp
 }) => {
   const [translateX, setTranslateX] = useState(0);
   const dragStartX = useRef(0);
@@ -142,6 +143,7 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = ({
         <ImportedBillCard 
           importedBill={importedBill} 
           onUpdate={onUpdate}
+          onShowSummaryDetails={onShowSummaryDetails}
           onSettleUp={onSettleUp}
         />
       </div>

@@ -139,6 +139,7 @@ export interface ImportedBill {
   myParticipantId: string; // The ID of the participant who is the local user
   localStatus: {
     myPortionPaid: boolean;
+    paidItems?: Record<string, boolean>; // For summary bills, track individual item paid status
   };
   liveStatus?: 'live' | 'expired';
 }

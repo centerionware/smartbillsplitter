@@ -4,10 +4,11 @@ import type { ImportedBill } from '../types.ts';
 interface ImportedBillCardProps {
   importedBill: ImportedBill;
   onUpdate: (bill: ImportedBill) => void;
+  onShowSummaryDetails: () => void;
   onSettleUp: () => void;
 }
 
-const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpdate, onSettleUp }) => {
+const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpdate, onShowSummaryDetails, onSettleUp }) => {
   const { bill } = importedBill.sharedData;
   const myParticipant = bill.participants.find(p => p.id === importedBill.myParticipantId);
 
@@ -26,6 +27,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
   const isLive = importedBill.liveStatus === 'live' || (importedBill.liveStatus === undefined && (Date.now() - importedBill.lastUpdatedAt) < (24 * 60 * 60 * 1000));
   const isExpired = importedBill.liveStatus === 'expired';
   const hasPaymentInfo = importedBill.sharedData.paymentDetails && Object.values(importedBill.sharedData.paymentDetails).some(val => !!val);
+  const isSummary = importedBill.id.startsWith('summary-');
 
   // Sort participants to ensure "me" is always shown in the avatar stack if possible.
   const participantsForDisplay = [...bill.participants].sort((a, b) => {
@@ -104,6 +106,15 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
               )}
             </div>
              <div className="flex items-center gap-2">
+                {isSummary && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onShowSummaryDetails(); }}
+                        className="px-3 py-2 rounded-full font-semibold text-xs transition-colors bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-100 dark:hover:bg-slate-500 flex items-center gap-1.5"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
+                        <span>Breakdown</span>
+                    </button>
+                )}
                 {hasPaymentInfo && myParticipant && !myParticipant.paid && !importedBill.localStatus.myPortionPaid && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onSettleUp(); }}

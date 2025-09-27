@@ -26,6 +26,7 @@ import ManageSubscriptionPage from './components/ManageSubscriptionPage.tsx';
 import SetupDisplayNameModal from './components/SetupDisplayNameModal.tsx';
 import { useAppControl } from './contexts/AppControlContext.tsx';
 import { getApiUrl } from './services/api.ts';
+import SummaryBillDetailsModal from './components/SummaryBillDetailsModal.tsx';
 
 // Determine if the app is running in an iframe.
 // This is used to disable URL-based navigation for a smoother sandbox experience.
@@ -64,6 +65,7 @@ const App: React.FC = () => {
   } & RequestConfirmationOptions | null>(null);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [postSetupAction, setPostSetupAction] = useState<(() => void) | null>(null);
+  const [summaryBillForModal, setSummaryBillForModal] = useState<ImportedBill | null>(null);
   const initRef = useRef(false);
 
   // --- Navigation ---
@@ -491,6 +493,7 @@ const App: React.FC = () => {
             settings={settings}
             onUpdateImportedBill={updateImportedBill}
             onBack={handleBack}
+            onShowSummaryDetails={() => setSummaryBillForModal(selectedImportedBill)}
           />
         ) : ( <div /> );
        case View.ViewSharedBill:
@@ -552,6 +555,7 @@ const App: React.FC = () => {
             onArchiveImportedBill={archiveImportedBill}
             onUnarchiveImportedBill={unarchiveImportedBill}
             onDeleteImportedBill={deleteImportedBill}
+            onShowSummaryDetails={setSummaryBillForModal}
             dashboardView={dashboardView}
             selectedParticipant={dashboardParticipant}
             dashboardStatusFilter={dashboardStatusFilter}
@@ -594,6 +598,18 @@ const App: React.FC = () => {
           confirmText={confirmation.confirmText}
           cancelText={confirmation.cancelText}
           confirmVariant={confirmation.confirmVariant}
+        />
+      )}
+      {/* FIX: Passed all required props to SummaryBillDetailsModal from the summaryBillForModal state object. */}
+      {summaryBillForModal && (
+        <SummaryBillDetailsModal
+            summaryBill={summaryBillForModal.sharedData.bill}
+            creatorName={summaryBillForModal.creatorName}
+            paymentDetails={summaryBillForModal.sharedData.paymentDetails}
+            myParticipantId={summaryBillForModal.myParticipantId}
+            importedBill={summaryBillForModal}
+            onUpdateImportedBill={updateImportedBill}
+            onClose={() => setSummaryBillForModal(null)}
         />
       )}
       <Header 

@@ -7,9 +7,10 @@ interface ImportedBillDetailsProps {
   settings: Settings;
   onUpdateImportedBill: (bill: ImportedBill) => void;
   onBack: () => void;
+  onShowSummaryDetails?: () => void;
 }
 
-const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill, settings, onUpdateImportedBill, onBack }) => {
+const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill, settings, onUpdateImportedBill, onBack, onShowSummaryDetails }) => {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -21,6 +22,7 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
     const updatedBill = {
       ...importedBill,
       localStatus: {
+        ...importedBill.localStatus,
         myPortionPaid: !importedBill.localStatus.myPortionPaid,
       },
     };
@@ -30,6 +32,7 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
   const isLive = importedBill.liveStatus === 'live' || (importedBill.liveStatus === undefined && (Date.now() - importedBill.lastUpdatedAt) < (24 * 60 * 60 * 1000));
   const isExpired = importedBill.liveStatus === 'expired';
   const hasPaymentInfo = importedBill.sharedData.paymentDetails && Object.values(importedBill.sharedData.paymentDetails).some(val => !!val);
+  const isSummary = importedBill.id.startsWith('summary-');
 
   return (
     <>
@@ -82,6 +85,12 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
                 <button onClick={() => setIsInfoModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
                     View Additional Info
+                </button>
+            )}
+            {isSummary && onShowSummaryDetails && (
+                 <button onClick={onShowSummaryDetails} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
+                    View Bill Breakdown
                 </button>
             )}
         </div>

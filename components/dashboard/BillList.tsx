@@ -22,6 +22,7 @@ interface BillListProps {
   onArchiveImportedBill: (billId: string) => void;
   onUnarchiveImportedBill: (billId: string) => void;
   onDeleteImportedBill: (billId: string) => void;
+  onShowSummaryDetails: (bill: ImportedBill) => void;
   onSettleUp: (bill: ImportedBill) => void;
   loadMoreRef: React.RefObject<HTMLDivElement>;
   hasMore: boolean;
@@ -42,6 +43,7 @@ const BillList: React.FC<BillListProps> = ({
   onArchiveImportedBill,
   onUnarchiveImportedBill,
   onDeleteImportedBill,
+  onShowSummaryDetails,
   onSettleUp,
   loadMoreRef,
   hasMore,
@@ -91,6 +93,7 @@ const BillList: React.FC<BillListProps> = ({
                 onUnarchive={() => onUnarchiveImportedBill(ib.id)}
                 onDelete={() => onDeleteImportedBill(ib.id)}
                 onClick={() => onSelectImportedBill(ib)}
+                onShowSummaryDetails={() => onShowSummaryDetails(ib)}
                 onSettleUp={() => onSettleUp(ib)}
               />
             ))}
