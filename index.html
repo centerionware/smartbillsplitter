@@ -65,10 +65,11 @@
             const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
             deleteRequest.onsuccess = () => {
               localStorage.clear();
+              sessionStorage.clear();
               window.location.reload();
             };
             deleteRequest.onerror = () => alert("Could not delete data. Please clear site data in your browser settings.");
-            deleteRequest.onblocked = () => alert("Reset is blocked. Please close other tabs and try again.");
+            deleteRequest.onblocked = () => alert("Database reset is blocked. Please close ALL other tabs or windows running this application and try again.");
           });
         }
 

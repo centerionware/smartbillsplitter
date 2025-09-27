@@ -2,7 +2,7 @@ import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscrip
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 13; // Incremented for new, more robust payment provider migration
+const DB_VERSION = 11; // Incremented to force migration for all users
 
 // Object Store Names
 const STORES = {
@@ -46,13 +46,6 @@ export function initDB(): Promise<void> {
 
     request.onupgradeneeded = (event) => {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
-      const transaction = (event.target as IDBOpenDBRequest).transaction!;
-      const oldVersion = event.oldVersion;
-      
-      transaction.onerror = (event) => {
-        console.error(`DB upgrade transaction from v${oldVersion} to v${DB_VERSION} failed.`, (event.target as IDBTransaction).error);
-        reject((event.target as IDBTransaction).error);
-      };
 
       // This migration path is safer. It ensures all required stores exist
       // regardless of the user's previous version by creating them if they are missing.
@@ -73,70 +66,6 @@ export function initDB(): Promise<void> {
           dbInstance.createObjectStore(storeInfo.name, storeInfo.options);
         }
       });
-
-      // Migration for users who had Stripe subscriptions before the provider was switched to PayPal.
-      if (oldVersion < 12) {
-        console.log(`Upgrading database from version ${oldVersion} to 12. Running migration for Stripe -> PayPal transition.`);
-        if (dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION_DETAILS)) {
-            const subDetailsStore = transaction.objectStore(STORES.SUBSCRIPTION_DETAILS);
-            const subStore = dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION)
-                ? transaction.objectStore(STORES.SUBSCRIPTION)
-                : null;
-
-            // Use a cursor to safely inspect and delete. This keeps the transaction alive.
-            const cursorRequest = subDetailsStore.openCursor(SINGLE_KEY);
-            cursorRequest.onsuccess = () => {
-                const cursor = cursorRequest.result;
-                if (cursor) {
-                    const details = cursor.value;
-                    if (details && details.provider === 'stripe') {
-                        console.log("Found legacy Stripe subscription details via cursor. Removing.");
-                        cursor.delete(); // Delete the entry the cursor is pointing to.
-                        if (subStore) {
-                            subStore.delete(SINGLE_KEY);
-                            console.log("Cleared general subscription status.");
-                        }
-                    }
-                }
-            };
-            cursorRequest.onerror = (event) => {
-              console.error('Error during v12 migration cursor', (event.target as IDBRequest).error);
-            }
-        }
-      }
-      
-      // Migration to handle any mismatch between stored provider and current environment provider.
-      if (oldVersion < 13) {
-        console.log(`Upgrading database from version ${oldVersion} to 13. Running migration for payment provider configuration mismatch.`);
-        const currentProvider = (import.meta as any)?.env?.VITE_PAYMENT_PROVIDER === 'stripe' ? 'stripe' : 'paypal';
-        console.log(`Current payment provider configured via VITE_PAYMENT_PROVIDER: ${currentProvider}`);
-        
-        if (dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION_DETAILS)) {
-            const subDetailsStore = transaction.objectStore(STORES.SUBSCRIPTION_DETAILS);
-            const subStore = dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION)
-                ? transaction.objectStore(STORES.SUBSCRIPTION)
-                : null;
-
-            const cursorRequest = subDetailsStore.openCursor(SINGLE_KEY);
-            cursorRequest.onsuccess = () => {
-                const cursor = cursorRequest.result;
-                if (cursor) {
-                    const details: SubscriptionDetails | undefined = cursor.value;
-                    if (details && details.provider !== currentProvider) {
-                        console.warn(`Stored subscription provider ('${details.provider}') does not match current environment provider ('${currentProvider}'). Clearing subscription data.`);
-                        cursor.delete();
-                        if (subStore) {
-                            subStore.delete(SINGLE_KEY);
-                            console.log("Cleared general subscription status.");
-                        }
-                    }
-                }
-            };
-            cursorRequest.onerror = (event) => {
-              console.error('Error during v13 migration cursor', (event.target as IDBRequest).error);
-            }
-        }
-      }
     };
     
     request.onblocked = () => {
@@ -149,12 +78,23 @@ export function initDB(): Promise<void> {
 
     request.onsuccess = (event) => {
       db = (event.target as IDBOpenDBRequest).result;
+
+      // This is a critical handler. If another tab requests a DB deletion or upgrade,
+      // this event is fired on the existing connection. We must close our connection
+      // to allow the other tab's operation to proceed.
+      db.onversionchange = () => {
+        console.log("Database version change requested from another tab. Closing connection to allow update.");
+        db.close();
+      };
+
       resolve();
     };
 
     request.onerror = (event) => {
-      console.error('Database error:', (event.target as IDBOpenDBRequest).error);
-      reject('Error opening database.');
+      const error = (event.target as IDBOpenDBRequest).error;
+      console.error('Database error:', error);
+      // Reject with a proper Error object so it can be caught and displayed correctly.
+      reject(new Error(`Error opening database: ${error?.message}`));
     };
   });
 }

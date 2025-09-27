@@ -1,5 +1,4 @@
-// FIX: Refactored the React import and component extension to resolve a TypeScript error where `this.props` was not recognized.
-// FIX: Changed to a namespace import for React to resolve component typing issues.
+// FIX: Changed the React import and class extension to resolve a TypeScript error where `this.props` was not recognized. Using `React.Component` directly is more robust in some TypeScript configurations than destructuring `Component`.
 import * as React from 'react';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match the name in db.ts
@@ -50,7 +49,7 @@ class ErrorBoundary extends React.Component<Props, State> {
 
       deleteRequest.onblocked = () => {
         console.warn("Database deletion is blocked. This can happen if the app is open in another tab. Please close all other tabs of this app and try again.");
-        alert("Database reset is blocked. Please close all other tabs of this application and click the reset button again.");
+        alert("Database reset is blocked. Please close ALL other tabs or windows running this application and try again.");
       };
 
     } catch (error) {
