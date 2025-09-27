@@ -16,6 +16,8 @@ on:
     secrets:
       VITE_AADS_ID:
         required: false
+      VITE_AD_PROVIDER:
+        required: false
 
 jobs:
   build:
@@ -40,8 +42,9 @@ jobs:
       - name: Build frontend application
         run: npm run build:frontend
         env:
-          # Expose the secret as an environment variable specifically for this step
+          # Expose secrets as environment variables specifically for this step
           VITE_AADS_ID: ${{ secrets.VITE_AADS_ID }}
+          VITE_AD_PROVIDER: ${{ secrets.VITE_AD_PROVIDER || 'a-ads' }}
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
