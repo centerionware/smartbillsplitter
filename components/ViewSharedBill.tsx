@@ -59,7 +59,7 @@ function base64UrlDecode(base64Url: string): string {
              // This error comes directly from atob() if the input is not valid Base64.
              throw new Error("Failed to decode share link key. The link is corrupted (invalid Base64 characters).");
         } else if (e instanceof TypeError) {
-             // This error comes from TextDecoder if the byte sequence is not valid UTF-8.
+             // This error from TextDecoder means the byte sequence is not valid UTF-8.
              throw new Error("Failed to decode share link key. The data contains an invalid character sequence (not valid UTF-8).");
         } else {
              // Catch any other unexpected errors.
@@ -181,10 +181,20 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
   const handleImport = async () => {
     if (!sharedData || !myParticipantId || !billEncryptionKey) return;
 
+    const myParticipantForName = sharedData.bill.participants.find(p => p.id === myParticipantId);
+    if (!myParticipantForName) {
+        setStatus('error');
+        setError("Could not identify you as a participant in this bill. The link may be corrupted.");
+        return;
+    }
+    const myName = myParticipantForName.name.toLowerCase().trim();
+
     const initialPaidItems = (sharedData.bill.items || []).reduce((acc, item) => {
-        const participant = (item.originalBillData?.participants || []).find(p => p.id === myParticipantId);
-        if (participant?.paid) {
-            acc[item.id] = true;
+        if (item.originalBillData) {
+            const participantInConstituent = item.originalBillData.participants.find(p => p.name.toLowerCase().trim() === myName);
+            if (participantInConstituent?.paid) {
+                acc[item.id] = true;
+            }
         }
         return acc;
     }, {} as Record<string, boolean>);

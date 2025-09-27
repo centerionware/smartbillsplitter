@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ImportedBill, SharedBillPayload } from '../types.ts';
+import type { ImportedBill, SharedBillPayload, Participant } from '../types.ts';
 import { getImportedBills, addImportedBill as addDB, updateImportedBill as updateDB, deleteImportedBillDB } from '../services/db.ts';
 import * as cryptoService from '../services/cryptoService.ts';
 import { getApiUrl } from '../services/api.ts';
@@ -71,8 +71,14 @@ export const useImportedBills = () => {
                 let newBillData = JSON.parse(JSON.stringify(bill)); // Deep copy
 
                 if (newBillData.constituentShares && newBillData.constituentShares.length > 0) {
-                    // --- Summary Bill Update Logic ---
+                    const recipientName = newBillData.sharedData.bill.participants[0]?.name;
+                    if (!recipientName) {
+                        console.error("Could not find recipient name in summary bill", newBillData.id);
+                        return bill;
+                    }
+                    const recipientNameLower = recipientName.toLowerCase().trim();
                     let latestTimestamp = newBillData.lastUpdatedAt;
+                    
                     const updatedItems = await Promise.all(
                         (newBillData.sharedData.bill.items || []).map(async (item: any) => {
                             const constituentShare = newBillData.constituentShares.find((cs: any) => cs.originalBillId === item.id);
@@ -97,24 +103,26 @@ export const useImportedBills = () => {
                     );
                     if (billWasUpdated) {
                         newBillData.sharedData.bill.items = updatedItems;
-                        newBillData.lastUpdatedAt = latestTimestamp;
                         
-                        // Recalculate the summary total based on the updated constituent bills.
                         let newTotalOwed = 0;
                         for (const item of updatedItems) {
                             if (item.originalBillData) {
-                                const myPart = item.originalBillData.participants.find((p: any) => p.id === newBillData.myParticipantId);
+                                const myPart = item.originalBillData.participants.find(
+                                    (p: Participant) => p.name.toLowerCase().trim() === recipientNameLower
+                                );
                                 if (myPart && !myPart.paid) {
                                     newTotalOwed += myPart.amountOwed;
                                 }
                             }
                         }
                         
-                        // Update the summary bill's total amount and the participant's amount owed.
                         newBillData.sharedData.bill.totalAmount = newTotalOwed;
                         if (newBillData.sharedData.bill.participants[0]) {
-                            newBillData.sharedData.bill.participants[0].amountOwed = newTotalOwed;
+                            const summaryParticipant = newBillData.sharedData.bill.participants[0];
+                            summaryParticipant.amountOwed = newTotalOwed;
+                            summaryParticipant.paid = newTotalOwed < 0.01;
                         }
+                        newBillData.lastUpdatedAt = latestTimestamp;
                     }
                 } else if (newBillData.shareId && newBillData.shareEncryptionKey && updatesMap.has(newBillData.shareId)) {
                     // --- Regular Bill Update Logic ---
