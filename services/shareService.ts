@@ -334,6 +334,7 @@ export async function encryptAndSignPayload(
         creatorName: settings.myDisplayName,
         publicKey: publicKeyJwk,
         signature,
+        paymentDetails: settings.paymentDetails,
     };
     return cryptoService.encrypt(JSON.stringify(payload), encryptionKey);
 }

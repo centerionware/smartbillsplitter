@@ -7,6 +7,15 @@ import { exportData, importData } from '../services/db.ts';
 import * as notificationService from '../services/notificationService.ts';
 import { getApiUrl } from '../services/api.ts';
 
+// New imports for refactored child components
+import BillReminders from './settings/BillReminders.tsx';
+import Personalization from './settings/Personalization.tsx';
+import PaymentIntegrations from './settings/PaymentIntegrations.tsx';
+import DataSync from './settings/DataSync.tsx';
+import DataManagement from './settings/DataManagement.tsx';
+import SubscriptionManagement from './settings/SubscriptionManagement.tsx';
+import DangerZone from './settings/DangerZone.tsx';
+
 interface SettingsProps {
   settings: Settings;
   recurringBills: RecurringBill[];
@@ -212,6 +221,8 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
         setIsPortalLoading(false);
     }
   };
+  
+  const Divider = () => <div className="my-8 border-t border-slate-200 dark:border-slate-700" />;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -230,225 +241,40 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
           </button>
         </div>
         
-        {/* Bill Reminders Section */}
-        <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Bill Reminders</h3>
-            {!isNotificationSupported ? (
-                <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 rounded-r-lg">
-                    <p className="text-sm text-amber-800 dark:text-amber-200">
-                        Your browser does not support scheduled notifications. This feature is currently available on browsers like Chrome and Edge.
-                    </p>
-                </div>
-            ) : (
-                <>
-                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                      <div>
-                          <h4 className="font-semibold text-slate-700 dark:text-slate-200">Enable Bill Reminders</h4>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">Get a notification before a recurring bill is due.</p>
-                      </div>
-                      <button
-                          type="button"
-                          onClick={() => handleToggleNotifications(!formData.notificationsEnabled)}
-                          disabled={notificationPermission === 'denied'}
-                          className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed ${formData.notificationsEnabled ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`}
-                      >
-                          <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${formData.notificationsEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                      </button>
-                  </div>
-                  {notificationPermission === 'denied' && (
-                       <p className="text-sm text-red-600 dark:text-red-400">
-                           Notification permission has been denied. You need to enable it in your browser's site settings to use this feature.
-                       </p>
-                  )}
-                  {formData.notificationsEnabled && notificationPermission === 'granted' && (
-                      <div>
-                          <label htmlFor="notificationDays" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Notify me</label>
-                          <div className="flex items-center gap-2">
-                              <input
-                                id="notificationDays"
-                                type="number"
-                                min="1"
-                                max="30"
-                                value={formData.notificationDays}
-                                onChange={(e) => handleInputChange('notificationDays', parseInt(e.target.value, 10) || 1)}
-                                className="w-20 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100"
-                              />
-                              <span className="text-slate-700 dark:text-slate-200">day(s) before a bill is due.</span>
-                          </div>
-                      </div>
-                  )}
-                </>
-            )}
-        </div>
-        
-        <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
-        
-        {/* Personalization Section */}
-        <div className="space-y-6">
-          <div>
-              <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Personalization</h3>
-          </div>
-          <div>
-            <label htmlFor="myDisplayName" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">My Display Name</label>
-            <input id="myDisplayName" type="text" value={formData.myDisplayName || ''} onChange={(e) => handleInputChange('myDisplayName', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="e.g. Jane Doe" />
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              This name will be shown to others when you share a bill. Defaults to 'Myself' if empty.
-            </p>
-          </div>
-          <div>
-            <label htmlFor="shareTemplate" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Share Message Template</label>
-            <textarea id="shareTemplate" rows={5} value={formData.shareTemplate || ''} onChange={(e) => handleInputChange('shareTemplate', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-              Use placeholders: <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{participantName}`}</code>, <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{totalOwed}`}</code>, <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{billList}`}</code>, <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{paymentInfo}`}</code>, <code className="bg-slate-100 dark:bg-slate-700 p-1 rounded-sm text-xs">{`{promoText}`}</code>.
-            </p>
-          </div>
-        </div>
-
-        <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
-
-        <div className="space-y-6">
-            <div>
-                <h3 className="text-xl font-semibold mb-3 text-slate-700 dark:text-slate-200">Payment Details</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Enter your usernames or links below. This info will be added to shared bill reminders.</p>
-            </div>
-            
-            <div>
-                <label htmlFor="venmo" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Venmo Username</label>
-                <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">@</span>
-                    <input id="venmo" type="text" value={formData.paymentDetails.venmo || ''} onChange={(e) => handlePaymentInputChange('venmo', e.target.value)} className="w-full pl-7 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="your-username" />
-                </div>
-            </div>
-
-             <div>
-                <label htmlFor="paypal" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">PayPal.Me Link or Email</label>
-                 <input id="paypal" type="text" value={formData.paymentDetails.paypal || ''} onChange={(e) => handlePaymentInputChange('paypal', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="paypal.me/username or email@example.com" />
-            </div>
-
-             <div>
-                <label htmlFor="cashApp" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Cash App $Cashtag</label>
-                 <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
-                    <input id="cashApp" type="text" value={formData.paymentDetails.cashApp || ''} onChange={(e) => handlePaymentInputChange('cashApp', e.target.value)} className="w-full pl-6 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="YourCashtag" />
-                </div>
-            </div>
-            
-            <div>
-                <label htmlFor="zelle" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Zelle (Email or Phone)</label>
-                <input id="zelle" type="text" value={formData.paymentDetails.zelle || ''} onChange={(e) => handlePaymentInputChange('zelle', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="user@example.com or 555-123-4567" />
-            </div>
-
-            <div>
-                <label htmlFor="customMessage" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Custom Payment Note</label>
-                <textarea id="customMessage" rows={3} value={formData.paymentDetails.customMessage || ''} onChange={(e) => handlePaymentInputChange('customMessage', e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" placeholder="e.g., Cash is fine too!" />
-            </div>
-        </div>
-        
-        <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
-
-        {/* Data Sync Section */}
-        <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Data Sync</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-                Securely transfer your data between devices. Your data is end-to-end encrypted on your device before being sent to our server for temporary storage. The unique decryption key is passed directly between your devices via the QR code, ensuring we can never access your information. This encrypted data is deleted from our server immediately after it's received by your other device.
-            </p>
-            <div>
-                <button onClick={onGoToSync} className="w-full flex items-center justify-center gap-2 bg-teal-500 text-white font-semibold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
-                    </svg>
-                    <span>Sync With Another Device</span>
-                </button>
-            </div>
-        </div>
-
-        <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
-        
-        {/* Data Management */}
-        <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Data Management</h3>
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 rounded-r-lg">
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                    <span className="font-bold">Important:</span> This application stores all data directly on your device, not on a server. If you clear your browser data or lose your device, your data will be lost forever. Use the export feature to create a backup file.
-                </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4">
-                <button onClick={handleExport} className="w-full flex-1 text-center justify-center bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">
-                    Export Data
-                </button>
-                <label className="w-full flex-1 text-center justify-center bg-slate-100 text-slate-800 font-semibold py-3 px-4 rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors cursor-pointer">
-                    Import Data
-                    <input type="file" accept="application/json,.json" onChange={handleImport} className="hidden" />
-                </label>
-            </div>
-        </div>
-        
-        <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
-        
-        {/* Subscription Management */}
-        <div className="space-y-4">
-            <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Manage Subscription</h3>
-            {subscriptionStatus === 'subscribed' ? (
-                 <>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        You are a Pro subscriber. You can manage your subscription, update payment methods, and view your invoice history through our secure payment portal.
-                    </p>
-                     {portalError && (
-                        <div className="p-3 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-900/40 dark:text-red-300" role="alert">
-                           <span className="font-medium">Error:</span> {portalError}
-                        </div>
-                     )}
-                    <button
-                        onClick={handleManageSubscription}
-                        disabled={isPortalLoading}
-                        className="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors duration-300 flex items-center justify-center gap-2 disabled:bg-slate-400 dark:disabled:bg-slate-600"
-                    >
-                         {isPortalLoading ? (
-                            <>
-                               <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                               <span>Redirecting...</span>
-                            </>
-                         ) : (
-                             <span>Manage Subscription</span>
-                         )}
-                    </button>
-                 </>
-            ) : (
-                 <>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        You are currently on the free, ad-supported plan. Upgrade to Pro to remove ads.
-                    </p>
-                    <button
-                        onClick={onLogout}
-                        className="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors duration-300 flex items-center justify-center gap-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                        <span>Upgrade to Pro</span>
-                    </button>
-                 </>
-            )}
-        </div>
-
-
-        <div className="my-8 border-t border-slate-200 dark:border-slate-700" />
-        
-        {/* Danger Zone */}
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-red-600 dark:text-red-400">Danger Zone</h3>
-          <div className="p-4 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 rounded-r-lg">
-            <p className="text-sm text-red-800 dark:text-red-200">
-              <span className="font-bold">Warning:</span> The action below is irreversible and will delete all your bills and settings. Proceed with caution.
-            </p>
-          </div>
-          <div>
-            <button 
-              onClick={handleResetApp} 
-              className="w-full text-center justify-center bg-red-100 text-red-800 font-semibold py-3 px-4 rounded-lg hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60 transition-colors"
-            >
-              Reset App to Default
-            </button>
-          </div>
-        </div>
+        <BillReminders
+            notificationsEnabled={formData.notificationsEnabled}
+            notificationDays={formData.notificationDays}
+            onToggleNotifications={handleToggleNotifications}
+            onDaysChange={(days) => handleInputChange('notificationDays', days)}
+            isNotificationSupported={isNotificationSupported}
+            notificationPermission={notificationPermission}
+        />
+        <Divider />
+        <Personalization
+            myDisplayName={formData.myDisplayName}
+            shareTemplate={formData.shareTemplate}
+            onDisplayNameChange={(name) => handleInputChange('myDisplayName', name)}
+            onShareTemplateChange={(template) => handleInputChange('shareTemplate', template)}
+        />
+        <Divider />
+        <PaymentIntegrations
+            paymentDetails={formData.paymentDetails}
+            onPaymentDetailsChange={handlePaymentInputChange}
+        />
+        <Divider />
+        <DataSync onGoToSync={onGoToSync} />
+        <Divider />
+        <DataManagement onExport={handleExport} onImport={handleImport} />
+        <Divider />
+        <SubscriptionManagement
+            subscriptionStatus={subscriptionStatus}
+            onManageSubscription={handleManageSubscription}
+            isPortalLoading={isPortalLoading}
+            portalError={portalError}
+            onLogout={onLogout}
+        />
+        <Divider />
+        <DangerZone onResetApp={handleResetApp} />
       </div>
     </div>
   );

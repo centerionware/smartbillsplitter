@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { SharedBillPayload, ImportedBill, Settings } from '../types.ts';
+import type { SharedBillPayload, ImportedBill, Settings, PaymentDetails } from '../types.ts';
 import * as cryptoService from '../services/cryptoService.ts';
 import PrivacyConsent from './PrivacyConsent.tsx';
 import { getApiUrl } from '../services/api.ts';
@@ -66,6 +66,12 @@ function base64UrlDecode(base64Url: string): string {
     }
 }
 
+const PaymentButton: React.FC<{ logo: string; name: string; onClick: () => void }> = ({ logo, name, onClick }) => (
+    <button onClick={onClick} className="w-full flex items-center gap-4 text-left p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+        <img src={logo} alt={`${name} logo`} className="h-8 w-8 object-contain"/>
+        <span className="font-semibold text-slate-800 dark:text-slate-100">Pay with {name}</span>
+    </button>
+);
 
 // FIX: Changed to a named export to resolve module resolution issues.
 export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills }) => {
@@ -206,10 +212,6 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
     setHasAcceptedPrivacy(true);
   };
 
-  if (!hasAcceptedPrivacy) {
-    return <PrivacyConsent onAccept={handleAcceptPrivacy} />;
-  }
-
   const renderContent = () => {
     if (['loading', 'fetching_key', 'fetching_data', 'verifying'].includes(status)) {
         const messages = {
@@ -247,8 +249,32 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
     }
 
     if (sharedData) {
-        const { bill } = sharedData;
+        const { bill, paymentDetails } = sharedData;
         const myParticipant = bill.participants.find(p => p.id === myParticipantId);
+        
+        const hasPaymentInfo = paymentDetails && (paymentDetails.venmo || paymentDetails.paypal || paymentDetails.cashApp || paymentDetails.zelle);
+
+        const handlePayment = (method: keyof PaymentDetails) => {
+            if (!myParticipant) return;
+            const amount = myParticipant.amountOwed.toFixed(2);
+            const note = encodeURIComponent(`For: ${bill.description}`);
+            let url = '';
+
+            switch(method) {
+                case 'venmo':
+                    url = `venmo://paycharge?txn=pay&recipients=${paymentDetails.venmo}&amount=${amount}&note=${note}`;
+                    window.location.href = url;
+                    break;
+                case 'paypal':
+                    url = `https://paypal.me/${paymentDetails.paypal}/${amount}`;
+                    window.open(url, '_blank');
+                    break;
+                case 'cashApp':
+                    url = `https://cash.app/$${paymentDetails.cashApp}/${amount}`;
+                    window.open(url, '_blank');
+                    break;
+            }
+        };
 
         return (
             <>
@@ -287,6 +313,27 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
                                     {myParticipant.paid ? 'Paid' : 'Unpaid'}
                                 </div>
                             </div>
+
+                            {hasPaymentInfo && !myParticipant.paid && (
+                                <div className="mt-8">
+                                    <h3 className="text-xl font-semibold mb-4 text-slate-700 dark:text-slate-200">Settle Up with {sharedData.creatorName}</h3>
+                                    <div className="space-y-3">
+                                        {paymentDetails.venmo && <PaymentButton logo="https://cdn.simpleicons.org/venmo/008CFF" name="Venmo" onClick={() => handlePayment('venmo')} />}
+                                        {paymentDetails.paypal && <PaymentButton logo="https://cdn.simpleicons.org/paypal/00457C" name="PayPal" onClick={() => handlePayment('paypal')} />}
+                                        {paymentDetails.cashApp && <PaymentButton logo="https://cdn.simpleicons.org/cashapp/00C246" name="Cash App" onClick={() => handlePayment('cashApp')} />}
+                                        {paymentDetails.zelle && (
+                                            <div className="flex items-center gap-4 text-left p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                                                <img src="https://cdn.simpleicons.org/zelle/6D1AD8" alt="Zelle logo" className="h-8 w-8 object-contain"/>
+                                                <div>
+                                                    <span className="font-semibold text-slate-800 dark:text-slate-100">Pay with Zelle</span>
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400">Use this email/phone in your banking app: <span className="font-medium text-slate-700 dark:text-slate-200">{paymentDetails.zelle}</span></p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             <button onClick={handleImport} disabled={!myParticipantId || isAlreadyImported} className="mt-8 w-full px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
                             {isAlreadyImported ? 'Bill Already in Dashboard' : 'Import This Bill'}
                             </button>

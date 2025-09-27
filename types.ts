@@ -102,6 +102,7 @@ export interface SharedBillPayload {
   creatorName: string;
   publicKey: JsonWebKey; // Public key of the creator for signature verification
   signature: string; // Signature of the bill data
+  paymentDetails: PaymentDetails; // Creator's payment info
 }
 
 // For bills imported from other users
