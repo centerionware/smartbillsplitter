@@ -84,6 +84,7 @@ async function scanReceiptLogic(base64Image: string, mimeType: string) {
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
+        thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for faster response times
       },
     });
     
