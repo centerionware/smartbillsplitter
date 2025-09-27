@@ -84,16 +84,19 @@ jobs:
 
       - name: Deploy Lambda Function
         run: |
+          # Construct the environment variables string
+          ENV_VARS="Variables={API_KEY=${{ secrets.API_KEY }},STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},STRIPE_PRICE_ID_MONTHLY=${{ secrets.STRIPE_PRICE_ID_MONTHLY }},STRIPE_PRICE_ID_YEARLY=${{ secrets.STRIPE_PRICE_ID_YEARLY }},PAYMENT_PROVIDER=${{ secrets.PAYMENT_PROVIDER || 'paypal' }},PAYPAL_CLIENT_ID=${{ secrets.PAYPAL_CLIENT_ID }},PAYPAL_CLIENT_SECRET=${{ secrets.PAYPAL_CLIENT_SECRET }},PAYPAL_PLAN_ID_MONTHLY=${{ secrets.PAYPAL_PLAN_ID_MONTHLY }},PAYPAL_PLAN_ID_YEARLY=${{ secrets.PAYPAL_PLAN_ID_YEARLY }},DYNAMODB_TABLE_NAME=${{ env.DYNAMODB_TABLE_NAME }}}"
+
           if ! aws lambda get-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} > /dev/null 2>&1; then
             echo "Creating new Lambda function: ${{ env.LAMBDA_FUNCTION_NAME }}"
-            aws lambda create-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --runtime nodejs20.x --handler lambda.handler --role ${{ steps.iam_role.outputs.EXECUTION_ROLE_ARN }} --zip-file fileb://dist-lambda/function.zip --environment "Variables={API_KEY=${{ secrets.API_KEY }},STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},STRIPE_PRICE_ID_MONTHLY=${{ secrets.STRIPE_PRICE_ID_MONTHLY }},STRIPE_PRICE_ID_YEARLY=${{ secrets.STRIPE_PRICE_ID_YEARLY }},DYNAMODB_TABLE_NAME=${{ env.DYNAMODB_TABLE_NAME }}}" --timeout 15
+            aws lambda create-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --runtime nodejs20.x --handler lambda.handler --role ${{ steps.iam_role.outputs.EXECUTION_ROLE_ARN }} --zip-file fileb://dist-lambda/function.zip --environment "$ENV_VARS" --timeout 15
           else
             echo "Updating existing Lambda function code: ${{ env.LAMBDA_FUNCTION_NAME }}"
             aws lambda update-function-code --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --zip-file fileb://dist-lambda/function.zip
             echo "Waiting for function code update to complete..."
             aws lambda wait function-updated --function-name ${{ env.LAMBDA_FUNCTION_NAME }}
             echo "Updating existing Lambda function configuration: ${{ env.LAMBDA_FUNCTION_NAME }}"
-            aws lambda update-function-configuration --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --environment "Variables={API_KEY=${{ secrets.API_KEY }},STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},STRIPE_PRICE_ID_MONTHLY=${{ secrets.STRIPE_PRICE_ID_MONTHLY }},STRIPE_PRICE_ID_YEARLY=${{ secrets.STRIPE_PRICE_ID_YEARLY }},DYNAMODB_TABLE_NAME=${{ env.DYNAMODB_TABLE_NAME }}}" --timeout 15
+            aws lambda update-function-configuration --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --environment "$ENV_VARS" --timeout 15
           fi
           
       - name: Create or Update Lambda Function URL
