@@ -77,7 +77,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
   const [sharedData, setSharedData] = useState<SharedBillPayload | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(0);
   const [billEncryptionKey, setBillEncryptionKey] = useState<JsonWebKey | null>(null);
-  const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
+  const [myParticipantId, setMyParticipantId] = useState<string | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
@@ -93,7 +93,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
       setSharedData(null);
       setLastUpdatedAt(0);
       setBillEncryptionKey(null);
-      setSelectedParticipantId(null);
+      setMyParticipantId(null);
 
       try {
         const hash = window.location.hash;
@@ -104,12 +104,13 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         const shareId = params.get('shareId');
         const keyId = params.get('keyId');
         const fragmentKeyStr = params.get('fragmentKey');
+        const encryptedParticipantId = params.get('p');
 
-        if (!shareId || !keyId || !fragmentKeyStr) {
+        if (!shareId || !keyId || !fragmentKeyStr || !encryptedParticipantId) {
           throw new Error("Invalid or incomplete share link. All components are required.");
         }
         
-        // 1. Fetch the encrypted long-term key from the one-time endpoint.
+        // 1. Fetch the encrypted long-term key.
         setStatus('fetching_key');
         const keyResponse = await fetch(getApiUrl(`/onetime-key/${keyId}`));
         if (keyResponse.status === 404) {
@@ -134,8 +135,12 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         const billKeyToUse: JsonWebKey = JSON.parse(decryptedBillKeyJson);
         setBillEncryptionKey(billKeyToUse);
         const symmetricKey = await cryptoService.importEncryptionKey(billKeyToUse);
+        
+        // 3. Decrypt the participant ID from the URL using the now-decrypted bill key.
+        const decryptedParticipantId = await cryptoService.decrypt(encryptedParticipantId, symmetricKey);
+        setMyParticipantId(decryptedParticipantId);
 
-        // 3. Fetch the main encrypted bill data
+        // 4. Fetch the main encrypted bill data
         setStatus('fetching_data');
         const response = await fetch(getApiUrl(`/share/${shareId}`));
         if (!response.ok) {
@@ -150,7 +155,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         }
         setLastUpdatedAt(serverTimestamp);
 
-        // 4. Decrypt and verify the main payload
+        // 5. Decrypt and verify the main payload
         setStatus('verifying');
         const decryptedJson = await cryptoService.decrypt(encryptedData, symmetricKey);
         const data: SharedBillPayload = JSON.parse(decryptedJson);
@@ -171,7 +176,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
   }, [hasAcceptedPrivacy, window.location.hash]);
 
   const handleImport = async () => {
-    if (!sharedData || !selectedParticipantId || !billEncryptionKey) return;
+    if (!sharedData || !myParticipantId || !billEncryptionKey) return;
 
     const imported: ImportedBill = {
         id: sharedData.bill.id,
@@ -185,7 +190,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         shareId: new URLSearchParams(window.location.hash.split('?')[1]).get('shareId')!,
         shareEncryptionKey: billEncryptionKey,
         lastUpdatedAt: lastUpdatedAt,
-        myParticipantId: selectedParticipantId,
+        myParticipantId: myParticipantId,
         localStatus: {
             myPortionPaid: false,
         },
@@ -243,8 +248,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
 
     if (sharedData) {
         const { bill } = sharedData;
-        const myNameLower = settings.myDisplayName.toLowerCase().trim();
-        const potentialSelf = bill.participants.find(p => p.name.toLowerCase().trim() === myNameLower);
+        const myParticipant = bill.participants.find(p => p.id === myParticipantId);
 
         return (
             <>
@@ -260,28 +264,40 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
                     </div>
                     
                     <div className="my-2 flex flex-wrap gap-x-4 gap-y-2">
-                        {bill.receiptImage && (<button onClick={() => setIsReceiptModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>View Scanned Receipt</button>)}
-                        {bill.additionalInfo && Object.keys(bill.additionalInfo).length > 0 && (<button onClick={() => setIsInfoModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>View Additional Info</button>)}
+                        {bill.receiptImage && (<button onClick={() => setIsReceiptModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>View Scanned Receipt</button>)}
+                        {bill.additionalInfo && Object.keys(bill.additionalInfo).length > 0 && (<button onClick={() => setIsInfoModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>View Additional Info</button>)}
                     </div>
                     
                     <div className="my-6 border-t border-slate-200 dark:border-slate-700" />
                     
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4 text-slate-700 dark:text-slate-200">Who are you in this bill?</h3>
-                        <div className="space-y-3">
-                        {bill.participants.map(p => (
-                            <button key={p.id} onClick={() => setSelectedParticipantId(p.id)} className={`w-full flex items-center justify-between p-4 rounded-lg text-left transition-all ${selectedParticipantId === p.id ? 'bg-teal-100 dark:bg-teal-900/50 ring-2 ring-teal-500' : 'bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
-                                <p className="font-semibold text-slate-800 dark:text-slate-100">{p.name} {potentialSelf && p.id === potentialSelf.id && '(This is you)'}</p>
-                                <div className={`px-3 py-1 text-sm font-semibold rounded-full ${p.paid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                                    {p.paid ? 'Paid' : 'Owes'} ${p.amountOwed.toFixed(2)}
+                    {myParticipant ? (
+                        <div>
+                            <h3 className="text-xl font-semibold mb-4 text-slate-700 dark:text-slate-200">This Bill Is For You</h3>
+                             <div className="p-4 rounded-lg bg-teal-50 dark:bg-teal-900/40 border-2 border-teal-500/50 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold text-lg">
+                                        {myParticipant.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-lg text-slate-800 dark:text-slate-100">{myParticipant.name}</p>
+                                        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">You Owe: ${myParticipant.amountOwed.toFixed(2)}</p>
+                                    </div>
                                 </div>
+                                <div className={`px-3 py-1 text-sm font-semibold rounded-full ${myParticipant.paid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+                                    {myParticipant.paid ? 'Paid' : 'Unpaid'}
+                                </div>
+                            </div>
+                            <button onClick={handleImport} disabled={!myParticipantId || isAlreadyImported} className="mt-8 w-full px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
+                            {isAlreadyImported ? 'Bill Already in Dashboard' : 'Import This Bill'}
                             </button>
-                        ))}
                         </div>
-                        <button onClick={handleImport} disabled={!selectedParticipantId || isAlreadyImported} className="mt-8 w-full px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
-                           {isAlreadyImported ? 'Bill Already in Dashboard' : 'Import This Bill'}
-                        </button>
-                    </div>
+                    ) : (
+                         <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/30 text-center">
+                            <p className="font-semibold text-red-800 dark:text-red-200">
+                                Your participant ID was not found in this bill. The bill may have been updated since this link was shared.
+                            </p>
+                         </div>
+                    )}
                 </div>
 
                 {isReceiptModalOpen && bill.receiptImage && (<div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex justify-center items-center p-4" onClick={() => setIsReceiptModalOpen(false)} role="dialog" aria-modal="true" aria-label="Receipt Image Viewer"><div className="relative max-w-4xl max-h-[90vh]" onClick={e => e.stopPropagation()}><img src={bill.receiptImage} alt="Scanned receipt" className="w-full h-full object-contain rounded-lg shadow-2xl" /><button onClick={() => setIsReceiptModalOpen(false)} className="absolute -top-3 -right-3 bg-white text-slate-800 rounded-full p-2 shadow-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-white" aria-label="Close receipt view"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div></div>)}

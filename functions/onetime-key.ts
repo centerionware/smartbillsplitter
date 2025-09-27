@@ -22,7 +22,8 @@ async function createOnetimeKey(encryptedBillKey: string, kv: KeyValueStore): Pr
     try {
         const keyId = randomUUID();
         const redisKey = `onetimekey:${keyId}`;
-        await kv.set(redisKey, encryptedBillKey, { EX: EXPIRATION_SECONDS });
+        const payload = JSON.stringify({ encryptedBillKey });
+        await kv.set(redisKey, payload, { EX: EXPIRATION_SECONDS });
         console.log(`Created one-time key with ID ${keyId}.`);
         return { keyId };
     } catch (e) {
@@ -33,24 +34,26 @@ async function createOnetimeKey(encryptedBillKey: string, kv: KeyValueStore): Pr
 
 /**
  * Atomically retrieves and deletes a one-time key.
- * NOTE: This implementation is not truly atomic across different KV providers without distributed transactions.
- * It performs a get followed by a delete, which is sufficient for this application's needs.
  * @param keyId The ID of the key to retrieve.
  * @param kv The KeyValueStore instance to use.
  * @returns An object containing the retrieved encrypted key.
  */
-async function retrieveOnetimeKey(keyId: string, kv: KeyValueStore): Promise<{ encryptedBillKey: string }> {
+async function retrieveOnetimeKey(keyId: string, kv: KeyValueStore): Promise<{ encryptedBillKey: string; }> {
     if (!keyId) {
         throw new Error("Missing 'keyId'.");
     }
     const redisKey = `onetimekey:${keyId}`;
     
-    const encryptedBillKey = await kv.get(redisKey);
+    const payloadJson = await kv.get(redisKey);
 
-    if (encryptedBillKey) {
+    if (payloadJson) {
         await kv.del(redisKey); // Immediately delete after retrieval
         console.log(`One-time key ${keyId} retrieved and deleted.`);
-        return { encryptedBillKey };
+        const payload = JSON.parse(payloadJson);
+        if (!payload.encryptedBillKey) {
+            throw new Error("Corrupted key payload retrieved from store.");
+        }
+        return payload;
     } else {
         throw new Error("Invalid or expired key ID.");
     }

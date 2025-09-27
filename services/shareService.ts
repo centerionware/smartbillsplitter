@@ -142,6 +142,11 @@ export const generateOneTimeShareLink = async (bill: Bill, settings: Settings): 
     if (!shareResponse.ok) throw new Error(shareResult.error || "Failed to create share session.");
     const { shareId } = shareResult;
 
+    // Encrypt participant ID to embed in the URL
+    const participantId = bill.participants[0].id;
+    const encryptedParticipantId = await cryptoService.encrypt(participantId, billEncryptionKey);
+    const urlSafeEncryptedParticipantId = encryptedParticipantId.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
     // Create the one-time key exchange mechanism.
     const fragmentKey = await cryptoService.generateEncryptionKey();
     const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
@@ -160,7 +165,7 @@ export const generateOneTimeShareLink = async (bill: Bill, settings: Settings): 
     const encodedFragmentKey = base64UrlEncode(JSON.stringify(fragmentKeyJwk));
 
     const url = new URL(window.location.href);
-    url.hash = `#/view-bill?shareId=${shareId}&keyId=${keyId}&fragmentKey=${encodedFragmentKey}`;
+    url.hash = `#/view-bill?shareId=${shareId}&keyId=${keyId}&fragmentKey=${encodedFragmentKey}&p=${urlSafeEncryptedParticipantId}`;
 
     return url.toString();
 };
@@ -298,12 +303,16 @@ export const generateShareLink = async (
         await updateBillCallback(updatedBill);
     }
     
-    // 5. Construct and return the URL using the (potentially new) info.
+    // 5. Encrypt participant ID and construct the URL
+    const billEncryptionKey = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
+    const encryptedParticipantId = await cryptoService.encrypt(participantId, billEncryptionKey);
+    const urlSafeEncryptedParticipantId = encryptedParticipantId.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
     const finalShareInfo = updatedBill.participantShareInfo[participantId];
     const encodedFragmentKey = base64UrlEncode(JSON.stringify(finalShareInfo.fragmentKey));
 
     const url = new URL(window.location.href);
-    url.hash = `#/view-bill?shareId=${updatedBill.shareInfo.shareId}&keyId=${finalShareInfo.keyId}&fragmentKey=${encodedFragmentKey}`;
+    url.hash = `#/view-bill?shareId=${updatedBill.shareInfo.shareId}&keyId=${finalShareInfo.keyId}&fragmentKey=${encodedFragmentKey}&p=${urlSafeEncryptedParticipantId}`;
 
     return url.toString();
 };
