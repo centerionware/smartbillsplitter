@@ -25,6 +25,12 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
   
   const isLive = (Date.now() - importedBill.lastUpdatedAt) < (24 * 60 * 60 * 1000);
 
+  // Sort participants to ensure "me" is always shown in the avatar stack if possible.
+  const participantsForDisplay = [...bill.participants].sort((a, b) => {
+    if (a.id === importedBill.myParticipantId) return -1;
+    if (b.id === importedBill.myParticipantId) return 1;
+    return 0;
+  });
 
   return (
     <div
@@ -73,11 +79,19 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
       <div className="bg-slate-50 dark:bg-slate-700/50 px-5 py-3">
         <div className="flex items-center justify-between text-sm">
             <div className="flex -space-x-2 overflow-hidden">
-              {bill.participants.slice(0, 4).map(p => (
-                <div key={p.id} className={`inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-800 bg-teal-500 flex items-center justify-center text-white font-bold text-xs ${p.paid ? 'opacity-50' : ''}`}>
-                  {p.name.charAt(0)}
+              {participantsForDisplay.slice(0, 4).map(p => {
+                const isMe = p.id === importedBill.myParticipantId;
+                return (
+                  <div key={p.id} className={`inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-800 flex items-center justify-center text-white font-bold text-xs ${isMe ? 'bg-indigo-500' : 'bg-teal-500'} ${p.paid ? 'opacity-50' : ''}`}>
+                    {p.name.charAt(0)}
+                  </div>
+                );
+              })}
+              {bill.participants.length > 4 && (
+                <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-800 bg-slate-300 dark:bg-slate-600 flex items-center justify-center text-slate-700 dark:text-slate-200 font-bold text-xs">
+                  +{bill.participants.length - 4}
                 </div>
-              ))}
+              )}
             </div>
              <button
               onClick={toggleMyPaidStatus}

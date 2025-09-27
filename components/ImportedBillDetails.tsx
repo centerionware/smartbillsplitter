@@ -98,14 +98,21 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
           <div>
             <h3 className="text-xl font-semibold mb-4 text-slate-700 dark:text-slate-200">All Participants</h3>
             <ul className="space-y-3">
-              {bill.participants.map(p => (
-                <li key={p.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                    <p className="font-semibold text-slate-800 dark:text-slate-100">{p.name}</p>
-                    <div className={`px-3 py-1 text-sm font-semibold rounded-full ${p.paid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                        {p.paid ? 'Paid' : 'Owes'} ${p.amountOwed.toFixed(2)}
-                    </div>
-                </li>
-              ))}
+              {bill.participants.map(p => {
+                const isMe = myParticipant && p.id === myParticipant.id;
+                const liClasses = `flex items-center justify-between p-4 rounded-lg transition-colors duration-200 ${isMe ? 'bg-indigo-50 dark:bg-indigo-900/40 ring-2 ring-indigo-400' : 'bg-slate-50 dark:bg-slate-700/50'}`;
+                return (
+                  <li key={p.id} className={liClasses}>
+                      <div className="flex items-center gap-3">
+                          <p className="font-semibold text-slate-800 dark:text-slate-100">{p.name}</p>
+                          {isMe && <span className="text-xs font-bold text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-800 px-2 py-0.5 rounded-full">You</span>}
+                      </div>
+                      <div className={`px-3 py-1 text-sm font-semibold rounded-full ${p.paid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+                          {p.paid ? 'Paid' : 'Owes'} ${p.amountOwed.toFixed(2)}
+                      </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
