@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill, Participant, SummaryFilter } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import ShareActionSheet from './ShareActionSheet.tsx';
-import { generateShareText, generateAggregateBill, generateOneTimeShareLink } from '../services/shareService.ts';
+import { generateShareText, generateOneTimeShareLink } from '../services/shareService.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import HalfScreenAdModal from './HalfScreenAdModal.tsx';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
@@ -27,7 +27,8 @@ interface DashboardProps {
   onArchiveBill: (billId: string) => void;
   onUnarchiveBill: (billId: string) => void;
   onDeleteBill: (billId: string) => void;
-  onUpdateMultipleBills: (bills: Bill[]) => void;
+  // FIX: Updated the prop type to reflect that updating multiple bills is an async operation.
+  onUpdateMultipleBills: (bills: Bill[]) => Promise<void>;
   onUpdateImportedBill: (bill: ImportedBill) => void;
   onArchiveImportedBill: (billId: string) => void;
   onUnarchiveImportedBill: (billId: string) => void;
@@ -245,9 +246,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleShareLink = useCallback(async (participantName: string, method: 'sms' | 'email' | 'generic') => {
-    const unpaidBills = bills.filter(b => b.participants.some(p => p.name === participantName && !p.paid && p.amountOwed > 0));
-    const summaryBill = generateAggregateBill(participantName, unpaidBills, settings);
-    const shareUrl = await generateOneTimeShareLink(summaryBill, settings);
+    const unpaidBills = bills.filter(b => b.status === 'active' && b.participants.some(p => p.name === participantName && !p.paid && p.amountOwed > 0));
+    if (unpaidBills.length === 0) {
+        showNotification(`${participantName} has no outstanding bills to share.`, 'info');
+        setShareSheetParticipant(null);
+        return;
+    }
+    const shareUrl = await generateOneTimeShareLink(unpaidBills, participantName, settings, onUpdateMultipleBills);
     const message = `Here is a link to view a summary of your outstanding bills with me. This link contains a key and should not be shared with others:\n\n${shareUrl}`;
     try {
         if (method === 'sms') {
@@ -272,7 +277,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     } finally {
         setShareSheetParticipant(null);
     }
-  }, [bills, settings, participantsData, showNotification]);
+  }, [bills, settings, onUpdateMultipleBills, participantsData, showNotification]);
 
   const handleMarkParticipantAsPaid = async (participantName: string) => {
     const billsToUpdate: Bill[] = bills.filter(bill => bill.status === 'active' && bill.participants.some(p => p.name === participantName && !p.paid)).map(bill => ({ ...bill, participants: bill.participants.map(p => p.name === participantName ? { ...p, paid: true } : p) }));

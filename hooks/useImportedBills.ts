@@ -26,76 +26,136 @@ export const useImportedBills = () => {
     loadData();
   }, []);
   
-  // Effect for polling for updates on active imported bills
   useEffect(() => {
     const pollForUpdates = async () => {
-        const activeImported = importedBills.filter(b => b.status === 'active' && b.shareEncryptionKey);
-        if (activeImported.length === 0) return;
+        const sharesToCheck: { shareId: string; lastUpdatedAt: number }[] = [];
+        
+        importedBills.forEach(bill => {
+            if (bill.status !== 'active') return;
 
-        const updatedBills: ImportedBill[] = [];
+            if (bill.constituentShares && bill.constituentShares.length > 0) {
+                // Summary bill: check each constituent share. Use the main bill's lastUpdatedAt as the baseline.
+                bill.constituentShares.forEach(cs => {
+                    sharesToCheck.push({ shareId: cs.shareId, lastUpdatedAt: bill.lastUpdatedAt });
+                });
+            } else if (bill.shareId && bill.shareEncryptionKey) {
+                // Regular imported bill.
+                sharesToCheck.push({ shareId: bill.shareId, lastUpdatedAt: bill.lastUpdatedAt });
+            }
+        });
 
-        await Promise.all(activeImported.map(async (bill) => {
-            try {
-                const response = await fetch(getApiUrl(`/share/${bill.shareId}?lastUpdatedAt=${bill.lastUpdatedAt}`));
+        if (sharesToCheck.length === 0) return;
+        
+        const uniqueSharesToCheck = Array.from(new Map(sharesToCheck.map(s => [s.shareId, s])).values());
+        if (uniqueSharesToCheck.length === 0) return;
 
-                if (response.status === 404) {
-                    if (bill.liveStatus !== 'expired') {
-                        updatedBills.push({ ...bill, liveStatus: 'expired' });
-                    }
-                } else if (response.ok) {
-                    let updatedBillData = { ...bill, liveStatus: 'live' as const };
-                    let hasDataUpdate = false;
+        try {
+            const response = await fetch(getApiUrl('/share/batch-check'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(uniqueSharesToCheck),
+            });
+            
+            if (!response.ok) throw new Error(`Batch update check failed with status ${response.status}`);
 
-                    if (response.status === 200) { // 200 means there's an update
-                        const payload = await response.json();
-                        if (!bill.shareEncryptionKey) return;
+            const updatedPayloads: { shareId: string, encryptedData: string, lastUpdatedAt: number }[] = await response.json();
+            if (updatedPayloads.length === 0) return;
+            
+            const updatesMap = new Map(updatedPayloads.map(p => [p.shareId, p]));
+            const billsToUpdateInDB: ImportedBill[] = [];
+            let needsStateUpdate = false;
 
-                        const key = await cryptoService.importEncryptionKey(bill.shareEncryptionKey);
-                        const decryptedJson = await cryptoService.decrypt(payload.encryptedData, key);
-                        const sharedPayload: SharedBillPayload = JSON.parse(decryptedJson);
+            const newImportedBillsState = await Promise.all(importedBills.map(async (bill): Promise<ImportedBill> => {
+                if (bill.status !== 'active') return bill;
+                let billWasUpdated = false;
+                let newBillData = JSON.parse(JSON.stringify(bill)); // Deep copy
 
-                        const publicKey = await cryptoService.importPublicKey(sharedPayload.publicKey);
-                        const isVerified = await cryptoService.verify(JSON.stringify(sharedPayload.bill), sharedPayload.signature, publicKey);
+                if (newBillData.constituentShares && newBillData.constituentShares.length > 0) {
+                    // --- Summary Bill Update Logic ---
+                    let latestTimestamp = newBillData.lastUpdatedAt;
+                    const updatedItems = await Promise.all(
+                        (newBillData.sharedData.bill.items || []).map(async (item: any) => {
+                            const constituentShare = newBillData.constituentShares.find((cs: any) => cs.originalBillId === item.id);
+                            if (!constituentShare || !updatesMap.has(constituentShare.shareId)) return item;
+                            
+                            billWasUpdated = true;
+                            const payload = updatesMap.get(constituentShare.shareId)!;
+                            latestTimestamp = Math.max(latestTimestamp, payload.lastUpdatedAt);
+                            
+                            try {
+                                const key = await cryptoService.importEncryptionKey(constituentShare.encryptionKey);
+                                const decryptedJson = await cryptoService.decrypt(payload.encryptedData, key);
+                                const sharedPayload: SharedBillPayload = JSON.parse(decryptedJson);
+                                const publicKey = await cryptoService.importPublicKey(sharedPayload.publicKey);
+                                if (!await cryptoService.verify(JSON.stringify(sharedPayload.bill), sharedPayload.signature, publicKey)) throw new Error("Signature failed");
+                                return { ...item, originalBillData: sharedPayload.bill };
+                            } catch (e) {
+                                console.error(`Failed to process update for constituent bill ${item.id}`, e);
+                                return item;
+                            }
+                        })
+                    );
+                    if (billWasUpdated) {
+                        newBillData.sharedData.bill.items = updatedItems;
+                        newBillData.lastUpdatedAt = latestTimestamp;
                         
-                        if (isVerified) {
-                             updatedBillData = {
-                                ...updatedBillData,
-                                sharedData: {
-                                    bill: sharedPayload.bill,
-                                    creatorPublicKey: sharedPayload.publicKey,
-                                    signature: sharedPayload.signature,
-                                    paymentDetails: sharedPayload.paymentDetails,
-                                },
-                                lastUpdatedAt: payload.lastUpdatedAt,
-                             };
-                             hasDataUpdate = true;
+                        // Recalculate the summary total based on the updated constituent bills.
+                        let newTotalOwed = 0;
+                        for (const item of updatedItems) {
+                            if (item.originalBillData) {
+                                const myPart = item.originalBillData.participants.find((p: any) => p.id === newBillData.myParticipantId);
+                                if (myPart && !myPart.paid) {
+                                    newTotalOwed += myPart.amountOwed;
+                                }
+                            }
+                        }
+                        
+                        // Update the summary bill's total amount and the participant's amount owed.
+                        newBillData.sharedData.bill.totalAmount = newTotalOwed;
+                        if (newBillData.sharedData.bill.participants[0]) {
+                            newBillData.sharedData.bill.participants[0].amountOwed = newTotalOwed;
                         }
                     }
-                    
-                    if (bill.liveStatus !== 'live' || hasDataUpdate) {
-                        updatedBills.push(updatedBillData);
+                } else if (newBillData.shareId && newBillData.shareEncryptionKey && updatesMap.has(newBillData.shareId)) {
+                    // --- Regular Bill Update Logic ---
+                    billWasUpdated = true;
+                    const payload = updatesMap.get(newBillData.shareId)!;
+                     try {
+                        const key = await cryptoService.importEncryptionKey(newBillData.shareEncryptionKey);
+                        const decryptedJson = await cryptoService.decrypt(payload.encryptedData, key);
+                        const sharedPayload: SharedBillPayload = JSON.parse(decryptedJson);
+                        const publicKey = await cryptoService.importPublicKey(sharedPayload.publicKey);
+                        if (!await cryptoService.verify(JSON.stringify(sharedPayload.bill), sharedPayload.signature, publicKey)) throw new Error("Signature failed");
+                        
+                        newBillData.sharedData = { ...sharedPayload, creatorPublicKey: sharedPayload.publicKey };
+                        newBillData.lastUpdatedAt = payload.lastUpdatedAt;
+                    } catch (e) {
+                        console.error(`Failed to process update for regular bill ${newBillData.id}`, e);
+                        billWasUpdated = false; // Revert update on error
                     }
-                } else {
-                    console.error(`Poll for ${bill.shareId} failed with status ${response.status}`);
                 }
-            } catch (error) {
-                console.error(`Poll for ${bill.shareId} failed with network error`, error);
+                
+                if (billWasUpdated) {
+                    needsStateUpdate = true;
+                    billsToUpdateInDB.push(newBillData);
+                    return newBillData;
+                }
+                return bill;
+            }));
+
+            if (needsStateUpdate) {
+                newImportedBillsState.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
+                setImportedBills(newImportedBillsState);
+                await Promise.all(billsToUpdateInDB.map(b => updateDB(b)));
             }
-        }));
-
-        if (updatedBills.length > 0) {
-            const updatedDataMap = new Map(updatedBills.map(b => [b.id, b]));
-
-            setImportedBills(prev => {
-                const final = prev.map(p => updatedDataMap.get(p.id) || p);
-                final.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
-                return final;
-            });
-            await Promise.all(Array.from(updatedDataMap.values()).map(updateDB));
+        } catch (error) {
+            console.error("Polling for updates failed:", error);
         }
     };
 
     const intervalId = setInterval(pollForUpdates, POLLING_INTERVAL);
+    // Initial poll on load
+    setTimeout(pollForUpdates, 1000); 
     return () => clearInterval(intervalId);
   }, [importedBills]);
 

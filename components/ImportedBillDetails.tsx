@@ -102,7 +102,7 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
                 <p className="text-3xl font-bold text-teal-900 dark:text-teal-100">${myParticipant.amountOwed.toFixed(2)}</p>
               </div>
               <div className="flex items-center gap-3">
-                  {hasPaymentInfo && !myParticipant.paid && !importedBill.localStatus.myPortionPaid && (
+                  {hasPaymentInfo && !myParticipant.paid && (
                       <button
                           onClick={() => setIsPaymentModalOpen(true)}
                           className="px-5 py-3 rounded-lg font-bold text-sm transition-colors bg-emerald-500 text-white hover:bg-emerald-600"

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { SharedBillPayload, ImportedBill, Settings, PaymentDetails } from '../types.ts';
+import type { SharedBillPayload, ImportedBill, Settings, PaymentDetails, Bill } from '../types.ts';
 import * as cryptoService from '../services/cryptoService.ts';
 import PrivacyConsent from './PrivacyConsent.tsx';
 import { getApiUrl } from '../services/api.ts';
@@ -181,6 +181,14 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
   const handleImport = async () => {
     if (!sharedData || !myParticipantId || !billEncryptionKey) return;
 
+    const initialPaidItems = (sharedData.bill.items || []).reduce((acc, item) => {
+        const participant = (item.originalBillData?.participants || []).find(p => p.id === myParticipantId);
+        if (participant?.paid) {
+            acc[item.id] = true;
+        }
+        return acc;
+    }, {} as Record<string, boolean>);
+
     const imported: ImportedBill = {
         id: sharedData.bill.id,
         creatorName: sharedData.creatorName,
@@ -193,10 +201,12 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         },
         shareId: new URLSearchParams(window.location.hash.split('?')[1]).get('shareId')!,
         shareEncryptionKey: billEncryptionKey,
+        constituentShares: sharedData.constituentShares,
         lastUpdatedAt: lastUpdatedAt,
         myParticipantId: myParticipantId,
         localStatus: {
             myPortionPaid: false,
+            paidItems: initialPaidItems,
         },
         liveStatus: 'live',
     };

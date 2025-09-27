@@ -1,3 +1,5 @@
+import { IncomingHttpHeaders } from "http";
+
 // FIX: Defined ParticipantShareInfo interface and removed circular self-import.
 export interface ParticipantShareInfo {
   keyId: string;
@@ -55,13 +57,7 @@ export interface ReceiptItem {
   name: string;
   price: number;
   assignedTo: string[]; // array of participant ids
-  originalBillData?: { // Add this for summary bills
-    totalAmount: number;
-    date: string;
-    participants: Participant[];
-    receiptImage?: string;
-    additionalInfo?: Record<string, string>;
-  }
+  originalBillData?: Bill;
 }
 
 export interface Bill {
@@ -121,12 +117,20 @@ export interface Settings {
 }
 
 // For sharing bills
+export interface ConstituentShareInfo {
+  originalBillId: string;
+  shareId: string;
+  publicKey: JsonWebKey;
+  encryptionKey: JsonWebKey;
+}
+
 export interface SharedBillPayload {
   bill: Bill;
   creatorName: string;
   publicKey: JsonWebKey; // Public key of the creator for signature verification
   signature: string; // Signature of the bill data
   paymentDetails: PaymentDetails; // Creator's payment info
+  constituentShares?: ConstituentShareInfo[]; // For summary bills
 }
 
 // For bills imported from other users
@@ -142,6 +146,7 @@ export interface ImportedBill {
   };
   shareId: string; // The ID from the /share/:shareId endpoint
   shareEncryptionKey?: JsonWebKey; // The symmetric key for decrypting this bill, now stored by the recipient
+  constituentShares?: ConstituentShareInfo[]; // For summary bills, to enable live updates
   lastUpdatedAt: number; // Timestamp of the last successful fetch
   myParticipantId: string; // The ID of the participant who is the local user
   localStatus: {
