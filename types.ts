@@ -55,6 +55,13 @@ export interface ReceiptItem {
   name: string;
   price: number;
   assignedTo: string[]; // array of participant ids
+  originalBillData?: { // Add this for summary bills
+    totalAmount: number;
+    date: string;
+    participants: Participant[];
+    receiptImage?: string;
+    additionalInfo?: Record<string, string>;
+  }
 }
 
 export interface Bill {

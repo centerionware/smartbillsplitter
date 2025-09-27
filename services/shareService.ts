@@ -96,8 +96,15 @@ export const generateAggregateBill = (participantName: string, unpaidBills: Bill
     return {
       id: bill.id,
       name: bill.description,
-      price: p?.amountOwed || 0,
-      assignedTo: [] // Not relevant for summary
+      price: p?.amountOwed || 0, // This is my portion
+      assignedTo: [], // Not relevant for summary
+      originalBillData: {
+        totalAmount: bill.totalAmount,
+        date: bill.date,
+        participants: bill.participants,
+        receiptImage: bill.receiptImage,
+        additionalInfo: bill.additionalInfo,
+      }
     };
   });
 

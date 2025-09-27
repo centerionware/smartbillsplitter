@@ -109,9 +109,9 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
                 {isSummary && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onShowSummaryDetails(); }}
-                        className="px-3 py-2 rounded-full font-semibold text-xs transition-colors bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-100 dark:hover:bg-slate-500 flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-full font-semibold text-xs transition-colors bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500 flex items-center gap-1.5"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" /><path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" /></svg>
+                        <span>📝</span>
                         <span>Breakdown</span>
                     </button>
                 )}
