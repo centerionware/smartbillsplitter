@@ -1,5 +1,3 @@
-
-
 import React, { useRef, useState } from 'react';
 import type { ImportedBill } from '../types.ts';
 import ImportedBillCard from './ImportedBillCard.tsx';

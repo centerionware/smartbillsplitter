@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import type { ImportedBill, Settings } from '../types.ts';
 import PaymentMethodsModal from './PaymentMethodsModal.tsx';
@@ -96,7 +93,7 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
                 <p className="text-3xl font-bold text-teal-900 dark:text-teal-100">${myParticipant.amountOwed.toFixed(2)}</p>
               </div>
               <div className="flex items-center gap-3">
-                  {hasPaymentInfo && !importedBill.localStatus.myPortionPaid && (
+                  {hasPaymentInfo && !myParticipant.paid && !importedBill.localStatus.myPortionPaid && (
                       <button
                           onClick={() => setIsPaymentModalOpen(true)}
                           className="px-5 py-3 rounded-lg font-bold text-sm transition-colors bg-emerald-500 text-white hover:bg-emerald-600"
@@ -106,7 +103,7 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
                   )}
                   <button
                     onClick={toggleMyPaidStatus}
-                    className={`px-5 py-3 rounded-lg font-bold text-sm transition-colors ${
+                    className={`px-5 py-3 rounded-lg font-bold text-sm transition-colors whitespace-nowrap ${
                       importedBill.localStatus.myPortionPaid
                         ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300'
                         : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-100 dark:hover:bg-slate-500'

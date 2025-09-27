@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import type { ImportedBill } from '../types.ts';
 
@@ -67,7 +65,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
             </div>
            
             <span
-              className={`px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 ml-2 ${
+              className={`px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 ml-2 whitespace-nowrap ${
                 myParticipant && myParticipant.paid
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
                   : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
@@ -106,7 +104,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
               )}
             </div>
              <div className="flex items-center gap-2">
-                {hasPaymentInfo && !importedBill.localStatus.myPortionPaid && (
+                {hasPaymentInfo && myParticipant && !myParticipant.paid && !importedBill.localStatus.myPortionPaid && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onSettleUp(); }}
                         className="px-4 py-2 rounded-full font-semibold text-sm transition-colors bg-emerald-500 text-white hover:bg-emerald-600"
@@ -116,7 +114,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
                 )}
                 <button
                     onClick={toggleMyPaidStatus}
-                    className={`px-4 py-2 rounded-full font-semibold text-sm transition-colors ${
+                    className={`px-4 py-2 rounded-full font-semibold text-sm transition-colors whitespace-nowrap ${
                     importedBill.localStatus.myPortionPaid
                         ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300'
                         : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-100 dark:hover:bg-slate-500'
