@@ -1,6 +1,6 @@
 // FIX: Changed the React import to be consistent with the project and resolve the type error where `this.props` was not found on the class component.
-import React from 'react';
-import type { ReactNode, ErrorInfo } from 'react';
+// FIX: Destructured `Component` from React and updated the class to extend it directly to resolve the `this.props` type error.
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match the name in db.ts
 
@@ -13,7 +13,7 @@ interface State {
   error?: Error;
 }
 
-class ErrorBoundary extends React.Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
   };
