@@ -22,7 +22,9 @@ const assertPayPalConfig = () => {
  */
 async function getPayPalAccessToken(): Promise<string> {
     assertPayPalConfig();
+    // FIX: Use btoa for Base64 encoding to ensure compatibility with non-Node.js server-side environments.
     const auth = btoa(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`);
+    
     const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
         method: 'POST',
         headers: {
@@ -35,7 +37,6 @@ async function getPayPalAccessToken(): Promise<string> {
     if (!response.ok) {
         let errorBody = await response.text();
         try {
-            // Attempt to parse a structured error, but fall back to raw text if it's not JSON.
             const errorJson = JSON.parse(errorBody);
             errorBody = errorJson.error_description || errorJson.error || JSON.stringify(errorJson);
         } catch (e) {
@@ -154,6 +155,7 @@ export const verifyPaymentHandler = async (req: HttpRequest): Promise<HttpRespon
             else if (data.plan_id === PAYPAL_PLAN_ID_YEARLY) duration = 'yearly';
 
             if (!duration) throw new Error('Could not determine subscription duration from PayPal plan ID.');
+            if (!data.subscriber?.payer_id) throw new Error('Could not find customer ID in PayPal response.');
             
             return {
                 statusCode: 200,
@@ -167,7 +169,7 @@ export const verifyPaymentHandler = async (req: HttpRequest): Promise<HttpRespon
                 })
             };
         } else {
-            throw new Error(`Payment not completed successfully. PayPal subscription status: ${data.status}`);
+            throw new Error(`The server returned an invalid response during payment verification. Status: ${data.status}`);
         }
     } catch (error: any) {
         console.error("PayPal Verification Error:", { message: error.message, stack: error.stack });
@@ -180,16 +182,64 @@ export const verifyPaymentHandler = async (req: HttpRequest): Promise<HttpRespon
 };
 
 /**
- * Returns a static URL to PayPal's subscription management page, respecting the current mode (live/sandbox).
+ * Provides a URL for the user to manage their PayPal subscription.
+ * Note: This handler is not used by the primary in-app management flow but is kept for completeness.
  */
 export const manageSubscriptionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
-    const portalUrl = PAYPAL_MODE === 'live'
+    // PayPal doesn't have a customer portal like Stripe. The best we can do is
+    // redirect them to the automatic payments section of their account.
+    const url = PAYPAL_MODE === 'live' 
         ? 'https://www.paypal.com/myaccount/autopay/'
         : 'https://www.sandbox.paypal.com/myaccount/autopay/';
-
-    return Promise.resolve({
+    
+    return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-        body: JSON.stringify({ url: portalUrl })
-    });
+        body: JSON.stringify({ url })
+    };
+};
+
+/**
+ * Cancels a PayPal subscription via the API.
+ */
+export const cancelSubscriptionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+    try {
+        const { subscriptionId } = req.body;
+        if (!subscriptionId) {
+            throw new Error("Missing 'subscriptionId' in request body.");
+        }
+        
+        const accessToken = await getPayPalAccessToken();
+
+        const response = await fetch(`${PAYPAL_API_BASE}/v1/billing/subscriptions/${subscriptionId}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                reason: "User requested cancellation from within the application."
+            })
+        });
+
+        // PayPal returns 204 No Content on successful cancellation.
+        if (response.status === 204) {
+            return {
+                statusCode: 204,
+                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+            };
+        } else {
+             const errorBody = await response.text();
+             console.error(`PayPal Subscription Cancellation Error (${response.status}):`, errorBody);
+             throw new Error("Failed to cancel subscription on PayPal's end.");
+        }
+    } catch (error: any) {
+        console.error("PayPal Cancellation Error:", { message: error.message, stack: error.stack });
+        const statusCode = error.message.includes("Missing 'subscriptionId'") ? 400 : 500;
+        return {
+            statusCode: statusCode,
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+            body: JSON.stringify({ error: "An internal server error occurred during subscription cancellation.", details: error.message })
+        };
+    }
 };

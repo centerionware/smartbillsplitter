@@ -56,6 +56,25 @@ export const manageSubscriptionHandler = (req: HttpRequest): Promise<HttpRespons
 };
 
 /**
+ * Handler for canceling a subscription. This is currently only supported for PayPal.
+ * Stripe users manage cancellations through the Stripe customer portal.
+ */
+export const cancelSubscriptionHandler = (req: HttpRequest): Promise<HttpResponse> => {
+    const { provider } = req.body;
+    if (provider === 'paypal') {
+        return paypal.cancelSubscriptionHandler(req);
+    }
+    // For Stripe, this would be handled via the customer portal, so we don't need a backend handler.
+    // If called for Stripe, we return an error indicating it's not the correct method.
+    return Promise.resolve({
+        statusCode: 400,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'This method is not used for canceling Stripe subscriptions.' }),
+    });
+};
+
+
+/**
  * Handler for the "last seen" feature. This is currently Stripe-specific.
  * For other providers, it gracefully returns success without performing an action.
  */

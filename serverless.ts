@@ -1,7 +1,7 @@
 import { HttpRequest, HttpResponse, HttpHandler } from './http-types.ts';
 import { scanReceiptHandler } from './functions/scan-receipt.ts';
 import { syncHandler } from './functions/sync.ts';
-import { createCheckoutSessionHandler, verifyPaymentHandler, manageSubscriptionHandler, updateCustomerMetadataHandler } from './functions/payment.ts';
+import { createCheckoutSessionHandler, verifyPaymentHandler, manageSubscriptionHandler, updateCustomerMetadataHandler, cancelSubscriptionHandler } from './functions/payment.ts';
 import { shareHandler } from './functions/share.ts';
 import { onetimeKeyHandler } from './functions/onetime-key.ts';
 import { MultiCloudKVStore } from './services/multiCloudKV.ts';
@@ -98,6 +98,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
   if (path.startsWith('/create-checkout-session')) return createCheckoutSessionHandler(req);
   if (path.startsWith('/verify-payment')) return verifyPaymentHandler(req);
   if (path.startsWith('/manage-subscription')) return manageSubscriptionHandler(req);
+  if (path.startsWith('/cancel-subscription')) return cancelSubscriptionHandler(req);
   if (path.startsWith('/update-customer-metadata')) return updateCustomerMetadataHandler(req);
 
   // Other Static & Base Routes

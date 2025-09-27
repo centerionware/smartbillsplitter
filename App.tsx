@@ -21,6 +21,7 @@ import Disclaimer from './components/Disclaimer.tsx';
 import RecurringBillsList from './components/RecurringBillsList.tsx';
 // FIX: Changed to a named import to resolve module resolution issues.
 import { ViewSharedBill } from './components/ViewSharedBill.tsx';
+import ManageSubscriptionPage from './components/ManageSubscriptionPage.tsx';
 import SetupDisplayNameModal from './components/SetupDisplayNameModal.tsx';
 import { useAppControl } from './contexts/AppControlContext.tsx';
 import { getApiUrl } from './services/api.ts';
@@ -165,6 +166,8 @@ const App: React.FC = () => {
       setCurrentView(View.CreateBill);
     } else if (path === '#/settings') {
       setCurrentView(View.Settings);
+    } else if (path === '#/manage-subscription') {
+      setCurrentView(View.ManageSubscriptionPage);
     } else if (path === '#/sync') {
       setCurrentView(View.Sync);
     } else if (path === '#/disclaimer') {
@@ -354,6 +357,7 @@ const App: React.FC = () => {
   const handleGoToSync = () => navigate('#/sync');
   const handleGoToDisclaimer = () => navigate('#/disclaimer');
   const handleGoToRecurringBills = () => navigate('#/recurring');
+  const handleGoToManageSubscriptionPage = () => navigate('#/manage-subscription');
   const handleCreateFromTemplate = (template: RecurringBill) => navigate(`#/create?fromTemplate=${template.id}`);
   const handleEditTemplate = (template: RecurringBill) => navigate(`#/create?editTemplate=${template.id}`);
   const handleGoHome = () => navigate('#/');
@@ -518,10 +522,16 @@ const App: React.FC = () => {
           onUpdateSettings={updateSettings} 
           onBack={handleBack}
           onGoToSync={handleGoToSync}
+          onGoToManageSubscriptionPage={handleGoToManageSubscriptionPage}
           subscriptionStatus={subscriptionStatus}
           onLogout={logout}
           requestConfirmation={requestConfirmation}
           recurringBills={recurringBills}
+        />;
+      case View.ManageSubscriptionPage:
+        return <ManageSubscriptionPage 
+            onBack={handleBack} 
+            requestConfirmation={requestConfirmation} 
         />;
       case View.Sync:
         return <SyncComponent

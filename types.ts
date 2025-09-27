@@ -9,6 +9,7 @@ export enum View {
   Disclaimer = 'disclaimer',
   RecurringBills = 'recurringBills',
   ViewSharedBill = 'viewSharedBill',
+  ManageSubscriptionPage = 'manageSubscriptionPage',
 }
 
 export type Theme = 'light' | 'dark' | 'system';

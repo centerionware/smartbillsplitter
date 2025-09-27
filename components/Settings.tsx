@@ -22,12 +22,13 @@ interface SettingsProps {
   onUpdateSettings: (settings: Partial<Settings>) => void;
   onBack: () => void;
   onGoToSync: () => void;
+  onGoToManageSubscriptionPage: () => void;
   subscriptionStatus: ReturnType<typeof useAuth>['subscriptionStatus'];
   onLogout: () => void;
   requestConfirmation: RequestConfirmationFn;
 }
 
-const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, onUpdateSettings, onBack, onGoToSync, subscriptionStatus, onLogout, requestConfirmation }) => {
+const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, onUpdateSettings, onBack, onGoToSync, onGoToManageSubscriptionPage, subscriptionStatus, onLogout, requestConfirmation }) => {
   const [formData, setFormData] = useState<Settings>(settings);
   const { subscriptionDetails } = useAuth();
   const { reloadApp } = useAppControl();
@@ -189,7 +190,7 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
     );
   };
   
-  const handleManageSubscription = async () => {
+  const handleManageStripeSubscription = async () => {
     if (!subscriptionDetails) {
         setPortalError("Could not find your subscription details.");
         return;
@@ -268,7 +269,8 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
         <Divider />
         <SubscriptionManagement
             subscriptionStatus={subscriptionStatus}
-            onManageSubscription={handleManageSubscription}
+            onManageStripeSubscription={handleManageStripeSubscription}
+            onGoToManagePayPalSubscription={onGoToManageSubscriptionPage}
             isPortalLoading={isPortalLoading}
             portalError={portalError}
             onLogout={onLogout}

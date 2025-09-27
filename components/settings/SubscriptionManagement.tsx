@@ -1,9 +1,11 @@
 import React from 'react';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth.ts';
 
 interface SubscriptionManagementProps {
     subscriptionStatus: SubscriptionStatus;
-    onManageSubscription: () => void;
+    onManageStripeSubscription: () => void;
+    onGoToManagePayPalSubscription: () => void;
     isPortalLoading: boolean;
     portalError: string | null;
     onLogout: () => void;
@@ -11,18 +13,29 @@ interface SubscriptionManagementProps {
 
 const SubscriptionManagement: React.FC<SubscriptionManagementProps> = ({
     subscriptionStatus,
-    onManageSubscription,
+    onManageStripeSubscription,
+    onGoToManagePayPalSubscription,
     isPortalLoading,
     portalError,
     onLogout
 }) => {
+    const { subscriptionDetails } = useAuth();
+
+    const handleManageClick = () => {
+        if (subscriptionDetails?.provider === 'stripe') {
+            onManageStripeSubscription();
+        } else if (subscriptionDetails?.provider === 'paypal') {
+            onGoToManagePayPalSubscription();
+        }
+    };
+
     return (
         <div className="space-y-4">
             <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Manage Subscription</h3>
             {subscriptionStatus === 'subscribed' ? (
                  <>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                        You are a Pro subscriber. You can manage your subscription, update payment methods, and view your invoice history through our secure payment portal.
+                        You are a Pro subscriber. You can manage your subscription, update payment methods, and view your invoice history.
                     </p>
                      {portalError && (
                         <div className="p-3 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-900/40 dark:text-red-300" role="alert">
@@ -30,7 +43,7 @@ const SubscriptionManagement: React.FC<SubscriptionManagementProps> = ({
                         </div>
                      )}
                     <button
-                        onClick={onManageSubscription}
+                        onClick={handleManageClick}
                         disabled={isPortalLoading}
                         className="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors duration-300 flex items-center justify-center gap-2 disabled:bg-slate-400 dark:disabled:bg-slate-600"
                     >
