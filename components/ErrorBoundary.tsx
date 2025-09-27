@@ -1,6 +1,5 @@
-// FIX: Changed the React import and class extension to resolve a TypeScript error where `this.props` was not recognized. Using `React.Component` directly is more robust in some TypeScript configurations than destructuring `Component`.
-import React from 'react';
-import type { ReactNode, ErrorInfo } from 'react';
+// FIX: Refactored the React import and component extension to resolve a TypeScript error where `this.props` was not recognized.
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match the name in db.ts
 
@@ -13,7 +12,7 @@ interface State {
   error?: Error;
 }
 
-class ErrorBoundary extends React.Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
   };

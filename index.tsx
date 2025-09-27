@@ -77,6 +77,22 @@ try {
   if (!rootElement) {
     throw new Error("Could not find root element to mount to");
   }
+
+  // --- Startup Timeout ---
+  let appHasRendered = false;
+  const STARTUP_TIMEOUT_MS = 15000;
+
+  const startupTimeout = setTimeout(() => {
+    if (!appHasRendered) {
+      if (rootElement) rootElement.innerHTML = '';
+      
+      console.error(`Application did not render within ${STARTUP_TIMEOUT_MS}ms. This may be due to a network issue, a stuck process, or an uncaught error.`);
+      const timeoutError = new Error(
+        `Application timed out during startup. The app failed to load completely within ${STARTUP_TIMEOUT_MS / 1000} seconds. Please check your network connection and try reloading. If the problem persists, a hard reset may be necessary.`
+      );
+      renderErrorFallback(timeoutError);
+    }
+  }, STARTUP_TIMEOUT_MS);
   
   type NotificationType = 'success' | 'info' | 'error';
   interface NotificationState {
@@ -160,8 +176,12 @@ try {
         </ErrorBoundary>
       </React.StrictMode>
     );
+    // Signal that rendering has completed successfully
+    appHasRendered = true;
+    clearTimeout(startupTimeout);
   }).catch(err => {
     // This catches critical errors from initDB
+    clearTimeout(startupTimeout);
     console.error("Failed to initialize the database.", err);
     renderErrorFallback(err);
   });

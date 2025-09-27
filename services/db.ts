@@ -2,7 +2,7 @@ import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscrip
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 11; // Incremented to force migration for all users
+const DB_VERSION = 13; // Incremented for new, more robust payment provider migration
 
 // Object Store Names
 const STORES = {
@@ -46,6 +46,8 @@ export function initDB(): Promise<void> {
 
     request.onupgradeneeded = (event) => {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
+      const transaction = (event.target as IDBOpenDBRequest).transaction!;
+      const oldVersion = event.oldVersion;
 
       // This migration path is safer. It ensures all required stores exist
       // regardless of the user's previous version by creating them if they are missing.
@@ -66,6 +68,58 @@ export function initDB(): Promise<void> {
           dbInstance.createObjectStore(storeInfo.name, storeInfo.options);
         }
       });
+
+      // Migration for users who had Stripe subscriptions before the provider was switched to PayPal.
+      if (oldVersion < 12) {
+        console.log(`Upgrading database from version ${oldVersion} to 12. Running migration for Stripe -> PayPal transition.`);
+        if (dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION_DETAILS)) {
+            const subDetailsStore = transaction.objectStore(STORES.SUBSCRIPTION_DETAILS);
+            const getRequest = subDetailsStore.get(SINGLE_KEY);
+            getRequest.onsuccess = () => {
+                const details = getRequest.result;
+                if (details && details.provider === 'stripe') {
+                    console.log("Found legacy Stripe subscription details. Removing to avoid conflicts.");
+                    subDetailsStore.delete(SINGLE_KEY);
+                    // Also clear the general subscription status to force a re-evaluation at the paywall.
+                    if (dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION)) {
+                        const subStore = transaction.objectStore(STORES.SUBSCRIPTION);
+                        subStore.delete(SINGLE_KEY);
+                        console.log("Cleared general subscription status.");
+                    }
+                }
+            };
+        }
+      }
+      
+      // Migration to handle any mismatch between stored provider and current environment provider.
+      if (oldVersion < 13) {
+        console.log(`Upgrading database from version ${oldVersion} to 13. Running migration for payment provider configuration mismatch.`);
+        
+        // Determine the current provider from the build-time environment variable.
+        const currentProvider = (import.meta as any)?.env?.VITE_PAYMENT_PROVIDER === 'stripe' ? 'stripe' : 'paypal';
+        console.log(`Current payment provider configured via VITE_PAYMENT_PROVIDER: ${currentProvider}`);
+        
+        if (dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION_DETAILS)) {
+            const subDetailsStore = transaction.objectStore(STORES.SUBSCRIPTION_DETAILS);
+            const getRequest = subDetailsStore.get(SINGLE_KEY);
+            
+            getRequest.onsuccess = () => {
+                const details: SubscriptionDetails | undefined = getRequest.result;
+                
+                if (details && details.provider !== currentProvider) {
+                    console.warn(`Stored subscription provider ('${details.provider}') does not match current environment provider ('${currentProvider}'). Clearing subscription data to force re-authentication.`);
+                    
+                    subDetailsStore.delete(SINGLE_KEY);
+
+                    if (dbInstance.objectStoreNames.contains(STORES.SUBSCRIPTION)) {
+                        const subStore = transaction.objectStore(STORES.SUBSCRIPTION);
+                        subStore.delete(SINGLE_KEY);
+                        console.log("Cleared general subscription status.");
+                    }
+                }
+            };
+        }
+      }
     };
     
     request.onblocked = () => {
