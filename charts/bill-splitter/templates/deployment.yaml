@@ -35,6 +35,8 @@ spec:
               value: {{ .Values.backend.cors.allowedOrigin | quote }}
             - name: PAYMENT_PROVIDER
               value: {{ .Values.backend.paymentProvider | quote }}
+            - name: PAYPAL_MODE
+              value: {{ .Values.paypal.mode | quote }}
             - name: API_KEY
               valueFrom:
                 secretKeyRef:

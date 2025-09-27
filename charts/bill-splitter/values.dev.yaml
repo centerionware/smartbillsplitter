@@ -32,6 +32,8 @@ secret:
   PAYPAL_PLAN_ID_MONTHLY: "P-..." # Your PayPal sandbox monthly plan ID
   PAYPAL_PLAN_ID_YEARLY: "P-..."  # Your PayPal sandbox yearly plan ID
 
+paypal:
+  mode: "sandbox" # Can be "live" or "sandbox"
 
 ingress:
   enabled: true

@@ -6,7 +6,8 @@ const PAYPAL_PLAN_ID_MONTHLY = process.env.PAYPAL_PLAN_ID_MONTHLY;
 const PAYPAL_PLAN_ID_YEARLY = process.env.PAYPAL_PLAN_ID_YEARLY;
 
 // Use the correct PayPal API endpoint based on the environment
-const PAYPAL_API_BASE = process.env.PAYMENT_PROVIDER === 'stripe' // A simple proxy for NODE_ENV
+const PAYPAL_MODE = process.env.PAYPAL_MODE || 'sandbox'; // Default to sandbox for safety
+const PAYPAL_API_BASE = PAYPAL_MODE === 'live'
     ? 'https://api-m.paypal.com' 
     : 'https://api-m.sandbox.paypal.com';
 
@@ -67,8 +68,12 @@ export const createCheckoutSessionHandler = async (req: HttpRequest): Promise<Ht
 
         const data = await response.json();
         if (!response.ok) {
-            console.error('PayPal API Error:', data);
-            throw new Error(data.details?.[0]?.description || 'Failed to create PayPal subscription.');
+            console.error('PayPal API Error:', JSON.stringify(data, null, 2));
+            // Check for the specific "plan_id not found" error to provide a more helpful message.
+            if (data.name === 'UNPROCESSABLE_ENTITY' && Array.isArray(data.details) && data.details.some((d: any) => d.field === '/plan_id' && d.issue === 'INVALID_RESOURCE_ID')) {
+                throw new Error(`The PayPal Plan ID ('${planId}') is invalid or does not exist in the current environment (${PAYPAL_MODE}). Please check your server configuration.`);
+            }
+            throw new Error(data.details?.[0]?.description || data.message || 'Failed to create PayPal subscription.');
         }
 
         const approvalLink = data.links.find((link: any) => link.rel === 'approve');

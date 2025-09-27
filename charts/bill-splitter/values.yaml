@@ -44,6 +44,8 @@ secret:
   PAYPAL_PLAN_ID_MONTHLY: ""
   PAYPAL_PLAN_ID_YEARLY: ""
 
+paypal:
+  mode: "live" # Can be "live" or "sandbox"
 
 ingress:
   enabled: true
