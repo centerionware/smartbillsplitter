@@ -42,3 +42,9 @@ jobs:
         env:
           # Expose the secret as an environment variable specifically for this step
           VITE_AADS_ID: ${{ secrets.VITE_AADS_ID }}
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
