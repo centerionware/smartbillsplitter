@@ -22,7 +22,6 @@ const assertPayPalConfig = () => {
  */
 async function getPayPalAccessToken(): Promise<string> {
     assertPayPalConfig();
-    // FIX: Replaced Node.js-specific `Buffer` with the web-standard `btoa` function for server-side Base64 encoding to ensure platform compatibility.
     const auth = btoa(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`);
     const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
         method: 'POST',
@@ -32,8 +31,21 @@ async function getPayPalAccessToken(): Promise<string> {
         },
         body: 'grant_type=client_credentials'
     });
+    
+    if (!response.ok) {
+        let errorBody = await response.text();
+        try {
+            // Attempt to parse a structured error, but fall back to raw text if it's not JSON.
+            const errorJson = JSON.parse(errorBody);
+            errorBody = errorJson.error_description || errorJson.error || JSON.stringify(errorJson);
+        } catch (e) {
+            // Not a JSON response, use the raw text.
+        }
+        console.error(`PayPal Auth Error (${response.status}):`, errorBody);
+        throw new Error(`Failed to get PayPal access token: ${errorBody}`);
+    }
+
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error_description || 'Failed to get PayPal access token.');
     return data.access_token;
 }
 
@@ -58,8 +70,6 @@ export const createCheckoutSessionHandler = async (req: HttpRequest): Promise<Ht
             },
             body: JSON.stringify({
                 plan_id: planId,
-                // The user will be redirected to the origin URL with query parameters.
-                // The frontend will then parse these parameters to verify the subscription.
                 application_context: {
                     return_url: `${origin}`,
                     cancel_url: `${origin}`,
@@ -67,15 +77,24 @@ export const createCheckoutSessionHandler = async (req: HttpRequest): Promise<Ht
             })
         });
 
-        const data = await response.json();
         if (!response.ok) {
-            console.error('PayPal API Error:', JSON.stringify(data, null, 2));
-            // Check for the specific "plan_id not found" error to provide a more helpful message.
-            if (data.name === 'UNPROCESSABLE_ENTITY' && Array.isArray(data.details) && data.details.some((d: any) => d.field === '/plan_id' && d.issue === 'INVALID_RESOURCE_ID')) {
-                throw new Error(`The PayPal Plan ID ('${planId}') is invalid or does not exist in the current environment (${PAYPAL_MODE}). Please check your server configuration.`);
+            const errorBody = await response.text();
+            console.error('PayPal API Error on Subscription Creation:', errorBody); // Log the full body
+            let errorMessage = 'Failed to create PayPal subscription.';
+            try {
+                const errorJson = JSON.parse(errorBody);
+                if (errorJson.name === 'UNPROCESSABLE_ENTITY' && Array.isArray(errorJson.details) && errorJson.details.some((d: any) => d.field === '/plan_id' && d.issue === 'INVALID_RESOURCE_ID')) {
+                    errorMessage = `The PayPal Plan ID ('${planId}') is invalid or does not exist in the current environment (${PAYPAL_MODE}). Please check your server configuration.`;
+                } else {
+                    errorMessage = errorJson.details?.[0]?.description || errorJson.message || errorMessage;
+                }
+            } catch (e) {
+                // Not JSON, use the default error message. The raw body is already logged.
             }
-            throw new Error(data.details?.[0]?.description || data.message || 'Failed to create PayPal subscription.');
+            throw new Error(errorMessage);
         }
+
+        const data = await response.json();
 
         const approvalLink = data.links.find((link: any) => link.rel === 'approve');
         if (!approvalLink) {
@@ -88,10 +107,11 @@ export const createCheckoutSessionHandler = async (req: HttpRequest): Promise<Ht
             body: JSON.stringify({ url: approvalLink.href })
         };
     } catch (error: any) {
+        console.error("PayPal Checkout Error:", { message: error.message, stack: error.stack });
         return {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-            body: JSON.stringify({ error: error.message })
+            body: JSON.stringify({ error: "An internal server error occurred while creating the checkout session.", details: error.message })
         };
     }
 };
@@ -101,7 +121,6 @@ export const createCheckoutSessionHandler = async (req: HttpRequest): Promise<Ht
  */
 export const verifyPaymentHandler = async (req: HttpRequest): Promise<HttpResponse> => {
     try {
-        // The client sends the subscription_id from the URL as `sessionId`.
         const { sessionId: subscriptionId } = req.body;
         if (!subscriptionId) {
             throw new Error("Missing 'sessionId' (PayPal Subscription ID).");
@@ -115,8 +134,19 @@ export const verifyPaymentHandler = async (req: HttpRequest): Promise<HttpRespon
             }
         });
 
+        if (!response.ok) {
+            let errorBody = await response.text();
+            try {
+                const errorJson = JSON.parse(errorBody);
+                errorBody = errorJson.details?.[0]?.description || errorJson.message || JSON.stringify(errorJson);
+            } catch (e) {
+                // Response was not JSON.
+            }
+            console.error(`PayPal Subscription Fetch Error (${response.status}):`, errorBody);
+            throw new Error(`Failed to verify PayPal subscription details. The server responded: ${errorBody}`);
+        }
+        
         const data = await response.json();
-        if (!response.ok) throw new Error(data.details?.[0]?.description || 'Failed to verify PayPal subscription.');
 
         if ((data.status === 'ACTIVE' || data.status === 'APPROVED') && data.plan_id) {
             let duration: 'monthly' | 'yearly' | null = null;
@@ -133,17 +163,18 @@ export const verifyPaymentHandler = async (req: HttpRequest): Promise<HttpRespon
                     provider: 'paypal',
                     duration,
                     subscriptionId: data.id,
-                    customerId: data.subscriber.payer_id, // Use Payer ID as the customer ID
+                    customerId: data.subscriber.payer_id,
                 })
             };
         } else {
             throw new Error(`Payment not completed successfully. PayPal subscription status: ${data.status}`);
         }
     } catch (error: any) {
+        console.error("PayPal Verification Error:", { message: error.message, stack: error.stack });
         return {
             statusCode: 500,
             headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-            body: JSON.stringify({ error: error.message })
+            body: JSON.stringify({ error: "An internal server error occurred during payment verification.", details: error.message })
         };
     }
 };
