@@ -1,5 +1,5 @@
 import type { Bill, Settings, Theme, RecurringBill, ImportedBill } from '../types.ts';
-import type { SubscriptionStatus, SubscriptionDuration } from '../hooks/useAuth.ts';
+import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
 const DB_VERSION = 9; // Incremented version for the final data sanitization migration
@@ -29,7 +29,7 @@ export interface SubscriptionDetails {
   customerId: string; // Stripe Customer ID or PayPal Payer ID
   subscriptionId: string; // Stripe Subscription ID or PayPal Subscription ID
   startDate: string;
-  duration: SubscriptionDuration;
+  duration: 'monthly' | 'yearly';
 }
 
 // --- Promise Wrapper for IDBRequest ---
@@ -258,10 +258,6 @@ export const getSubscriptionStatus = async (): Promise<SubscriptionStatus> => {
     // 1. Check for a paid subscription first and validate its date.
     const details = await getSubscriptionDetails();
     if (details && details.startDate && details.duration) {
-        if (details.duration === 'god_mode') {
-            return 'subscribed'; // God mode never expires
-        }
-        
         const startDate = new Date(details.startDate);
         const now = new Date();
         

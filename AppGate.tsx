@@ -42,14 +42,7 @@ const AppGate: React.FC = () => {
             body: JSON.stringify({ provider, sessionId }),
           });
           
-          const responseText = await response.text();
-          let data;
-          try {
-            data = JSON.parse(responseText);
-          } catch (e) {
-            console.error("Failed to parse JSON from /verify-payment:", responseText);
-            throw new Error("The server returned an invalid response during payment verification. Please try again.");
-          }
+          const data = await response.json();
 
           if (!response.ok) {
             throw new Error(data.error || 'Failed to verify payment session.');

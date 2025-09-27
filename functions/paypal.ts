@@ -116,35 +116,9 @@ export const verifyPaymentHandler = async (req: HttpRequest): Promise<HttpRespon
         });
 
         const data = await response.json();
-        
-        if (!response.ok) {
-            // --- God Mode Check on Error ---
-            // PayPal may return an error if the merchant tries to subscribe to their own plan.
-            // We check for a specific error issue code to detect this.
-            const isMerchantError = data.name === 'UNPROCESSABLE_ENTITY' && 
-                                     data.details?.some((d: any) => d.issue === 'PAYER_ACCOUNT_SAME_AS_RECEIVER');
+        if (!response.ok) throw new Error(data.details?.[0]?.description || 'Failed to verify PayPal subscription.');
 
-            if (isMerchantError) {
-                console.log('Detected merchant self-subscription attempt. Granting God Mode.');
-                return {
-                    statusCode: 200,
-                    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-                    body: JSON.stringify({
-                        status: 'success',
-                        provider: 'paypal',
-                        duration: 'god_mode',
-                        subscriptionId: `god-mode-${subscriptionId}`,
-                        // We don't have a reliable customer ID here, so we create a placeholder.
-                        customerId: `god-mode-merchant-${Date.now()}`, 
-                    })
-                };
-            }
-            // --- End God Mode Check ---
-
-            throw new Error(data.details?.[0]?.description || 'Failed to verify PayPal subscription.');
-        }
-
-        if (data.status === 'ACTIVE' && data.plan_id) {
+        if ((data.status === 'ACTIVE' || data.status === 'APPROVED') && data.plan_id) {
             let duration: 'monthly' | 'yearly' | null = null;
             if (data.plan_id === PAYPAL_PLAN_ID_MONTHLY) duration = 'monthly';
             else if (data.plan_id === PAYPAL_PLAN_ID_YEARLY) duration = 'yearly';
