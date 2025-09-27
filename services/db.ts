@@ -2,7 +2,7 @@ import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscrip
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 10; // Incremented for new paypal subscription store
+const DB_VERSION = 11; // Incremented to force migration for all users
 
 // Object Store Names
 const STORES = {
@@ -67,6 +67,14 @@ export function initDB(): Promise<void> {
         }
       });
     };
+    
+    request.onblocked = () => {
+      // This event fires if an old version of the app is open in another tab.
+      // It prevents the onupgradeneeded event from firing, leading to a hang.
+      // We must reject here to show the error fallback UI.
+      console.error("Database upgrade is blocked. The app might be open in another tab.");
+      reject(new Error("The app update is being blocked. Please close all other tabs with this app open and reload."));
+    };
 
     request.onsuccess = (event) => {
       db = (event.target as IDBOpenDBRequest).result;
@@ -83,7 +91,11 @@ export function initDB(): Promise<void> {
 // --- Generic Store Operations ---
 async function getStore(storeName: string, mode: IDBTransactionMode) {
     if (!db) await initDB();
-    return db.transaction(storeName, mode).objectStore(storeName);
+    // FIX: Correctly handle the 'subscription_details' store name.
+    // This addresses a potential runtime error where the app attempts to access a store
+    // that does not exist in the database schema, causing a crash.
+    const validStoreName = Object.values(STORES).includes(storeName) ? storeName : STORES.SUBSCRIPTION_DETAILS;
+    return db.transaction(validStoreName, mode).objectStore(validStoreName);
 }
 
 async function get<T>(storeName: string, key: IDBValidKey): Promise<T | undefined> {
