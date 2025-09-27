@@ -17,12 +17,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
     hasError: false,
   };
 
-  constructor(props: Props) {
-    super(props);
-    this.handleReset = this.handleReset.bind(this);
-    this.handleHardReset = this.handleHardReset.bind(this);
-  }
-
   static getDerivedStateFromError(error: Error): State {
     // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
@@ -32,15 +26,15 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
-  // FIX: Converted from an arrow function property to a standard class method and bound `this` in the constructor. This resolves a TypeScript error where `this.setState` was not found on the component instance.
-  private handleReset() {
+  // FIX: Converted to an arrow function to automatically bind `this`. This resolves errors where `this.setState` was not found on the component instance.
+  private handleReset = () => {
     this.setState({ hasError: false });
     // This is a bit of a heavy hammer, but it's the most reliable way to
     // fully reset state after a boundary-level error.
     window.location.replace('/');
   }
   
-  private handleHardReset() {
+  private handleHardReset = () => {
       console.warn("Performing hard reset from error boundary.");
       const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
       
@@ -94,7 +88,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
-    // FIX: The error on this line was a symptom of the same typing issue affecting the class methods. Refactoring the methods to be explicitly bound resolves this error as well.
+    // FIX: This error is resolved by fixing the `this` context of the class methods, which corrects TypeScript's understanding of the component.
     return this.props.children;
   }
 }
