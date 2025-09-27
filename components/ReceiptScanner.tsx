@@ -14,6 +14,67 @@ interface ReceiptScannerProps {
   isForTemplate?: boolean;
 }
 
+const MAX_DIMENSION = 1280;
+const JPEG_QUALITY = 0.8;
+
+// Helper to resize and compress an image file
+const resizeImage = (file: File): Promise<{ dataUrl: string; file: File }> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (!event.target?.result) return reject(new Error("FileReader failed to load file."));
+
+            const img = new Image();
+            img.onload = () => {
+                let { width, height } = img;
+                if (width > height) {
+                    if (width > MAX_DIMENSION) {
+                        height *= MAX_DIMENSION / width;
+                        width = MAX_DIMENSION;
+                    }
+                } else {
+                    if (height > MAX_DIMENSION) {
+                        width *= MAX_DIMENSION / height;
+                        height = MAX_DIMENSION;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return reject(new Error('Could not get canvas context'));
+
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+                
+                canvas.toBlob(
+                    (blob) => {
+                        if (!blob) return reject(new Error('Canvas to Blob conversion failed'));
+                        
+                        // Ensure the new filename has a .jpg extension
+                        const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+
+                        const resizedFile = new File([blob], newFileName, {
+                            type: 'image/jpeg',
+                            lastModified: Date.now(),
+                        });
+                        resolve({ dataUrl, file: resizedFile });
+                    },
+                    'image/jpeg',
+                    JPEG_QUALITY
+                );
+            };
+            img.onerror = (err) => reject(new Error(`Image load error: ${err}`));
+            img.src = event.target.result as string;
+        };
+        reader.onerror = (err) => reject(new Error(`File read error: ${err}`));
+        reader.readAsDataURL(file);
+    });
+};
+
+
 // --- Flash Icons ---
 const FlashOnIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -42,6 +103,7 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Camera State
@@ -138,19 +200,28 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
     const context = canvas.getContext('2d');
     if (context) {
         context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg');
-        setPreviewUrl(dataUrl);
-        onImageSelected(dataUrl);
+        handleCloseCamera();
         
-        // Convert data URL to a File object to keep the rest of the logic consistent
-        fetch(dataUrl)
-            .then(res => res.blob())
-            .then(blob => {
-                const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
-                setSelectedFile(file);
-            });
+        canvas.toBlob(async (blob) => {
+            if (blob) {
+                const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
+                setIsProcessingImage(true);
+                setError(null);
+                try {
+                    const { dataUrl, file: resizedFile } = await resizeImage(capturedFile);
+                    setPreviewUrl(dataUrl);
+                    onImageSelected(dataUrl);
+                    setSelectedFile(resizedFile);
+                } catch (err) {
+                    console.error("Image resizing failed after capture:", err);
+                    setError("Failed to process captured image.");
+                    handleClearImage();
+                } finally {
+                    setIsProcessingImage(false);
+                }
+            }
+        }, 'image/jpeg', 1.0);
     }
-    handleCloseCamera();
   }, [onImageSelected]);
 
   const handleFlashToggle = () => {
@@ -170,18 +241,23 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
+      setIsProcessingImage(true);
       setError(null);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
+      try {
+        const { dataUrl, file: resizedFile } = await resizeImage(file);
         setPreviewUrl(dataUrl);
         onImageSelected(dataUrl);
-      };
-      reader.readAsDataURL(file);
+        setSelectedFile(resizedFile);
+      } catch (err) {
+        console.error("Image resizing failed:", err);
+        setError("Failed to process image. Please try a different one.");
+        handleClearImage();
+      } finally {
+        setIsProcessingImage(false);
+      }
     }
   };
 
@@ -262,7 +338,7 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
             : "Let AI extract the items and prices for you."}
         </p>
         
-        {!previewUrl && (
+        {!previewUrl && !isProcessingImage && (
           <div className="flex justify-center gap-4">
             <input
                 type="file"
@@ -289,7 +365,14 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
           </div>
         )}
 
-        {previewUrl && (
+        {isProcessingImage && (
+            <div className="flex flex-col items-center justify-center gap-4 py-8">
+                <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <p className="text-slate-500 dark:text-slate-400">Processing image...</p>
+            </div>
+        )}
+
+        {previewUrl && !isProcessingImage && (
           <div className="mt-4 relative inline-block">
             <img src={previewUrl} alt="Receipt preview" className="max-h-48 mx-auto rounded-md shadow-sm" />
              <button
@@ -305,7 +388,7 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
           </div>
         )}
 
-        {selectedFile && (
+        {selectedFile && !isProcessingImage && (
           <div className="mt-4">
             <button
               type="button"
