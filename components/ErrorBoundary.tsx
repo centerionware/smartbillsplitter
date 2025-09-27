@@ -1,5 +1,5 @@
-// FIX: Changed the React import to a default import to correctly resolve types for the class component. This aligns with the import style used across the rest of the application.
-import React from 'react';
+// FIX: Changed React import to namespace import (`import * as React from 'react'`) and updated type references (e.g., `Component` to `React.Component`). This resolves a TypeScript error where `this.props` was not recognized on the class component instance.
+import * as React from 'react';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match the name in db.ts
 

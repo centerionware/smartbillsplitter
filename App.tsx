@@ -23,6 +23,7 @@ import RecurringBillsList from './components/RecurringBillsList.tsx';
 import { ViewSharedBill } from './components/ViewSharedBill.tsx';
 import SetupDisplayNameModal from './components/SetupDisplayNameModal.tsx';
 import { useAppControl } from './contexts/AppControlContext.tsx';
+import { getApiUrl } from './services/api.ts';
 
 // Determine if the app is running in an iframe.
 // This is used to disable URL-based navigation for a smoother sandbox experience.
@@ -48,7 +49,7 @@ const App: React.FC = () => {
   const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: recurringBillsLoading } = useRecurringBills();
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
   const { theme, setTheme, isLoading: themeLoading } = useTheme();
-  const { subscriptionStatus, logout } = useAuth();
+  const { subscriptionStatus, subscriptionDetails, logout } = useAuth();
   const { showNotification } = useAppControl();
   
   // --- Navigation & View State ---
@@ -191,6 +192,41 @@ const App: React.FC = () => {
         setIsSetupModalOpen(true);
     }
   }, [settings, settingsLoading]);
+
+  // Effect to update user 'last seen' timestamp in Stripe metadata once per day.
+  useEffect(() => {
+    const updateLastSeen = async () => {
+        if (subscriptionStatus === 'subscribed' && subscriptionDetails?.customerId) {
+            const lastUpdateKey = `lastStripeUpdate_${subscriptionDetails.customerId}`;
+            const lastUpdate = localStorage.getItem(lastUpdateKey);
+            const now = Date.now();
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+
+            if (!lastUpdate || now - parseInt(lastUpdate, 10) > twentyFourHours) {
+                console.log("Updating 'last seen' timestamp in Stripe metadata.");
+                try {
+                    const response = await fetch(getApiUrl('/update-customer-metadata'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ customerId: subscriptionDetails.customerId }),
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || 'Failed to update last seen timestamp.');
+                    }
+                    
+                    localStorage.setItem(lastUpdateKey, now.toString());
+                    console.log("'Last seen' timestamp updated successfully.");
+
+                } catch (error) {
+                    console.error("Could not update last seen timestamp in Stripe:", error);
+                }
+            }
+        }
+    };
+    updateLastSeen();
+  }, [subscriptionStatus, subscriptionDetails]);
 
 
   const createBillFromTemplate = useCallback((template: RecurringBill, myDisplayName: string): Omit<Bill, 'id' | 'status'> => {

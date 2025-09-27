@@ -1,6 +1,7 @@
 
+
 import Stripe from 'stripe';
-import { HttpRequest, HttpResponse } from '../http-types';
+import { HttpRequest, HttpResponse } from '../http-types.ts';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_PRICE_ID_MONTHLY = process.env.STRIPE_PRICE_ID_MONTHLY;
@@ -101,6 +102,29 @@ async function createCustomerPortalSession(customerId: string, origin: string): 
     }
 }
 
+async function updateCustomerMetadata(customerId: string): Promise<{ id: string; metadata: Stripe.Metadata }> {
+    assertStripeConfig();
+    if (!customerId) {
+        throw new Error("Missing 'customerId'.");
+    }
+    try {
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        const customer = await stripe!.customers.update(customerId, {
+            metadata: {
+                last_seen_at: timestamp,
+            },
+        });
+        return { id: customer.id, metadata: customer.metadata };
+    } catch (error: any) {
+        console.error("Stripe customer update failed:", error);
+        if (error.type === 'StripeInvalidRequestError' && error.code === 'resource_missing') {
+             throw new Error(`Customer with ID ${customerId} not found.`);
+        }
+        throw new Error(`Failed to update customer metadata: ${error.message}`);
+    }
+}
+
+
 // --- Framework-Agnostic Handlers ---
 
 export const createCheckoutSessionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
@@ -157,6 +181,30 @@ export const createCustomerPortalSessionHandler = async (req: HttpRequest): Prom
         };
     } catch (error: any) {
         const statusCode = error.message.includes("Missing 'customerId'") ? 400 : 500;
+        return {
+            statusCode: statusCode,
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+            body: JSON.stringify({ error: error.message })
+        };
+    }
+};
+
+export const updateCustomerMetadataHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+    try {
+        const { customerId } = req.body;
+        const result = await updateCustomerMetadata(customerId);
+        return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+            body: JSON.stringify(result)
+        };
+    } catch (error: any) {
+        let statusCode = 500;
+        if (error.message.includes("Missing 'customerId'")) {
+            statusCode = 400;
+        } else if (error.message.includes("not found")) {
+            statusCode = 404;
+        }
         return {
             statusCode: statusCode,
             headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },

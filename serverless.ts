@@ -1,7 +1,7 @@
 import { HttpRequest, HttpResponse, HttpHandler } from './http-types.ts';
 import { scanReceiptHandler } from './functions/scan-receipt';
 import { syncHandler } from './functions/sync';
-import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler } from './functions/stripe';
+import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler, updateCustomerMetadataHandler } from './functions/stripe';
 import { shareHandler } from './functions/share';
 import { onetimeKeyHandler } from './functions/onetime-key';
 import { MultiCloudKVStore } from './services/multiCloudKV.ts';
@@ -100,6 +100,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
   if (path.startsWith('/create-checkout-session')) return createCheckoutSessionHandler(req);
   if (path.startsWith('/verify-session')) return verifySessionHandler(req);
   if (path.startsWith('/create-customer-portal-session')) return createCustomerPortalSessionHandler(req);
+  if (path.startsWith('/update-customer-metadata')) return updateCustomerMetadataHandler(req);
 
   // Base routes for creating new resources
   if (path.match(/^\/onetime-key\/?$/) && method === 'POST') return onetimeKeyHandler(req, context);
