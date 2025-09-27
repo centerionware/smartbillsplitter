@@ -635,7 +635,7 @@ const App: React.FC = () => {
             <span className="font-semibold">Privacy First:</span> All data is stored on your device.
           </p>
         </div>
-        <div className="flex items-center justify-center gap-x-4">
+        <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-2">
           <span>Built with React & Gemini API</span>
           <span className="text-slate-300 dark:text-slate-600">&bull;</span>
           <button onClick={handleGoToDisclaimer} className="hover:underline text-teal-600 dark:text-teal-400 font-medium">
@@ -644,6 +644,10 @@ const App: React.FC = () => {
           <span className="text-slate-300 dark:text-slate-600">&bull;</span>
           <a href="https://github.com/centerionware/smartbillsplitter/commits/main" target="_blank" rel="noopener noreferrer" className="hover:underline text-teal-600 dark:text-teal-400 font-medium">
             Changelog
+          </a>
+          <span className="text-slate-300 dark:text-slate-600">&bull;</span>
+          <a href="https://github.com/centerionware/smartbillsplitter/issues" target="_blank" rel="noopener noreferrer" className="hover:underline text-teal-600 dark:text-teal-400 font-medium">
+            Report an Issue
           </a>
         </div>
       </footer>

@@ -53,15 +53,15 @@ export const DisclaimerContent: React.FC = () => (
                 </p>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <h4 className="font-semibold text-slate-700 dark:text-slate-200">Stripe Payments</h4>
+                <h4 className="font-semibold text-slate-700 dark:text-slate-200">PayPal Subscriptions</h4>
                 <p className="text-sm mt-1">
-                For Pro subscriptions, our server communicates with <strong>Stripe</strong> to handle all billing features. We do not handle or store your credit card information directly; all payment details are securely managed by Stripe.
+                For Pro subscriptions, our server communicates with <strong>PayPal</strong> to handle all billing features. We do not handle or store your credit card or bank information directly; all payment details are securely managed by PayPal. You can manage or cancel your subscription at any time through your PayPal account.
                 </p>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <h4 className="font-semibold text-slate-700 dark:text-slate-200">Google AdSense</h4>
+                <h4 className="font-semibold text-slate-700 dark:text-slate-200">A-ADS (Anonymous Ads)</h4>
                 <p className="text-sm mt-1">
-                If you are using the free version, we use <strong>Google AdSense</strong> to display advertisements. This service may load external scripts from Google and may use cookies to serve ads. We make a best effort to isolate these ads within sandboxed <code>iframe</code> elements to prevent them from accessing the content of the application's pages. You can learn more about how Google uses data in their privacy policy.
+                To support the free version of this application, we display advertisements from <strong>A-ADS</strong>. This is a privacy-focused advertising network that does not collect personal data or use tracking cookies. Ads are served in sandboxed <code>iframe</code> elements to prevent them from accessing application content.
                 </p>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">

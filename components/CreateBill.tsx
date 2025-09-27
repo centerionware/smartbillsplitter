@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Bill, Participant, ReceiptItem, Settings, RecurringBill, RecurrenceRule, SplitMode } from '../types';
+import type { Bill, Participant, ReceiptItem, Settings, RecurringBill, RecurrenceRule, SplitMode } from '../types.ts';
 // FIX: Updated import path for RequestConfirmationFn to central types file.
 import type { RequestConfirmationFn } from '../types.ts';
 import ReceiptScanner from './ReceiptScanner.tsx';
@@ -42,7 +42,7 @@ export const CreateBill: React.FC<CreateBillProps> = ({
   const [date, setDate] = useState(template?.nextDueDate || new Date().toISOString().split('T')[0]);
   const [participants, setParticipants] = useState<Participant[]>(() => {
     const initialParticipants = template?.participants ? JSON.parse(JSON.stringify(template.participants)) : [];
-    if (initialParticipants.length === 0 && settings?.myDisplayName) {
+    if (initialParticipants.length === 0 && settings?.myDisplayName && settings.myDisplayName.trim() && settings.myDisplayName.toLowerCase().trim() !== 'myself') {
         return [{ id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: false }];
     }
     return initialParticipants;
@@ -70,6 +70,20 @@ export const CreateBill: React.FC<CreateBillProps> = ({
   const myNameLower = settings?.myDisplayName.toLowerCase().trim();
 
   // --- Effects ---
+  useEffect(() => {
+    // This effect handles the edge case where the user sets their name for the first time.
+    // The component might mount before the `settings` prop update propagates.
+    // This ensures the participants list is updated once the new name is available.
+    if (
+      participants.length === 0 &&
+      settings?.myDisplayName &&
+      settings.myDisplayName.trim() &&
+      settings.myDisplayName.toLowerCase().trim() !== 'myself'
+    ) {
+      setParticipants([{ id: `p-${Date.now()}`, name: settings.myDisplayName, amountOwed: 0, paid: false }]);
+    }
+  }, [settings]);
+
   useEffect(() => {
     const activeParticipants = participants.filter(p => p.name.trim() !== '');
     if (activeParticipants.length === 0 || !totalAmount || splitMode === 'item') return;

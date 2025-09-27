@@ -31,16 +31,16 @@ const SubscriptionWarningModal: React.FC<SubscriptionWarningModalProps> = ({ onC
         
         <div id="dialog-description" className="space-y-4 text-slate-600 dark:text-slate-300">
             <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <h3 className="font-semibold text-slate-800 dark:text-slate-100">1. Privacy First: Your Subscription is Tied to This Device</h3>
-                <p className="text-sm mt-1">For your privacy, this app stores everything locally. Your subscription is tied *only* to this device. If you lose it, you won't be able to manage your subscription as there is no traditional "account recovery" login.</p>
+                <h3 className="font-semibold text-slate-800 dark:text-slate-100">1. Manage Your Subscription via PayPal</h3>
+                <p className="text-sm mt-1">Your Pro subscription is managed directly through your PayPal account. This means you have full control and can view or cancel your subscription at any time by logging into PayPal, even if you lose access to this device.</p>
             </div>
              <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <h3 className="font-semibold text-slate-800 dark:text-slate-100">2. Fighting "Zombie" Subscriptions</h3>
-                <p className="text-sm mt-1">To prevent you from being charged for an unused subscription if you lose your device, the app occasionally pings our server to mark your account "active." If you stop using the app, we can automatically cancel it for you.</p>
+                <h3 className="font-semibold text-slate-800 dark:text-slate-100">2. Your Data Lives On Your Device</h3>
+                <p className="text-sm mt-1">For your privacy, all your bill data is stored locally. This means there is no automatic cloud backup. If you change or lose your device, your data will be lost unless you use the 'Export Data' or 'Sync Devices' feature regularly.</p>
             </div>
              <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <h3 className="font-semibold text-slate-800 dark:text-slate-100">3. A Note from the Developer</h3>
-                <p className="text-sm mt-1">This is a one-man show, and I'm doing my best (with a little help from my algorithm friends) to build a useful and fair app. Thanks for your support!</p>
+                <h3 className="font-semibold text-slate-800 dark:text-slate-100">3. Help Us Grow!</h3>
+                <p className="text-sm mt-1">This is a one-man show, and your subscription directly supports development. An automatic cloud sync feature is on our roadmap, but we need enough Pro subscribers to make it happen. Thank you for your support!</p>
             </div>
         </div>
 

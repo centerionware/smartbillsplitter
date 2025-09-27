@@ -13,9 +13,20 @@ interface State {
 
 // FIX: Export the ErrorBoundary class to make it available for import.
 export class ErrorBoundary extends React.Component<Props, State> {
-  public state: State = {
-    hasError: false,
-  };
+  // FIX: Explicitly declare the state property on the class. This is required by some
+  // TypeScript configurations and resolves the errors about 'state', 'props', and 'setState' not existing.
+  public state: State;
+
+  // FIX: Moved state initialization to the constructor for broader compatibility
+  // and to help older TypeScript versions correctly infer component types,
+  // which resolves errors about 'setState' and 'props' not existing.
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: undefined,
+    };
+  }
 
   static getDerivedStateFromError(error: Error): State {
     // Update state so the next render will show the fallback UI.
@@ -26,7 +37,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
-  // FIX: Converted to an arrow function to automatically bind `this`. This resolves errors where `this.setState` was not found on the component instance.
+  // FIX: Converted to an arrow function to lexically bind `this`, resolving issues where `this.setState` was not found.
   private handleReset = () => {
     this.setState({ hasError: false });
     // This is a bit of a heavy hammer, but it's the most reliable way to
@@ -34,6 +45,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     window.location.replace('/');
   }
   
+  // FIX: Converted to an arrow function to ensure `this` context is correctly bound if it were to be used in the future.
   private handleHardReset = () => {
       console.warn("Performing hard reset from error boundary.");
       const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
@@ -88,7 +100,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
-    // FIX: This error is resolved by fixing the `this` context of the class methods, which corrects TypeScript's understanding of the component.
     return this.props.children;
   }
 }

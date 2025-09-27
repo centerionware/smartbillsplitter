@@ -1,10 +1,13 @@
 // --- Ad Provider Plugin System ---
 
 // Read the ad provider configuration from build-time environment variables.
-const AD_PROVIDER = (import.meta as any).env.VITE_AD_PROVIDER || 'none';
-const AADS_ID = (import.meta as any).env.VITE_AADS_ID;
-const CUSTOM_AD_HTML_BASE64 = (import.meta as any).env.VITE_CUSTOM_AD_HTML_BASE64;
-// const ADMOB_ID = (import.meta as any).env.VITE_ADMOB_ID; // For future use
+// Safely access env to prevent crashes in environments where import.meta.env might not be defined.
+const env = (import.meta as any)?.env;
+
+const AD_PROVIDER = env?.VITE_AD_PROVIDER || 'none';
+const AADS_ID = env?.VITE_AADS_ID;
+const CUSTOM_AD_HTML_BASE64 = env?.VITE_CUSTOM_AD_HTML_BASE64;
+// const ADMOB_ID = env?.VITE_ADMOB_ID; // For future use
 
 /**
  * Generates the iframe content for A-ADS (Anonymous Ads).
