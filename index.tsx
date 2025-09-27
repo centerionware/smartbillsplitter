@@ -67,7 +67,7 @@ const renderErrorFallback = (error: Error) => {
       alert("Could not delete the database. Please clear your browser's site data manually.");
     };
     deleteRequest.onblocked = () => {
-      alert("Database reset is blocked. Please close ALL other tabs or windows running this application and try again.");
+      alert("Database is locked, likely by another open tab. To reset the app, please close all other tabs for this site and then reload this page to try again.");
     };
   });
 };
