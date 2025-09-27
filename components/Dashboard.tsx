@@ -6,6 +6,7 @@ import { generateShareText, generateAggregateBill, generateOneTimeShareLink } fr
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import HalfScreenAdModal from './HalfScreenAdModal.tsx';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver.ts';
+import PaymentMethodsModal from './PaymentMethodsModal.tsx';
 
 // New Child Components
 import DashboardSummary from './dashboard/DashboardSummary.tsx';
@@ -59,6 +60,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [shareSheetParticipant, setShareSheetParticipant] = useState<ParticipantData | null>(null);
   const [archivingBillIds, setArchivingBillIds] = useState<string[]>([]);
   const [isHalfScreenAdOpen, setIsHalfScreenAdOpen] = useState(false);
+  const [settleUpBill, setSettleUpBill] = useState<ImportedBill | null>(null);
   const { showNotification } = useAppControl();
 
   // --- Calculations for Summary & Participant View ---
@@ -297,6 +299,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     return { title: "No bills found", message: "Get started by creating a new bill." };
   };
 
+  const handleSettleUp = (bill: ImportedBill) => {
+    setSettleUpBill(bill);
+  };
+
+  const myParticipantForSettleUp = settleUpBill ? settleUpBill.sharedData.bill.participants.find(p => p.id === settleUpBill.myParticipantId) : null;
+
   const renderContent = () => {
     if (dashboardView === 'participants' && !selectedParticipant) {
         if (participantsData.length > 0) {
@@ -306,7 +314,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         return <ParticipantDetailView participantBills={participantBills} onSelectBill={onSelectBill} onArchiveBill={onArchiveBill} onUnarchiveBill={onUnarchiveBill} onDeleteBill={onDeleteBill} dashboardStatusFilter={dashboardStatusFilter} searchQuery={searchQuery} selectedParticipant={selectedParticipant} />;
     } else {
         if (filteredBills.length > 0 || filteredImportedBills.length > 0) {
-            return <BillList filteredBills={filteredBills} filteredImportedBills={filteredImportedBills} visibleCount={visibleCount} subscriptionStatus={subscriptionStatus} archivingBillIds={archivingBillIds} onSelectBill={onSelectBill} onArchiveBill={onArchiveBill} onUnarchiveBill={onUnarchiveBill} onDeleteBill={onDeleteBill} onSelectImportedBill={onSelectImportedBill} onUpdateImportedBill={onUpdateImportedBill} onArchiveImportedBill={onArchiveImportedBill} onUnarchiveImportedBill={onUnarchiveImportedBill} onDeleteImportedBill={onDeleteImportedBill} loadMoreRef={loadMoreRef} hasMore={hasMore} />;
+            return <BillList filteredBills={filteredBills} filteredImportedBills={filteredImportedBills} visibleCount={visibleCount} subscriptionStatus={subscriptionStatus} archivingBillIds={archivingBillIds} onSelectBill={onSelectBill} onArchiveBill={onArchiveBill} onUnarchiveBill={onUnarchiveBill} onDeleteBill={onDeleteBill} onSelectImportedBill={onSelectImportedBill} onUpdateImportedBill={onUpdateImportedBill} onArchiveImportedBill={onArchiveImportedBill} onUnarchiveImportedBill={onUnarchiveImportedBill} onDeleteImportedBill={onDeleteImportedBill} onSettleUp={handleSettleUp} loadMoreRef={loadMoreRef} hasMore={hasMore} />;
         }
     }
     
@@ -321,6 +329,15 @@ const Dashboard: React.FC<DashboardProps> = ({
       {renderContent()}
       {shareSheetParticipant && <ShareActionSheet participant={{ ...shareSheetParticipant, id: shareSheetParticipant.name, amountOwed: shareSheetParticipant.amount, paid: false }} onClose={() => setShareSheetParticipant(null)} onShareSms={handleShareSms} onShareEmail={handleShareEmail} onShareGeneric={handleShareGeneric} onShareLinkSms={() => handleShareLink(shareSheetParticipant.name, 'sms')} onShareLinkEmail={() => handleShareLink(shareSheetParticipant.name, 'email')} onShareLinkGeneric={() => handleShareLink(shareSheetParticipant.name, 'generic')} onViewDetails={() => { onSelectParticipant(shareSheetParticipant.name); setShareSheetParticipant(null); }} shareContext="dashboard" />}
       {isHalfScreenAdOpen && <HalfScreenAdModal onClose={() => setIsHalfScreenAdOpen(false)} />}
+      {settleUpBill && myParticipantForSettleUp && (
+        <PaymentMethodsModal
+            paymentDetails={settleUpBill.sharedData.paymentDetails}
+            billDescription={settleUpBill.sharedData.bill.description}
+            amountOwed={myParticipantForSettleUp.amountOwed}
+            creatorName={settleUpBill.creatorName}
+            onClose={() => setSettleUpBill(null)}
+        />
+      )}
     </div>
   );
 };

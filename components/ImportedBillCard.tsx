@@ -1,13 +1,15 @@
 
+
 import React from 'react';
 import type { ImportedBill } from '../types.ts';
 
 interface ImportedBillCardProps {
   importedBill: ImportedBill;
   onUpdate: (bill: ImportedBill) => void;
+  onSettleUp: () => void;
 }
 
-const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpdate }) => {
+const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpdate, onSettleUp }) => {
   const { bill } = importedBill.sharedData;
   const myParticipant = bill.participants.find(p => p.id === importedBill.myParticipantId);
 
@@ -23,7 +25,9 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
     onUpdate(updatedBill);
   };
   
-  const isLive = (Date.now() - importedBill.lastUpdatedAt) < (24 * 60 * 60 * 1000);
+  const isLive = importedBill.liveStatus === 'live' || (importedBill.liveStatus === undefined && (Date.now() - importedBill.lastUpdatedAt) < (24 * 60 * 60 * 1000));
+  const isExpired = importedBill.liveStatus === 'expired';
+  const hasPaymentInfo = importedBill.sharedData.paymentDetails && Object.values(importedBill.sharedData.paymentDetails).some(val => !!val);
 
   // Sort participants to ensure "me" is always shown in the avatar stack if possible.
   const participantsForDisplay = [...bill.participants].sort((a, b) => {
@@ -49,6 +53,14 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                             </span>
                             <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Live</span>
+                        </div>
+                    )}
+                    {isExpired && (
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/50">
+                             <span className="relative flex h-2 w-2">
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                            </span>
+                            <span className="text-xs font-semibold text-red-800 dark:text-red-300">Expired</span>
                         </div>
                     )}
                  </div>
@@ -93,16 +105,26 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ importedBill, onUpd
                 </div>
               )}
             </div>
-             <button
-              onClick={toggleMyPaidStatus}
-              className={`px-4 py-2 rounded-full font-semibold text-sm transition-colors ${
-                importedBill.localStatus.myPortionPaid
-                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300'
-                  : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-100 dark:hover:bg-slate-500'
-              }`}
-            >
-              {importedBill.localStatus.myPortionPaid ? 'I Paid' : 'Mark as Paid'}
-            </button>
+             <div className="flex items-center gap-2">
+                {hasPaymentInfo && !importedBill.localStatus.myPortionPaid && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onSettleUp(); }}
+                        className="px-4 py-2 rounded-full font-semibold text-sm transition-colors bg-emerald-500 text-white hover:bg-emerald-600"
+                    >
+                        Settle Up
+                    </button>
+                )}
+                <button
+                    onClick={toggleMyPaidStatus}
+                    className={`px-4 py-2 rounded-full font-semibold text-sm transition-colors ${
+                    importedBill.localStatus.myPortionPaid
+                        ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300'
+                        : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-100 dark:hover:bg-slate-500'
+                    }`}
+                >
+                    {importedBill.localStatus.myPortionPaid ? 'I Paid' : 'Mark as Paid'}
+                </button>
+            </div>
         </div>
       </div>
     </div>

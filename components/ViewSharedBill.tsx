@@ -187,6 +187,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
             bill: sharedData.bill,
             creatorPublicKey: sharedData.publicKey,
             signature: sharedData.signature,
+            paymentDetails: sharedData.paymentDetails,
         },
         shareId: new URLSearchParams(window.location.hash.split('?')[1]).get('shareId')!,
         shareEncryptionKey: billEncryptionKey,
@@ -195,6 +196,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         localStatus: {
             myPortionPaid: false,
         },
+        liveStatus: 'live',
     };
 
     await addImportedBill(imported);

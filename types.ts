@@ -131,6 +131,7 @@ export interface ImportedBill {
     bill: Bill;
     creatorPublicKey: JsonWebKey;
     signature: string;
+    paymentDetails: PaymentDetails;
   };
   shareId: string; // The ID from the /share/:shareId endpoint
   shareEncryptionKey?: JsonWebKey; // The symmetric key for decrypting this bill, now stored by the recipient
@@ -139,6 +140,7 @@ export interface ImportedBill {
   localStatus: {
     myPortionPaid: boolean;
   };
+  liveStatus?: 'live' | 'expired';
 }
 
 // For managing multiple PayPal subscriptions
