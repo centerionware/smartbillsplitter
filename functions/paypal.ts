@@ -180,10 +180,13 @@ export const verifyPaymentHandler = async (req: HttpRequest): Promise<HttpRespon
 };
 
 /**
- * Returns a static URL to PayPal's subscription management page.
+ * Returns a static URL to PayPal's subscription management page, respecting the current mode (live/sandbox).
  */
 export const manageSubscriptionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
-    const portalUrl = 'https://www.paypal.com/myaccount/autopay/';
+    const portalUrl = PAYPAL_MODE === 'live'
+        ? 'https://www.paypal.com/myaccount/autopay/'
+        : 'https://www.sandbox.paypal.com/myaccount/autopay/';
+
     return Promise.resolve({
         statusCode: 200,
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
