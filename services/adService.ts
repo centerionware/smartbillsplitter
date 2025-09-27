@@ -1,33 +1,8 @@
-export const AD_IFRAME_CONTENT = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advertisement</title>
-    <style>
-      html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        width: 100%;
-        overflow: hidden;
-        background-color: transparent;
-      }
-    </style>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7626920066448337" crossorigin="anonymous"></script>
-  </head>
-  <body>
-    <!-- Responsive Ad Unit. This will fill the body, which fills the iframe. -->
-    <ins class="adsbygoogle"
-         style="display:block; width:100%; height:100%;"
-         data-ad-client="ca-pub-7626920066448337"
-         data-ad-slot="8267308457"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-    <script>
-      (adsbygoogle = window.adsbygoogle || []).push({});
-    </script>
-  </body>
-  </html>
-`;
+import { getAdContent } from './adProviderService.ts';
+
+/**
+ * The ad content to be displayed in iframes.
+ * This is determined at build time by the ad provider service based on environment variables.
+ * If no provider is configured, this will be null.
+ */
+export const AD_IFRAME_CONTENT = getAdContent();

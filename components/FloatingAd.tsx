@@ -38,7 +38,8 @@ const FloatingAd: React.FC = () => {
     setIsVisible(false);
   };
 
-  if (!isVisible) {
+  // If ads are disabled via the provider system or closed by the user, render nothing.
+  if (!isVisible || !AD_IFRAME_CONTENT) {
     return null;
   }
 
@@ -70,7 +71,7 @@ const FloatingAd: React.FC = () => {
               border: '0',
               overflow: 'hidden',
             }}
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin"
             aria-label="Advertisement Content"
           ></iframe>
         )}

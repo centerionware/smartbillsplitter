@@ -1,4 +1,6 @@
-// FIX: Changed React import to `import * as React from 'react'` to resolve an issue where TypeScript could not find the 'props' property on the class component.
+// FIX: Changed the React import to use a namespace import (`* as React`).
+// This is necessary to correctly resolve the type for `React.Component` and its properties
+// like `props` and `setState`, especially in projects without `esModuleInterop` enabled.
 import * as React from 'react';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match the name in db.ts

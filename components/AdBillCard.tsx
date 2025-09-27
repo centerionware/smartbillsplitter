@@ -34,6 +34,11 @@ const AdBillCard: React.FC = () => {
     };
   }, []);
 
+  // If no ad provider is configured, render nothing.
+  if (!AD_IFRAME_CONTENT) {
+    return null;
+  }
+
   return (
     <div ref={adRef} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden h-full flex flex-col justify-between p-5 border border-slate-200 dark:border-slate-700 min-h-[150px]">
       <div>
@@ -52,7 +57,7 @@ const AdBillCard: React.FC = () => {
               border: '0',
               overflow: 'hidden',
             }}
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin"
             aria-label="Advertisement Content"
           ></iframe>
         )}

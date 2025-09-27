@@ -166,6 +166,14 @@
 </head>
   <body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
     
+    <!-- A-ADS Verification (Hidden) -->
+    <!-- This div is required for A-ADS site verification. It is hidden from users. -->
+    <!-- Vite will replace %VITE_AADS_ID% with the environment variable at build time. -->
+    <div id="aads-verification-frame" style="display: none !important; position: absolute; z-index: -1; width: 1px; height: 1px; opacity: 0;">
+      <iframe data-aa='%VITE_AADS_ID%' src='//acceptable.a-ads.com/%VITE_AADS_ID%/?size=Adaptive'
+              style='border:0; padding:0; width:1px; height:1px; overflow:hidden; visibility: hidden;'></iframe>
+    </div>
+    
     <div id="root"></div>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>

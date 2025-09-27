@@ -54,6 +54,11 @@ const HalfScreenAdModal: React.FC<HalfScreenAdModalProps> = ({ onClose }) => {
           onClose();
       }
   }
+  
+  // If no ad provider is configured, do not render the modal at all.
+  if (!AD_IFRAME_CONTENT) {
+    return null;
+  }
 
   return (
     <div
@@ -94,7 +99,7 @@ const HalfScreenAdModal: React.FC<HalfScreenAdModalProps> = ({ onClose }) => {
                   border: '0',
                   overflow: 'hidden',
                 }}
-                sandbox="allow-scripts"
+                sandbox="allow-scripts allow-same-origin"
                 aria-label="Advertisement Content"
               ></iframe>
             )}
