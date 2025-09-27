@@ -1,5 +1,3 @@
-
-
 import Stripe from 'stripe';
 import { HttpRequest, HttpResponse } from '../http-types.ts';
 
@@ -72,6 +70,7 @@ async function verifyPaymentSession(sessionId: string) {
             const customerId = typeof session.customer === 'string' ? session.customer : session.customer.id;
             return { 
                 status: 'success', 
+                provider: 'stripe',
                 duration,
                 subscriptionId: subscription.id,
                 customerId: customerId,
@@ -146,8 +145,9 @@ export const createCheckoutSessionHandler = async (req: HttpRequest): Promise<Ht
     }
 };
 
-export const verifySessionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+export const verifyPaymentHandler = async (req: HttpRequest): Promise<HttpResponse> => {
     try {
+        // The client sends the session_id as `sessionId` in the body
         const { sessionId } = req.body;
         const result = await verifyPaymentSession(sessionId);
         return {
@@ -170,7 +170,7 @@ export const verifySessionHandler = async (req: HttpRequest): Promise<HttpRespon
     }
 };
 
-export const createCustomerPortalSessionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+export const manageSubscriptionHandler = async (req: HttpRequest): Promise<HttpResponse> => {
     try {
         const { customerId, origin } = req.body;
         const result = await createCustomerPortalSession(customerId, origin);

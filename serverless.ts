@@ -1,9 +1,9 @@
 import { HttpRequest, HttpResponse, HttpHandler } from './http-types.ts';
-import { scanReceiptHandler } from './functions/scan-receipt';
-import { syncHandler } from './functions/sync';
-import { createCheckoutSessionHandler, verifySessionHandler, createCustomerPortalSessionHandler, updateCustomerMetadataHandler } from './functions/stripe';
-import { shareHandler } from './functions/share';
-import { onetimeKeyHandler } from './functions/onetime-key';
+import { scanReceiptHandler } from './functions/scan-receipt.ts';
+import { syncHandler } from './functions/sync.ts';
+import { createCheckoutSessionHandler, verifyPaymentHandler, manageSubscriptionHandler, updateCustomerMetadataHandler } from './functions/payment.ts';
+import { shareHandler } from './functions/share.ts';
+import { onetimeKeyHandler } from './functions/onetime-key.ts';
 import { MultiCloudKVStore } from './services/multiCloudKV.ts';
 import type { KeyValueStore } from './services/keyValueStore.ts';
 
@@ -94,14 +94,16 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
     return shareHandler(req, context);
   }
   
-  // Static & Base Routes
-  if (path.startsWith('/scan-receipt')) return scanReceiptHandler(req);
-  if (path.startsWith('/sync')) return syncHandler(req, context);
+  // Payment Routes
   if (path.startsWith('/create-checkout-session')) return createCheckoutSessionHandler(req);
-  if (path.startsWith('/verify-session')) return verifySessionHandler(req);
-  if (path.startsWith('/create-customer-portal-session')) return createCustomerPortalSessionHandler(req);
+  if (path.startsWith('/verify-payment')) return verifyPaymentHandler(req);
+  if (path.startsWith('/manage-subscription')) return manageSubscriptionHandler(req);
   if (path.startsWith('/update-customer-metadata')) return updateCustomerMetadataHandler(req);
 
+  // Other Static & Base Routes
+  if (path.startsWith('/scan-receipt')) return scanReceiptHandler(req);
+  if (path.startsWith('/sync')) return syncHandler(req, context);
+  
   // Base routes for creating new resources
   if (path.match(/^\/onetime-key\/?$/) && method === 'POST') return onetimeKeyHandler(req, context);
   if (path.match(/^\/share\/?$/) && method === 'POST') return shareHandler(req, context);
