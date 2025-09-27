@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { getSubscriptionStatus, getSubscriptionDetails, saveSubscriptionStatus, saveSubscriptionDetails, deleteSubscriptionDetails, SubscriptionDetails } from '../services/db.ts';
 
 export type SubscriptionStatus = 'subscribed' | 'free' | null;
-export type SubscriptionDuration = 'monthly' | 'yearly';
+export type SubscriptionDuration = 'monthly' | 'yearly' | 'god_mode';
 
 interface AuthContextType {
   subscriptionStatus: SubscriptionStatus;

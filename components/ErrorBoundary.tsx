@@ -1,10 +1,10 @@
-// FIX: Changed React import to namespace import (`import * as React from 'react'`) and updated type references (e.g., `Component` to `React.Component`). This resolves a TypeScript error where `this.props` was not recognized on the class component instance.
-import * as React from 'react';
+// FIX: Changed React import to use named imports for Component, ErrorInfo, and ReactNode to resolve a TypeScript error where `this.props` was not recognized on the class component instance.
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match the name in db.ts
 
 interface Props {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 interface State {
@@ -12,7 +12,7 @@ interface State {
   error?: Error;
 }
 
-class ErrorBoundary extends React.Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
   };
@@ -22,7 +22,7 @@ class ErrorBoundary extends React.Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
   }
   
