@@ -1,3 +1,25 @@
+// FIX: Defined ParticipantShareInfo interface and removed circular self-import.
+export interface ParticipantShareInfo {
+  keyId: string;
+  fragmentKey: JsonWebKey;
+  expires: number;
+}
+
+// FIX: Moved confirmation dialog types from App.tsx to centralize them.
+export type RequestConfirmationOptions = {
+  confirmText?: string;
+  cancelText?: string;
+  confirmVariant?: 'danger' | 'primary';
+  onCancel?: () => void;
+};
+
+export type RequestConfirmationFn = (
+  title: string,
+  message: string,
+  onConfirm: () => void,
+  options?: RequestConfirmationOptions
+) => void;
+
 // FIX: Removed self-import of 'Participant' which was causing a declaration conflict.
 export enum View {
   Dashboard = 'dashboard',
@@ -33,12 +55,6 @@ export interface ReceiptItem {
   name: string;
   price: number;
   assignedTo: string[]; // array of participant ids
-}
-
-export interface ParticipantShareInfo {
-  keyId: string; // The ID for the one-time key on the server
-  fragmentKey: JsonWebKey; // The key embedded in the URL fragment
-  expires: number; // Client-side expiration timestamp
 }
 
 export interface Bill {
@@ -123,4 +139,13 @@ export interface ImportedBill {
   localStatus: {
     myPortionPaid: boolean;
   };
+}
+
+// For managing multiple PayPal subscriptions
+export interface PayPalSubscriptionDetails {
+  id: string; // The PayPal Subscription ID (I-...)
+  status: 'ACTIVE' | 'CANCELLED' | 'SUSPENDED' | 'EXPIRED' | string;
+  plan: 'monthly' | 'yearly' | 'unknown';
+  startTime: string; // ISO string date
+  isCurrentDevice: boolean; // Is this the subscription for the current device?
 }

@@ -5,9 +5,6 @@ import * as paypal from './paypal.ts';
 
 const getProvider = () => process.env.PAYMENT_PROVIDER === 'stripe' ? 'stripe' : 'paypal';
 
-/**
- * Handler for creating a checkout session. The provider is determined by the backend's environment variable.
- */
 export const createCheckoutSessionHandler = (req: HttpRequest): Promise<HttpResponse> => {
     const provider = getProvider();
     console.log(`Creating checkout session with provider: ${provider}`);
@@ -17,10 +14,6 @@ export const createCheckoutSessionHandler = (req: HttpRequest): Promise<HttpResp
     return paypal.createCheckoutSessionHandler(req);
 };
 
-/**
- * Handler for verifying a payment after the user returns from the payment provider's site.
- * The frontend tells us which provider it was and provides the relevant session/subscription ID.
- */
 export const verifyPaymentHandler = (req: HttpRequest): Promise<HttpResponse> => {
     const { provider } = req.body;
     if (provider === 'stripe') {
@@ -36,10 +29,11 @@ export const verifyPaymentHandler = (req: HttpRequest): Promise<HttpResponse> =>
     });
 };
 
-/**
- * Handler for redirecting the user to manage their subscription.
- * The frontend provides the provider associated with the user's subscription.
- */
+export const getPayPalSubscriptionDetailsHandler = (req: HttpRequest): Promise<HttpResponse> => {
+    // This is a PayPal-specific feature for the management portal
+    return paypal.getSubscriptionDetailsHandler(req);
+};
+
 export const manageSubscriptionHandler = (req: HttpRequest): Promise<HttpResponse> => {
     const { provider } = req.body;
     if (provider === 'stripe') {
@@ -55,17 +49,11 @@ export const manageSubscriptionHandler = (req: HttpRequest): Promise<HttpRespons
     });
 };
 
-/**
- * Handler for canceling a subscription. This is currently only supported for PayPal.
- * Stripe users manage cancellations through the Stripe customer portal.
- */
 export const cancelSubscriptionHandler = (req: HttpRequest): Promise<HttpResponse> => {
     const { provider } = req.body;
     if (provider === 'paypal') {
         return paypal.cancelSubscriptionHandler(req);
     }
-    // For Stripe, this would be handled via the customer portal, so we don't need a backend handler.
-    // If called for Stripe, we return an error indicating it's not the correct method.
     return Promise.resolve({
         statusCode: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -74,10 +62,6 @@ export const cancelSubscriptionHandler = (req: HttpRequest): Promise<HttpRespons
 };
 
 
-/**
- * Handler for the "last seen" feature. This is currently Stripe-specific.
- * For other providers, it gracefully returns success without performing an action.
- */
 export const updateCustomerMetadataHandler = (req: HttpRequest): Promise<HttpResponse> => {
     const { customerId, provider } = req.body;
     if (provider === 'stripe' && customerId) {

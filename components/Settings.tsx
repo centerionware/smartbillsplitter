@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Settings, PaymentDetails, RecurringBill } from '../types.ts';
 import { useAuth } from '../hooks/useAuth.ts';
-import type { RequestConfirmationFn } from '../App.tsx';
+// FIX: Updated import path for RequestConfirmationFn to central types file.
+import type { RequestConfirmationFn } from '../types.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import { exportData, importData } from '../services/db.ts';
 import * as notificationService from '../services/notificationService.ts';

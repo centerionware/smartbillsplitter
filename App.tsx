@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { Bill, Settings, RecurringBill, Participant, ReceiptItem, ImportedBill, SummaryFilter } from './types.ts';
+// FIX: Moved RequestConfirmationFn and RequestConfirmationOptions to types.ts and imported them from there.
+import type { Bill, Settings, RecurringBill, Participant, ReceiptItem, ImportedBill, SummaryFilter, RequestConfirmationFn, RequestConfirmationOptions } from './types.ts';
 import { View } from './types.ts';
 import { useBills } from './hooks/useBills.ts';
 import { useImportedBills } from './hooks/useImportedBills.ts';
@@ -30,20 +31,6 @@ import { getApiUrl } from './services/api.ts';
 // This is used to disable URL-based navigation for a smoother sandbox experience.
 const isInIframe = window.self !== window.top;
  
-export type RequestConfirmationOptions = {
-  confirmText?: string;
-  cancelText?: string;
-  confirmVariant?: 'danger' | 'primary';
-  onCancel?: () => void;
-};
-
-export type RequestConfirmationFn = (
-  title: string,
-  message: string,
-  onConfirm: () => void,
-  options?: RequestConfirmationOptions
-) => void;
-
 const App: React.FC = () => {
   const { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, isLoading: billsLoading, updateMultipleBills } = useBills();
   const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, isLoading: importedBillsLoading } = useImportedBills();

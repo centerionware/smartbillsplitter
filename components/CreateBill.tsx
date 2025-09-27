@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Bill, Participant, ReceiptItem, Settings, RecurringBill, RecurrenceRule, SplitMode } from '../types';
-import type { RequestConfirmationFn } from '../App';
+// FIX: Updated import path for RequestConfirmationFn to central types file.
+import type { RequestConfirmationFn } from '../types.ts';
 import ReceiptScanner from './ReceiptScanner.tsx';
 import ItemEditor from './ItemEditor.tsx';
 import RecurrenceSelector from './RecurrenceSelector.tsx';
