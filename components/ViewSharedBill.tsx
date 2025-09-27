@@ -3,6 +3,7 @@ import type { SharedBillPayload, ImportedBill, Settings, PaymentDetails } from '
 import * as cryptoService from '../services/cryptoService.ts';
 import PrivacyConsent from './PrivacyConsent.tsx';
 import { getApiUrl } from '../services/api.ts';
+import PaymentMethodsModal from './PaymentMethodsModal.tsx';
 
 interface ViewSharedBillProps {
   onImportComplete: () => void;
@@ -66,13 +67,6 @@ function base64UrlDecode(base64Url: string): string {
     }
 }
 
-const PaymentButton: React.FC<{ logo: string; name: string; onClick: () => void }> = ({ logo, name, onClick }) => (
-    <button onClick={onClick} className="w-full flex items-center gap-4 text-left p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-        <img src={logo} alt={`${name} logo`} className="h-8 w-8 object-contain"/>
-        <span className="font-semibold text-slate-800 dark:text-slate-100">Pay with {name}</span>
-    </button>
-);
-
 // FIX: Changed to a named export to resolve module resolution issues.
 export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills }) => {
   const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(
@@ -86,6 +80,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
   const [myParticipantId, setMyParticipantId] = useState<string | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const isAlreadyImported = sharedData ? importedBills.some(b => b.id === sharedData.bill.id) : false;
 
@@ -249,32 +244,10 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
     }
 
     if (sharedData) {
-        const { bill, paymentDetails } = sharedData;
+        const { bill, paymentDetails, creatorName } = sharedData;
         const myParticipant = bill.participants.find(p => p.id === myParticipantId);
         
-        const hasPaymentInfo = paymentDetails && (paymentDetails.venmo || paymentDetails.paypal || paymentDetails.cashApp || paymentDetails.zelle);
-
-        const handlePayment = (method: keyof PaymentDetails) => {
-            if (!myParticipant) return;
-            const amount = myParticipant.amountOwed.toFixed(2);
-            const note = encodeURIComponent(`For: ${bill.description}`);
-            let url = '';
-
-            switch(method) {
-                case 'venmo':
-                    url = `venmo://paycharge?txn=pay&recipients=${paymentDetails.venmo}&amount=${amount}&note=${note}`;
-                    window.location.href = url;
-                    break;
-                case 'paypal':
-                    url = `https://paypal.me/${paymentDetails.paypal}/${amount}`;
-                    window.open(url, '_blank');
-                    break;
-                case 'cashApp':
-                    url = `https://cash.app/$${paymentDetails.cashApp}/${amount}`;
-                    window.open(url, '_blank');
-                    break;
-            }
-        };
+        const hasPaymentInfo = paymentDetails && (paymentDetails.venmo || paymentDetails.paypal || paymentDetails.cashApp || paymentDetails.zelle || paymentDetails.customMessage);
 
         return (
             <>
@@ -313,30 +286,25 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
                                     {myParticipant.paid ? 'Paid' : 'Unpaid'}
                                 </div>
                             </div>
+                            
+                            <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                                {hasPaymentInfo && !myParticipant.paid && (
+                                    <button
+                                        onClick={() => setIsPaymentModalOpen(true)}
+                                        className="w-full flex-1 px-6 py-3 bg-emerald-500 text-white font-bold rounded-lg hover:bg-emerald-600 transition-colors order-1 sm:order-none"
+                                    >
+                                        Settle Up
+                                    </button>
+                                )}
+                                <button 
+                                    onClick={handleImport} 
+                                    disabled={!myParticipantId || isAlreadyImported} 
+                                    className="w-full flex-1 px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors order-2 sm:order-none"
+                                >
+                                    {isAlreadyImported ? 'Bill Already in Dashboard' : 'Import This Bill'}
+                                </button>
+                            </div>
 
-                            {hasPaymentInfo && !myParticipant.paid && (
-                                <div className="mt-8">
-                                    <h3 className="text-xl font-semibold mb-4 text-slate-700 dark:text-slate-200">Settle Up with {sharedData.creatorName}</h3>
-                                    <div className="space-y-3">
-                                        {paymentDetails.venmo && <PaymentButton logo="https://cdn.simpleicons.org/venmo/008CFF" name="Venmo" onClick={() => handlePayment('venmo')} />}
-                                        {paymentDetails.paypal && <PaymentButton logo="https://cdn.simpleicons.org/paypal/00457C" name="PayPal" onClick={() => handlePayment('paypal')} />}
-                                        {paymentDetails.cashApp && <PaymentButton logo="https://cdn.simpleicons.org/cashapp/00C246" name="Cash App" onClick={() => handlePayment('cashApp')} />}
-                                        {paymentDetails.zelle && (
-                                            <div className="flex items-center gap-4 text-left p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                                                <img src="https://cdn.simpleicons.org/zelle/6D1AD8" alt="Zelle logo" className="h-8 w-8 object-contain"/>
-                                                <div>
-                                                    <span className="font-semibold text-slate-800 dark:text-slate-100">Pay with Zelle</span>
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400">Use this email/phone in your banking app: <span className="font-medium text-slate-700 dark:text-slate-200">{paymentDetails.zelle}</span></p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            <button onClick={handleImport} disabled={!myParticipantId || isAlreadyImported} className="mt-8 w-full px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
-                            {isAlreadyImported ? 'Bill Already in Dashboard' : 'Import This Bill'}
-                            </button>
                         </div>
                     ) : (
                          <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/30 text-center">
@@ -349,10 +317,27 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
 
                 {isReceiptModalOpen && bill.receiptImage && (<div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex justify-center items-center p-4" onClick={() => setIsReceiptModalOpen(false)} role="dialog" aria-modal="true" aria-label="Receipt Image Viewer"><div className="relative max-w-4xl max-h-[90vh]" onClick={e => e.stopPropagation()}><img src={bill.receiptImage} alt="Scanned receipt" className="w-full h-full object-contain rounded-lg shadow-2xl" /><button onClick={() => setIsReceiptModalOpen(false)} className="absolute -top-3 -right-3 bg-white text-slate-800 rounded-full p-2 shadow-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-white" aria-label="Close receipt view"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button></div></div>)}
                 {isInfoModalOpen && bill.additionalInfo && (<div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex justify-center items-center p-4" onClick={() => setIsInfoModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="info-dialog-title"><div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}><div className="p-6 border-b border-slate-200 dark:border-slate-700"><h3 id="info-dialog-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">Additional Information</h3></div><div className="p-6 flex-grow overflow-y-auto"><dl className="space-y-4">{Object.entries(bill.additionalInfo).map(([key, value]) => (<div key={key} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-md"><dt className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{key}</dt><dd className="mt-1 text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{String(value)}</dd></div>))}</dl></div><div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end"><button onClick={() => setIsInfoModalOpen(false)} className="px-5 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Close</button></div></div></div>)}
+                {isPaymentModalOpen && sharedData && myParticipant && (
+                    <PaymentMethodsModal
+                        paymentDetails={sharedData.paymentDetails}
+                        billDescription={sharedData.bill.description}
+                        amountOwed={myParticipant.amountOwed}
+                        creatorName={creatorName}
+                        onClose={() => setIsPaymentModalOpen(false)}
+                    />
+                )}
             </>
         );
     }
   };
+
+  if (!hasAcceptedPrivacy) {
+    return (
+      <div className="max-w-xl mx-auto py-8">
+        <PrivacyConsent onAccept={handleAcceptPrivacy} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-xl mx-auto">

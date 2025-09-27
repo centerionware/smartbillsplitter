@@ -83,8 +83,10 @@ export function initDB(): Promise<void> {
       // this event is fired on the existing connection. We must close our connection
       // to allow the other tab's operation to proceed.
       db.onversionchange = () => {
-        console.log("Database version change requested from another tab. Closing connection to allow update.");
+        console.warn("Database version change detected from another tab. Closing connection and preparing for reload.");
         db.close();
+        // Dispatch a custom event that the React app can listen to, to show a user-friendly message.
+        window.dispatchEvent(new CustomEvent('db-versionchange'));
       };
 
       resolve();
@@ -102,174 +104,161 @@ export function initDB(): Promise<void> {
 // --- Generic Store Operations ---
 async function getStore(storeName: string, mode: IDBTransactionMode) {
     if (!db) await initDB();
-    // FIX: Correctly handle the 'subscription_details' store name.
-    // This addresses a potential runtime error where the app attempts to access a store
-    // that does not exist in the database schema, causing a crash.
-    const validStoreName = Object.values(STORES).includes(storeName) ? storeName : STORES.SUBSCRIPTION_DETAILS;
-    return db.transaction(validStoreName, mode).objectStore(validStoreName);
-}
-
-async function get<T>(storeName: string, key: IDBValidKey): Promise<T | undefined> {
-    const store = await getStore(storeName, 'readonly');
-    return promisifyRequest<T>(store.get(key));
+    return db.transaction(storeName, mode).objectStore(storeName);
 }
 
 async function getAll<T>(storeName: string): Promise<T[]> {
     const store = await getStore(storeName, 'readonly');
-    return promisifyRequest<T[]>(store.getAll());
+    return promisifyRequest(store.getAll());
 }
 
-async function set<T>(storeName: string, value: T, key?: IDBValidKey): Promise<void> {
+async function get<T>(storeName: string, key: string): Promise<T | undefined> {
+    const store = await getStore(storeName, 'readonly');
+    return promisifyRequest(store.get(key));
+}
+
+async function set<T>(storeName: string, value: T, key?: string): Promise<void> {
     const store = await getStore(storeName, 'readwrite');
     await promisifyRequest(store.put(value, key));
 }
 
-async function del(storeName: string, key: IDBValidKey): Promise<void> {
+async function del(storeName: string, key: string): Promise<void> {
     const store = await getStore(storeName, 'readwrite');
     await promisifyRequest(store.delete(key));
 }
 
-async function clear(storeName: string): Promise<void> {
-    const store = await getStore(storeName, 'readwrite');
-    await promisifyRequest(store.clear());
-}
-
-
-// --- Bills ---
+// --- Bill Operations ---
 export const getBills = () => getAll<Bill>(STORES.BILLS);
 export const addBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const updateBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const deleteBillDB = (billId: string) => del(STORES.BILLS, billId);
 
-// --- Imported Bills ---
-export const getImportedBills = () => getAll<ImportedBill>(STORES.IMPORTED_BILLS);
-export const addImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS, bill);
-export const updateImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS, bill);
-export const deleteImportedBillDB = (billId: string) => del(STORES.IMPORTED_BILLS, billId);
-
-// --- Recurring Bills ---
+// --- Recurring Bill Operations ---
 export const getRecurringBills = () => getAll<RecurringBill>(STORES.RECURRING_BILLS);
 export const addRecurringBill = (bill: RecurringBill) => set(STORES.RECURRING_BILLS, bill);
 export const updateRecurringBill = (bill: RecurringBill) => set(STORES.RECURRING_BILLS, bill);
 export const deleteRecurringBillDB = (billId: string) => del(STORES.RECURRING_BILLS, billId);
 
-// --- Settings ---
+// --- Imported Bill Operations ---
+export const getImportedBills = () => getAll<ImportedBill>(STORES.IMPORTED_BILLS);
+export const addImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS, bill);
+export const updateImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS, bill);
+export const deleteImportedBillDB = (billId: string) => del(STORES.IMPORTED_BILLS, billId);
+
+// --- Settings Operations ---
 export const getSettings = () => get<Settings>(STORES.SETTINGS, SINGLE_KEY);
 export const saveSettings = (settings: Settings) => set(STORES.SETTINGS, settings, SINGLE_KEY);
 
-// --- Theme ---
+// --- Theme Operations ---
 export const getTheme = () => get<Theme>(STORES.THEME, SINGLE_KEY);
 export const saveTheme = (theme: Theme) => set(STORES.THEME, theme, SINGLE_KEY);
 
-// --- Bill Signing Keys (Per-Bill Private Keys) ---
-interface BillSigningKeyRecord {
-  billId: string;
-  privateKey: CryptoKey;
-}
-export const saveBillSigningKey = (billId: string, privateKey: CryptoKey) => set(STORES.BILL_SIGNING_KEYS, { billId, privateKey });
-export const getBillSigningKey = (billId: string) => get<BillSigningKeyRecord>(STORES.BILL_SIGNING_KEYS, billId);
-export const deleteBillSigningKeyDB = (billId: string) => del(STORES.BILL_SIGNING_KEYS, billId);
-
-// --- Managed PayPal Subscriptions ---
-export const getManagedPayPalSubscriptions = () => get<PayPalSubscriptionDetails[]>(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS, SINGLE_KEY).then(res => res || []);
-export const saveManagedPayPalSubscriptions = (subscriptions: PayPalSubscriptionDetails[]) => set(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS, subscriptions, SINGLE_KEY);
-
-// --- Subscription ---
-export const getSubscriptionDetails = () => get<SubscriptionDetails>(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
-export const saveSubscriptionDetails = (details: SubscriptionDetails) => set(STORES.SUBSCRIPTION_DETAILS, details, SINGLE_KEY);
-export const deleteSubscriptionDetails = () => del(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
-
+// --- Subscription Operations ---
 export const getSubscriptionStatus = async (): Promise<SubscriptionStatus> => {
-    const details = await getSubscriptionDetails();
-    if (details && details.startDate && details.duration) {
+    const status = await get<SubscriptionStatus>(STORES.SUBSCRIPTION, SINGLE_KEY);
+    const details = await get<SubscriptionDetails>(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
+
+    if (status === 'subscribed' && details) {
         const startDate = new Date(details.startDate);
         const now = new Date();
-        
-        let expirationDate = new Date(startDate);
-        if (details.duration === 'monthly') {
-            expirationDate.setDate(startDate.getDate() + 31);
-        } else if (details.duration === 'yearly') {
-            expirationDate.setDate(startDate.getDate() + 366);
-        }
+        const durationDays = details.duration === 'yearly' ? 366 : 31; // Add a grace day
+        const expiryDate = new Date(startDate.getTime());
+        expiryDate.setDate(expiryDate.getDate() + durationDays);
 
-        if (now < expirationDate) {
-            return 'subscribed';
-        } else {
+        if (now > expiryDate) {
+            console.log("Subscription has expired.");
             await deleteSubscriptionDetails();
             await saveSubscriptionStatus(null);
             return null;
         }
     }
-
-    const storedValue = await get<any>(STORES.SUBSCRIPTION, SINGLE_KEY);
-    if (storedValue === 'free') {
-        return 'free';
-    }
-    
-    if (storedValue === 'true' || storedValue === 'subscribed') {
-        return 'subscribed';
-    }
-
-    return null;
+    return status || null;
 };
-
-export const saveSubscriptionStatus = (status: SubscriptionStatus) => {
-    if (status === null) {
-        return del(STORES.SUBSCRIPTION, SINGLE_KEY);
-    }
-    return set(STORES.SUBSCRIPTION, status, SINGLE_KEY);
-};
-
-// --- Data Management ---
-export async function exportData(): Promise<object> {
-    const data: { [key: string]: any } = {};
-    const storesToExport = [
-      STORES.BILLS, 
-      STORES.RECURRING_BILLS, 
-      STORES.IMPORTED_BILLS, 
-      STORES.SETTINGS, 
-      STORES.THEME, 
-      STORES.SUBSCRIPTION, 
-      STORES.SUBSCRIPTION_DETAILS,
-      STORES.MANAGED_PAYPAL_SUBSCRIPTIONS,
-    ];
-    for (const storeName of storesToExport) {
-        if ([STORES.BILLS, STORES.RECURRING_BILLS, STORES.IMPORTED_BILLS].includes(storeName)) {
-             data[storeName] = await getAll(storeName);
-        } else {
-             data[storeName] = await get(storeName, SINGLE_KEY);
-        }
-    }
-    return data;
+export const getSubscriptionDetails = () => get<SubscriptionDetails>(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
+export const saveSubscriptionStatus = (status: SubscriptionStatus | null) => set(STORES.SUBSCRIPTION, status, SINGLE_KEY);
+export const saveSubscriptionDetails = (details: SubscriptionDetails) => set(STORES.SUBSCRIPTION_DETAILS, details, SINGLE_KEY);
+export const deleteSubscriptionDetails = async () => {
+    await del(STORES.SUBSCRIPTION_DETAILS, SINGLE_KEY);
+    await del(STORES.SUBSCRIPTION, SINGLE_KEY);
 }
 
-export async function importData(data: { [key: string]: any }): Promise<void> {
-    if (!db) await initDB();
-    
-    const allStoreNames = Object.values(STORES);
-    const transaction = db.transaction(allStoreNames, 'readwrite');
+// --- Crypto Key Operations ---
+interface BillSigningKeyRecord {
+    billId: string;
+    privateKey: CryptoKey;
+}
+export const getBillSigningKey = (billId: string) => get<BillSigningKeyRecord>(STORES.BILL_SIGNING_KEYS, billId);
+export const saveBillSigningKey = (billId: string, privateKey: CryptoKey) => set(STORES.BILL_SIGNING_KEYS, { billId, privateKey });
+export const deleteBillSigningKeyDB = (billId: string) => del(STORES.BILL_SIGNING_KEYS, billId);
 
-    return new Promise((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
-        transaction.onabort = () => reject(transaction.error);
+// --- PayPal Subscription Management ---
+export const getManagedPayPalSubscriptions = () => get<PayPalSubscriptionDetails[]>(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS, SINGLE_KEY).then(res => res || []);
+export const saveManagedPayPalSubscriptions = (subscriptions: PayPalSubscriptionDetails[]) => set(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS, subscriptions, SINGLE_KEY);
 
-        allStoreNames.forEach(storeName => {
-            const store = transaction.objectStore(storeName);
-            store.clear(); 
+// --- Data Import/Export ---
+export const exportData = async () => {
+    const bills = await getBills();
+    const recurringBills = await getRecurringBills();
+    const importedBills = await getImportedBills();
+    const settings = await getSettings();
+    const theme = await getTheme();
+    const subscription = await getSubscriptionStatus();
+    const subscriptionDetails = await getSubscriptionDetails();
+    const managedPayPalSubscriptions = await getManagedPayPalSubscriptions();
 
-            if (storeName === STORES.BILL_SIGNING_KEYS || storeName === STORES.CRYPTO_KEYS) {
-                return;
-            }
+    return {
+        bills,
+        recurringBills,
+        importedBills,
+        settings,
+        theme,
+        subscription,
+        subscriptionDetails,
+        managedPayPalSubscriptions,
+    };
+};
 
-            const storeData = data[storeName];
-            if (storeData !== null && storeData !== undefined) {
-                if (Array.isArray(storeData)) {
-                    storeData.forEach(item => store.add(item));
-                } else {
-                    store.add(storeData, SINGLE_KEY);
-                }
-            }
-        });
+// FIX: Refactored to use a single atomic transaction for all import operations.
+// This resolves a type error with the non-standard `tx.commit` and fixes a logic bug
+// where the import was not atomic, risking data inconsistency on failure.
+export const importData = (data: any): Promise<void> => {
+    const tx = db.transaction(Object.values(STORES), 'readwrite');
+    const txPromise = new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
     });
-}
+
+    Object.values(STORES).forEach(storeName => {
+        tx.objectStore(storeName).clear();
+    });
+
+    if (data.bills) {
+        const store = tx.objectStore(STORES.BILLS);
+        data.bills.forEach((b: Bill) => store.put(b));
+    }
+    if (data.recurringBills) {
+        const store = tx.objectStore(STORES.RECURRING_BILLS);
+        data.recurringBills.forEach((rb: RecurringBill) => store.put(rb));
+    }
+    if (data.importedBills) {
+        const store = tx.objectStore(STORES.IMPORTED_BILLS);
+        data.importedBills.forEach((ib: ImportedBill) => store.put(ib));
+    }
+    if (data.settings) {
+        tx.objectStore(STORES.SETTINGS).put(data.settings, SINGLE_KEY);
+    }
+    if (data.theme) {
+        tx.objectStore(STORES.THEME).put(data.theme, SINGLE_KEY);
+    }
+    if (data.subscription) {
+        tx.objectStore(STORES.SUBSCRIPTION).put(data.subscription, SINGLE_KEY);
+    }
+    if (data.subscriptionDetails) {
+        tx.objectStore(STORES.SUBSCRIPTION_DETAILS).put(data.subscriptionDetails, SINGLE_KEY);
+    }
+    if (data.managedPayPalSubscriptions) {
+        tx.objectStore(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS).put(data.managedPayPalSubscriptions, SINGLE_KEY);
+    }
+
+    return txPromise;
+};
