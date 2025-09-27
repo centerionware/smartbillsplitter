@@ -22,6 +22,7 @@ const assertPayPalConfig = () => {
  */
 async function getPayPalAccessToken(): Promise<string> {
     assertPayPalConfig();
+    // FIX: Replaced Node.js `Buffer` with platform-agnostic `btoa` for Base64 encoding.
     const auth = btoa(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`);
     const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
         method: 'POST',
