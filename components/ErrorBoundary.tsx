@@ -26,6 +26,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
       hasError: false,
       error: undefined,
     };
+    // FIX: Bind event handlers in the constructor to ensure 'this' is correctly bound, resolving issues where `this.setState` was not found.
+    this.handleReset = this.handleReset.bind(this);
+    this.handleHardReset = this.handleHardReset.bind(this);
   }
 
   static getDerivedStateFromError(error: Error): State {
@@ -37,16 +40,16 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
-  // FIX: Converted to an arrow function to lexically bind `this`, resolving issues where `this.setState` was not found.
-  private handleReset = () => {
+  // FIX: Converted to a class method and bound in constructor for maximum compatibility.
+  private handleReset() {
     this.setState({ hasError: false });
     // This is a bit of a heavy hammer, but it's the most reliable way to
     // fully reset state after a boundary-level error.
     window.location.replace('/');
   }
   
-  // FIX: Converted to an arrow function to ensure `this` context is correctly bound if it were to be used in the future.
-  private handleHardReset = () => {
+  // FIX: Converted to a class method and bound in constructor for maximum compatibility.
+  private handleHardReset() {
       console.warn("Performing hard reset from error boundary.");
       const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
       

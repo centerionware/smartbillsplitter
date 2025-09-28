@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { HttpRequest, HttpResponse } from '../http-types';
 
@@ -18,12 +16,12 @@ const responseSchema = {
     },
     total: {
         type: Type.NUMBER,
-        description: "The final total amount on the receipt after all taxes and tips.",
+        description: "The final total amount explicitly printed on the receipt after all taxes and tips. Extract this value directly; do not calculate it from the items. This should be the final amount paid.",
         nullable: true,
     },
     items: {
       type: Type.ARRAY,
-      description: "A list of all the individual items found on the receipt.",
+      description: "A list of all the individual items found on the receipt. Do not include tax, tip, or subtotal as items.",
       items: {
         type: Type.OBJECT,
         properties: {
@@ -41,43 +39,51 @@ const responseSchema = {
     },
     additionalInfo: {
         type: Type.ARRAY,
-        description: "A list of any other relevant key-value pairs from the receipt, like store address, tracking numbers, return policies, or promotional details.",
+        description: "A list of any other relevant key-value pairs from the receipt, like store address, phone numbers, tax amounts, or tip amounts.",
         nullable: true,
         items: {
           type: Type.OBJECT,
           properties: {
             key: {
               type: Type.STRING,
-              description: "The label for the piece of information (e.g., 'Store Address', 'Tracking Number')."
+              description: "The name of the information field (e.g., 'Tax', 'Tip', 'Address')."
             },
             value: {
               type: Type.STRING,
-              description: "The value of the information (e.g., '123 Main St, Anytown', '1Z9999W99999999999')."
+              description: "The value of the information field (e.g., '$1.25', '123 Main St')."
             }
           },
           required: ["key", "value"]
         }
-    },
+    }
   },
   required: ["description", "items"],
 };
 
 
-// --- Business Logic ---
-// This function contains the core logic for parsing a receipt and is independent of the server framework.
-async function scanReceiptLogic(base64Image: string, mimeType: string) {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.error("API_KEY environment variable not set.");
-    // Throw a specific error for the handler to catch and return the correct HTTP status.
-    throw new Error('Server configuration error: API key is not set.');
+export const scanReceiptHandler = async (req: HttpRequest): Promise<HttpResponse> => {
+  if (!process.env.API_KEY) {
+    return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: "API key for Gemini is not configured on the server." }) };
   }
 
+  const { base64Image, mimeType } = req.body;
+  if (!base64Image || !mimeType) {
+    return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: "Missing base64Image or mimeType in request body." }) };
+  }
+  
   try {
-    const ai = new GoogleGenAI({ apiKey });
-
-    const imagePart = { inlineData: { data: base64Image, mimeType: mimeType } };
-    const textPart = { text: "Analyze the provided receipt image. Extract a concise description (like the store name), the date, the final total, a list of all line items with their individual prices, and a list of any other relevant information (like store location, tracking numbers, etc.) as key-value pairs. Specifically, if you find a line item for 'Tax' or similar, extract it as its own item in the itemization list. Ignore any tips or subtotals that are not individual items. Return all data in the specified JSON format." };
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    const imagePart = {
+      inlineData: {
+        mimeType: mimeType,
+        data: base64Image,
+      },
+    };
+    
+    const textPart = {
+      text: 'Extract the information from this receipt into the provided JSON schema. Focus on accurately identifying all individual line items and the final printed total.'
+    };
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -85,49 +91,30 @@ async function scanReceiptLogic(base64Image: string, mimeType: string) {
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for faster response times
       },
     });
     
-    return JSON.parse(response.text);
-  } catch (error: any) {
-    console.error("Error calling Gemini API:", error);
-    // Rethrow to be handled by the adapter layer.
-    throw new Error(`Failed to communicate with the AI service: ${error.message}`);
-  }
-}
+    const responseText = response.text;
+    if (!responseText) {
+      throw new Error("The AI returned an empty response. The receipt might be unclear.");
+    }
 
-// --- Framework-Agnostic Handler ---
-// This function is now independent of Express.js.
-export const scanReceiptHandler = async (req: HttpRequest): Promise<HttpResponse> => {
-  const responseHeaders = {
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-store',
-  };
-
-  const { base64Image, mimeType } = req.body;
-  if (!base64Image || !mimeType) {
-    return {
-      statusCode: 400,
-      headers: responseHeaders,
-      body: JSON.stringify({ error: 'Missing required parameters: base64Image and mimeType.' }),
-    };
-  }
-
-  try {
-    const parsedData = await scanReceiptLogic(base64Image, mimeType);
     return {
       statusCode: 200,
-      headers: responseHeaders,
-      body: JSON.stringify(parsedData),
+      headers: { 'Content-Type': 'application/json' },
+      body: responseText.trim(),
     };
+
   } catch (error: any) {
-    // Check for specific error messages to return appropriate status codes.
-    const statusCode = error.message.startsWith('Server configuration error') ? 500 : 500;
-    return {
-      statusCode: statusCode,
-      headers: responseHeaders,
-      body: JSON.stringify({ error: 'Failed to process receipt.', details: error.message }),
+    console.error('Error calling Gemini API:', error);
+    let errorMessage = "Failed to process the receipt with the AI service.";
+    if (error.message) {
+        errorMessage = error.message;
+    }
+    return { 
+        statusCode: 500, 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ error: errorMessage })
     };
   }
 };

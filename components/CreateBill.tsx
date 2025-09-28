@@ -65,6 +65,7 @@ export const CreateBill: React.FC<CreateBillProps> = ({
   const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
   const [isInfoEditorOpen, setIsInfoEditorOpen] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [aiScanWarning, setAiScanWarning] = useState<string | null>(null);
   
   // --- Derived State ---
   const myNameLower = settings?.myDisplayName.toLowerCase().trim();
@@ -147,10 +148,34 @@ export const CreateBill: React.FC<CreateBillProps> = ({
   }, [items, splitMode]);
   
   // --- Handlers ---
-  const handleItemsScanned = (data: any) => {
+  const handleItemsScanned = (data: { 
+    description: string, 
+    date?: string, 
+    total?: number, 
+    items: { name: string, price: number }[], 
+    additionalInfo?: { key: string, value: string }[] 
+  }) => {
+    setAiScanWarning(null); // Reset warning
+    
     setDescription(data.description || '');
     if (data.date) setDate(data.date);
-    if (data.total) setTotalAmount(data.total);
+    
+    const scannedItems = data.items || [];
+    const itemizationTotal = scannedItems.reduce((sum, item) => sum + (item.price || 0), 0);
+    const aiTotal = data.total;
+
+    // Prioritize the itemization total for accuracy, but warn if it mismatches the AI's detected total.
+    if (itemizationTotal > 0) {
+      setTotalAmount(itemizationTotal);
+      if (aiTotal !== undefined && Math.abs(aiTotal - itemizationTotal) > 0.01) {
+        setAiScanWarning(
+          `AI detected a total of $${aiTotal.toFixed(2)}, but the items add up to $${itemizationTotal.toFixed(2)}. The itemized total has been used. Please review items or try scanning again.`
+        );
+      }
+    } else if (aiTotal !== undefined) {
+      // If no items were found but a total was, use the AI's total.
+      setTotalAmount(aiTotal);
+    }
 
     // Find the current user in the participants list to auto-assign items.
     let myParticipantId: string | null = null;
@@ -166,7 +191,7 @@ export const CreateBill: React.FC<CreateBillProps> = ({
         }
     }
 
-    const newItems = data.items.map((item: any, index: number) => ({
+    const newItems = scannedItems.map((item: any, index: number) => ({
       id: `item-scan-${Date.now()}-${index}`,
       name: item.name,
       price: item.price,
@@ -338,6 +363,21 @@ export const CreateBill: React.FC<CreateBillProps> = ({
             onImageCleared={() => setReceiptImage(undefined)}
             isForTemplate={isRecurring}
           />
+          
+          {aiScanWarning && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 rounded-r-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M8.257 3.099a.75.75 0 011.486 0l5.25 10.023a.75.75 0 01-.643 1.128H3.654a.75.75 0 01-.643-1.128L8.257 3.099zM9 12a1 1 0 112 0 1 1 0 01-2 0zm1-4a1 1 0 011 1v2a1 1 0 11-2 0V9a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">{aiScanWarning}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <BillPrimaryDetails
             description={description}
