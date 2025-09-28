@@ -85,7 +85,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
   if (path.startsWith('/paypal-subscription-details')) return getPayPalSubscriptionDetailsHandler(req);
 
   if (path.startsWith('/scan-receipt')) return scanReceiptHandler(req);
-  if (path.startsWith('/parse-csv')) return parseCsvHandler(req, context);
+  if (path.startsWith('/parse-csv')) return parseCsvHandler(req);
   if (path.startsWith('/sync')) return syncHandler(req, context);
   
   if (path.match(/^\/onetime-key\/?$/) && method === 'POST') return onetimeKeyHandler(req, context);

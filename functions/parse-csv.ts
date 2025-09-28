@@ -1,6 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { HttpRequest, HttpResponse } from '../http-types.ts';
-import type { KeyValueStore } from '../services/keyValueStore.ts';
 
 // --- Schemas for Gemini API ---
 const billSchema = {
@@ -33,36 +32,14 @@ const csvResponseSchema = {
 };
 
 // --- Handler ---
-export const parseCsvHandler = async (req: HttpRequest, context: { kv: KeyValueStore }): Promise<HttpResponse> => {
+export const parseCsvHandler = async (req: HttpRequest): Promise<HttpResponse> => {
     if (!process.env.API_KEY) {
         return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: "API key for Gemini is not configured on the server." }) };
     }
 
-    const { csvContent, myDisplayName, subscriptionStatus } = req.body;
+    const { csvContent, myDisplayName } = req.body;
     if (!csvContent || !myDisplayName) {
         return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: "Missing csvContent or myDisplayName in request body." }) };
-    }
-
-    // --- Rate Limiting for Free Users ---
-    if (subscriptionStatus === 'free') {
-        const ip = (req.headers['x-forwarded-for'] as string) || (req.headers['x-nf-client-connection-ip'] as string) || 'unknown_ip';
-        if (ip === 'unknown_ip') {
-            return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: "Could not identify client for rate limiting." }) };
-        }
-        
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const key = `csv_limit:${ip}:${today}`;
-        const limit = 5; // 5 imports per day for free users
-
-        const currentUsageStr = await context.kv.get(key);
-        const currentUsage = currentUsageStr ? parseInt(currentUsageStr, 10) : 0;
-
-        if (currentUsage >= limit) {
-            return { statusCode: 429, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: "You have exceeded the daily limit for CSV imports on the free plan. Upgrade to Pro for unlimited imports." }) };
-        }
-        
-        // Set with TTL of 24 hours (86400 seconds)
-        await context.kv.set(key, (currentUsage + 1).toString(), { EX: 86400 });
     }
 
     try {

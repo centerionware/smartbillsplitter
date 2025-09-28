@@ -17,11 +17,19 @@ interface State {
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: undefined,
-    resetMessage: null,
-  };
+  // FIX: Converted to use a constructor for state initialization and method binding
+  // to ensure 'this' context is correctly bound, resolving issues where 'setState' and 'props'
+  // were not found on the component instance.
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: undefined,
+      resetMessage: null,
+    };
+    this.handleReset = this.handleReset.bind(this);
+    this.handleHardReset = this.handleHardReset.bind(this);
+  }
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
@@ -31,14 +39,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
-  // FIX: Converted to arrow function to automatically bind `this`.
-  private handleReset = () => {
+  private handleReset() {
     // A full page replacement is the most reliable way to reset state after a major error.
     window.location.replace('/');
   }
   
-  // FIX: Converted to arrow function to automatically bind `this`, ensuring `this.setState` is available.
-  private handleHardReset = () => {
+  private handleHardReset() {
     console.warn("Performing hard reset from error boundary.");
     this.setState({ resetMessage: null }); // Clear previous messages
 
@@ -121,4 +127,16 @@ export class ErrorBoundary extends React.Component<Props, State> {
               </p>
             </div>
              <details className="mt-4 text-left text-xs text-slate-400 dark:text-slate-500">
-              <summary className="
+              <summary className="cursor-pointer">Error Details</summary>
+              <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-700 rounded overflow-auto whitespace-pre-wrap">
+                <code>{this.state.error?.name}: {this.state.error?.message}\n\n{this.state.error?.stack}</code>
+              </pre>
+            </details>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}

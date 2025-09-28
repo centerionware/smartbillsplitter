@@ -466,8 +466,6 @@ const App: React.FC = () => {
             showNotification(`${newBills.length} bill(s) imported successfully!`, 'success');
           }}
           settings={settings}
-          subscriptionStatus={subscriptionStatus}
-          subscriptionDetails={subscriptionDetails}
         />
       )}
       <Header 
