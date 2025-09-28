@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PayPalSubscriptionDetails } from '../types';
 import { getManagedPayPalSubscriptions, saveManagedPayPalSubscriptions } from '../services/db';
-import { getApiUrl } from '../services/api';
+import { getApiUrl, fetchWithRetry } from '../services/api';
 import type { SubscriptionDetails } from '../services/db';
 
 export const useSubscriptionManager = (currentDeviceSubscription: SubscriptionDetails | null) => {
@@ -18,7 +18,7 @@ export const useSubscriptionManager = (currentDeviceSubscription: SubscriptionDe
         if (!subsMap.has(currentDeviceSubscription.subscriptionId)) {
           // If the current device's sub isn't stored, fetch its details.
           try {
-            const response = await fetch(getApiUrl(`/paypal-subscription-details?id=${currentDeviceSubscription.subscriptionId}`));
+            const response = await fetchWithRetry(getApiUrl(`/paypal-subscription-details?id=${currentDeviceSubscription.subscriptionId}`));
             if (!response.ok) throw new Error('Could not verify current subscription.');
             const details = await response.json();
             subsMap.set(details.id, details);
@@ -52,7 +52,7 @@ export const useSubscriptionManager = (currentDeviceSubscription: SubscriptionDe
   }, [fetchAndSetSubscriptions]);
 
   const addSubscription = useCallback(async (subscriptionId: string): Promise<PayPalSubscriptionDetails> => {
-    const response = await fetch(getApiUrl(`/paypal-subscription-details?id=${subscriptionId}`));
+    const response = await fetchWithRetry(getApiUrl(`/paypal-subscription-details?id=${subscriptionId}`));
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || 'Could not find or verify this subscription ID.');

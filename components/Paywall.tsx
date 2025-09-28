@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getApiUrl } from '../services/api.ts';
+import { getApiUrl, fetchWithRetry } from '../services/api.ts';
 import SubscriptionWarningModal from './SubscriptionWarningModal.tsx';
 
 interface PaywallProps {
@@ -33,7 +33,7 @@ const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => 
         const origin = window.location.origin;
 
         // This single endpoint starts a checkout with the provider configured on the backend.
-        const response = await fetch(getApiUrl('/create-checkout-session'), {
+        const response = await fetchWithRetry(getApiUrl('/create-checkout-session'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ plan, origin }),

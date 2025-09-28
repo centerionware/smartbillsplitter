@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { RequestConfirmationFn, PayPalSubscriptionDetails } from '../types.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
-import { getApiUrl } from '../services/api.ts';
+import { getApiUrl, fetchWithRetry } from '../services/api.ts';
 import { useSubscriptionManager } from '../hooks/useSubscriptionManager.ts';
 
 interface ManageSubscriptionPageProps {
@@ -29,7 +29,7 @@ const ManageSubscriptionPage: React.FC<ManageSubscriptionPageProps> = ({ onBack,
       async () => {
         setIsCancelling(subId);
         try {
-          const response = await fetch(getApiUrl('/cancel-subscription'), {
+          const response = await fetchWithRetry(getApiUrl('/cancel-subscription'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

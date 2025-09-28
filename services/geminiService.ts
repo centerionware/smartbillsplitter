@@ -1,4 +1,4 @@
-import { getApiUrl } from './api.ts';
+import { getApiUrl, fetchWithRetry } from './api.ts';
 
 // The expected structure of the response from our serverless function.
 interface ScannedReceiptData {
@@ -13,7 +13,7 @@ export const parseReceipt = async (base64Image: string, mimeType: string): Promi
   try {
     // The path to our new self-hosted backend endpoint.
     // The Ingress will route this to the backend service.
-    const response = await fetch(getApiUrl('/scan-receipt'), {
+    const response = await fetchWithRetry(getApiUrl('/scan-receipt'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

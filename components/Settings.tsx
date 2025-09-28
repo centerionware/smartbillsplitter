@@ -6,7 +6,7 @@ import type { RequestConfirmationFn } from '../types.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import { exportData, importData } from '../services/db.ts';
 import * as notificationService from '../services/notificationService.ts';
-import { getApiUrl } from '../services/api.ts';
+import { getApiUrl, fetchWithRetry } from '../services/api.ts';
 
 // New imports for refactored child components
 import BillReminders from './settings/BillReminders.tsx';
@@ -202,7 +202,7 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
     
     try {
         const origin = window.location.origin;
-        const response = await fetch(getApiUrl('/manage-subscription'), {
+        const response = await fetchWithRetry(getApiUrl('/manage-subscription'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...subscriptionDetails, origin }),
@@ -231,7 +231,7 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
     setPortalError(null);
     
     try {
-        const response = await fetch(getApiUrl('/manage-subscription'), {
+        const response = await fetchWithRetry(getApiUrl('/manage-subscription'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ provider: 'paypal' }),
@@ -260,7 +260,7 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
   return (
     <div className="max-w-2xl mx-auto">
        <button onClick={handleBack} className="flex items-center gap-2 mb-6 text-teal-600 dark:text-teal-400 font-semibold hover:text-teal-800 dark:hover:text-teal-300">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <svg xmlns="http://www.w.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
         </svg>
         Back to Dashboard
@@ -301,7 +301,9 @@ const SettingsComponent: React.FC<SettingsProps> = ({ settings, recurringBills, 
         <Divider />
         <SubscriptionManagement
             subscriptionStatus={subscriptionStatus}
+// FIX: Corrected function name from onManageStripeSubscription to handleManageStripeSubscription.
             onManageStripeSubscription={handleManageStripeSubscription}
+// FIX: Corrected function name from onManagePayPalSubscription to handleManagePayPalSubscription.
             onManagePayPalSubscription={handleManagePayPalSubscription}
             onGoToManagePayPalSubscription={onGoToManageSubscriptionPage}
             isPortalLoading={isPortalLoading}

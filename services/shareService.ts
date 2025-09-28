@@ -2,7 +2,7 @@ import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload, Const
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import * as cryptoService from './cryptoService.ts';
 import { getBillSigningKey, saveBillSigningKey, deleteBillSigningKeyDB } from './db.ts';
-import { getApiUrl } from './api.ts';
+import { getApiUrl, fetchWithRetry } from './api.ts';
 
 interface ShareBillInfo {
     description: string;
@@ -112,7 +112,7 @@ export const generateAggregateBill = async (
             needsLocalUpdate = true;
         } else {
              try {
-                const res = await fetch(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { method: 'GET', signal: AbortSignal.timeout(4000) });
+                const res = await fetchWithRetry(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { method: 'GET', signal: AbortSignal.timeout(4000) });
                 if (res.status === 404) { needsServerUpdate = true; needsLocalUpdate = true; }
              } catch (e) { console.warn(`Could not verify share for bill ${bill.id}, proceeding optimistically.`); }
         }
@@ -123,7 +123,7 @@ export const generateAggregateBill = async (
             const encryptionKey = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
             const encryptedData = await encryptAndSignPayload(updatedBill, settings, keyRecord.privateKey, updatedBill.shareInfo.signingPublicKey, encryptionKey);
             const url = updatedBill.shareInfo.shareId ? getApiUrl(`/share/${updatedBill.shareInfo.shareId}`) : getApiUrl('/share');
-            const shareResponse = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ encryptedData }) });
+            const shareResponse = await fetchWithRetry(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ encryptedData }) });
             const shareResult = await shareResponse.json();
             if (!shareResponse.ok) throw new Error(shareResult.error || "Failed to create share session for constituent bill.");
             updatedBill.shareInfo.shareId = shareResult.shareId;
@@ -202,7 +202,7 @@ export const generateOneTimeShareLink = async (
     const billEncryptionKey = await cryptoService.generateEncryptionKey();
 
     const encryptedData = await encryptAndSignPayload(summaryBill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey, constituentShares);
-    const shareResponse = await fetch(getApiUrl('/share'), {
+    const shareResponse = await fetchWithRetry(getApiUrl('/share'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ encryptedData }),
@@ -219,7 +219,7 @@ export const generateOneTimeShareLink = async (
     const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
     const encryptedBillKey = await cryptoService.encrypt(JSON.stringify(billEncryptionKeyJwk), fragmentKey);
 
-    const keyResponse = await fetch(getApiUrl('/onetime-key'), {
+    const keyResponse = await fetchWithRetry(getApiUrl('/onetime-key'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ encryptedBillKey }),
@@ -258,7 +258,7 @@ export const generateShareLink = async (
 
     if (updatedBill.shareInfo && updatedBill.shareInfo.shareId) {
         try {
-            const res = await fetch(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { method: 'GET', signal: AbortSignal.timeout(4000) });
+            const res = await fetchWithRetry(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { method: 'GET', signal: AbortSignal.timeout(4000) });
             if (res.status === 404) {
                 console.warn(`Share session for bill ${updatedBill.id} not found on server. Recreating...`);
                 updatedBill = await recreateShareSession(updatedBill, settings, updateBillCallback);
@@ -285,7 +285,7 @@ export const generateShareLink = async (
         const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
 
         const encryptedData = await encryptAndSignPayload(updatedBill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey);
-        const shareResponse = await fetch(getApiUrl('/share'), {
+        const shareResponse = await fetchWithRetry(getApiUrl('/share'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ encryptedData }),
@@ -310,7 +310,7 @@ export const generateShareLink = async (
 
     if (existingShareInfo && now < existingShareInfo.expires) {
         try {
-            const statusResponse = await fetch(getApiUrl(`/onetime-key/${existingShareInfo.keyId}/status`));
+            const statusResponse = await fetchWithRetry(getApiUrl(`/onetime-key/${existingShareInfo.keyId}/status`));
             if (statusResponse.ok) {
                 const { status } = await statusResponse.json();
                 if (status === 'available') {
@@ -330,7 +330,7 @@ export const generateShareLink = async (
         const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
         const encryptedBillKey = await cryptoService.encrypt(JSON.stringify(billEncryptionKeyJwk), fragmentKey);
 
-        const keyResponse = await fetch(getApiUrl('/onetime-key'), {
+        const keyResponse = await fetchWithRetry(getApiUrl('/onetime-key'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ encryptedBillKey }),
@@ -412,7 +412,7 @@ export const recreateShareSession = async (
 
     const encryptedData = await encryptAndSignPayload(updatedBill, settings, privateKey, signingPublicKeyJwk, billEncryptionKey);
 
-    const shareResponse = await fetch(getApiUrl(`/share/${shareId}`), {
+    const shareResponse = await fetchWithRetry(getApiUrl(`/share/${shareId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ encryptedData }),

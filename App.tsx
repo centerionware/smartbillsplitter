@@ -25,7 +25,7 @@ import { ViewSharedBill } from './components/ViewSharedBill.tsx';
 import ManageSubscriptionPage from './components/ManageSubscriptionPage.tsx';
 import SetupDisplayNameModal from './components/SetupDisplayNameModal.tsx';
 import { useAppControl } from './contexts/AppControlContext.tsx';
-import { getApiUrl } from './services/api.ts';
+import { getApiUrl, fetchWithRetry } from './services/api.ts';
 import SummaryBillDetailsModal from './components/SummaryBillDetailsModal.tsx';
 
 // Determine if the app is running in an iframe.
@@ -191,7 +191,7 @@ const App: React.FC = () => {
             if (!lastUpdate || now - parseInt(lastUpdate, 10) > twentyFourHours) {
                 console.log("Updating 'last seen' timestamp in Stripe metadata.");
                 try {
-                    const response = await fetch(getApiUrl('/update-customer-metadata'), {
+                    const response = await fetchWithRetry(getApiUrl('/update-customer-metadata'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ customerId: subscriptionDetails.customerId }),

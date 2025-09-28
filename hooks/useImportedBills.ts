@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ImportedBill, SharedBillPayload, Participant } from '../types.ts';
 import { getImportedBills, addImportedBill as addDB, updateImportedBill as updateDB, deleteImportedBillDB } from '../services/db.ts';
 import * as cryptoService from '../services/cryptoService.ts';
-import { getApiUrl } from '../services/api.ts';
+import { getApiUrl, fetchWithRetry } from '../services/api.ts';
 
 const POLLING_INTERVAL = 30000; // 30 seconds
 
@@ -50,7 +50,7 @@ export const useImportedBills = () => {
         if (uniqueSharesToCheck.length === 0) return;
 
         try {
-            const response = await fetch(getApiUrl('/share/batch-check'), {
+            const response = await fetchWithRetry(getApiUrl('/share/batch-check'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(uniqueSharesToCheck),
