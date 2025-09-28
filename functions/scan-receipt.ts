@@ -21,13 +21,13 @@ const responseSchema = {
     },
     items: {
       type: Type.ARRAY,
-      description: "A list of all the individual items found on the receipt. Do not include tax, tip, or subtotal as items.",
+      description: "A list of all the individual items found on the receipt. If tax or tip are present, include them as separate items in this list. Do not include subtotal as an item.",
       items: {
         type: Type.OBJECT,
         properties: {
           name: {
             type: Type.STRING,
-            description: "The name of the purchased item.",
+            description: "The name of the purchased item. Use 'Tax' for tax amounts and 'Tip' for tip amounts.",
           },
           price: {
             type: Type.NUMBER,
@@ -39,18 +39,18 @@ const responseSchema = {
     },
     additionalInfo: {
         type: Type.ARRAY,
-        description: "A list of any other relevant key-value pairs from the receipt, like store address, phone numbers, tax amounts, or tip amounts.",
+        description: "A list of any other relevant key-value pairs from the receipt, like store address or phone numbers. Do not include tax or tip here; they should be in the 'items' list.",
         nullable: true,
         items: {
           type: Type.OBJECT,
           properties: {
             key: {
               type: Type.STRING,
-              description: "The name of the information field (e.g., 'Tax', 'Tip', 'Address')."
+              description: "The name of the information field (e.g., 'Address', 'Phone Number')."
             },
             value: {
               type: Type.STRING,
-              description: "The value of the information field (e.g., '$1.25', '123 Main St')."
+              description: "The value of the information field (e.g., '123 Main St', '555-1234')."
             }
           },
           required: ["key", "value"]
@@ -82,7 +82,7 @@ export const scanReceiptHandler = async (req: HttpRequest): Promise<HttpResponse
     };
     
     const textPart = {
-      text: 'Extract the information from this receipt into the provided JSON schema. Focus on accurately identifying all individual line items and the final printed total.'
+      text: 'Extract the information from this receipt into the provided JSON schema. Focus on accurately identifying all individual line items, including any tax or tip, and the final printed total.'
     };
 
     const response = await ai.models.generateContent({

@@ -17,34 +17,29 @@ interface State {
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: Converted to use a constructor for state initialization and method binding
-  // to ensure 'this' context is correctly bound, resolving issues where 'setState' and 'props'
-  // were not found on the component instance.
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: undefined,
-      resetMessage: null,
-    };
-    this.handleReset = this.handleReset.bind(this);
-    this.handleHardReset = this.handleHardReset.bind(this);
-  }
+  // FIX: Refactored the class component to use class property syntax for state
+  // and arrow functions for methods. This is a more modern and robust way to handle
+  // `this` context in React, resolving the errors where `state` and `setState` were not found.
+  state: State = {
+    hasError: false,
+    error: undefined,
+    resetMessage: null,
+  };
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
-  private handleReset() {
+  handleReset = () => {
     // A full page replacement is the most reliable way to reset state after a major error.
     window.location.replace('/');
   }
   
-  private handleHardReset() {
+  handleHardReset = () => {
     console.warn("Performing hard reset from error boundary.");
     this.setState({ resetMessage: null }); // Clear previous messages
 
@@ -78,7 +73,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     };
   }
 
-  public render() {
+  render() {
     if (this.state.hasError) {
       const { resetMessage } = this.state;
       return (
