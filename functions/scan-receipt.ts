@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { HttpRequest, HttpResponse } from '../http-types';
 
@@ -76,7 +77,7 @@ async function scanReceiptLogic(base64Image: string, mimeType: string) {
     const ai = new GoogleGenAI({ apiKey });
 
     const imagePart = { inlineData: { data: base64Image, mimeType: mimeType } };
-    const textPart = { text: "Analyze the provided receipt image. Extract a concise description (like the store name), the date, the final total, a list of all line items with their individual prices, and a list of any other relevant information (like store location, tracking numbers, etc.) as key-value pairs. Ignore any taxes, tips, or subtotals that are not individual items. Return all data in the specified JSON format." };
+    const textPart = { text: "Analyze the provided receipt image. Extract a concise description (like the store name), the date, the final total, a list of all line items with their individual prices, and a list of any other relevant information (like store location, tracking numbers, etc.) as key-value pairs. Specifically, if you find a line item for 'Tax' or similar, extract it as its own item in the itemization list. Ignore any tips or subtotals that are not individual items. Return all data in the specified JSON format." };
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
