@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Bill } from '../types.ts';
-import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB, deleteBillSigningKeyDB } from '../services/db.ts';
+import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB, deleteBillSigningKeyDB, addMultipleBillsDB } from '../services/db.ts';
 
 const initialBills: Bill[] = [
   {
@@ -78,6 +78,24 @@ export const useBills = () => {
     });
   }, []);
 
+  const addMultipleBills = useCallback(async (billsData: Omit<Bill, 'id' | 'status'>[]) => {
+    const newBills: Bill[] = billsData.map((billData, index) => ({
+      ...billData,
+      id: `bill-${Date.now()}-${index}`,
+      status: 'active',
+    }));
+
+    if (newBills.length > 0) {
+      await addMultipleBillsDB(newBills);
+      setBills(prevBills => {
+          const updated = [...newBills, ...prevBills];
+          updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          return updated;
+      });
+    }
+    return newBills;
+  }, []);
+
   const updateBill = useCallback(async (updatedBill: Bill) => {
     await updateBillDB(updatedBill);
     setBills(prevBills =>
@@ -123,5 +141,5 @@ export const useBills = () => {
     }
   }, [bills]);
 
-  return { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, isLoading, error };
+  return { bills, addBill, addMultipleBills, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, isLoading, error };
 };

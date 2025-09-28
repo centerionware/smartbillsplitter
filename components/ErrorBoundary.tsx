@@ -30,6 +30,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
+  // FIX: Converted to an arrow function to correctly bind `this` and allow access to `setState`.
   private handleReset = () => {
     this.setState({ hasError: false });
     // This is a bit of a heavy hammer, but it's the most reliable way to
@@ -37,6 +38,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     window.location.replace('/');
   }
   
+  // FIX: Converted to an arrow function for consistency and to avoid potential `this` context issues.
   private handleHardReset = () => {
       console.warn("Performing hard reset from error boundary.");
       const deleteRequest = indexedDB.deleteDatabase(DB_NAME);

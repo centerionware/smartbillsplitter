@@ -133,6 +133,18 @@ export const addBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const updateBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const deleteBillDB = (billId: string) => del(STORES.BILLS, billId);
 
+export const addMultipleBillsDB = (bills: Bill[]): Promise<void> => {
+    if (!db) return Promise.reject("Database not initialized.");
+    const tx = db.transaction(STORES.BILLS, 'readwrite');
+    const store = tx.objectStore(STORES.BILLS);
+    bills.forEach(bill => store.put(bill));
+    
+    return new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+};
+
 // --- Recurring Bill Operations ---
 export const getRecurringBills = () => getAll<RecurringBill>(STORES.RECURRING_BILLS);
 export const addRecurringBill = (bill: RecurringBill) => set(STORES.RECURRING_BILLS, bill);

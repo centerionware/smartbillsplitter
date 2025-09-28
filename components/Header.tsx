@@ -9,12 +9,13 @@ interface HeaderProps {
   onGoToSettings: () => void;
   onGoToRecurringBills: () => void;
   onNavigate: (path: string) => void;
+  onOpenCsvImporter: () => void;
   hasRecurringBills: boolean;
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettings, onGoToRecurringBills, onNavigate, hasRecurringBills, theme, setTheme }) => {
+const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettings, onGoToRecurringBills, onNavigate, onOpenCsvImporter, hasRecurringBills, theme, setTheme }) => {
   const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const fabRef = useRef<HTMLDivElement>(null);
@@ -68,6 +69,16 @@ const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettin
         </button>
         <div className="flex items-center gap-2 md:gap-4">
           <ThemeToggle theme={theme} setTheme={setTheme} />
+          
+          <button
+            onClick={onOpenCsvImporter}
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-all duration-300"
+            aria-label="Import from CSV"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+            </svg>
+          </button>
 
           <button
             onClick={() => setIsQrModalOpen(true)}

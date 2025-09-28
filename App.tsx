@@ -27,13 +27,14 @@ import SetupDisplayNameModal from './components/SetupDisplayNameModal.tsx';
 import { useAppControl } from './contexts/AppControlContext.tsx';
 import { getApiUrl, fetchWithRetry } from './services/api.ts';
 import SummaryBillDetailsModal from './components/SummaryBillDetailsModal.tsx';
+import CsvImporterModal from './components/CsvImporterModal.tsx';
 
 // Determine if the app is running in an iframe.
 // This is used to disable URL-based navigation for a smoother sandbox experience.
 const isInIframe = window.self !== window.top;
  
 const App: React.FC = () => {
-  const { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, isLoading: billsLoading, updateMultipleBills } = useBills();
+  const { bills, addBill, addMultipleBills, updateBill, deleteBill, archiveBill, unarchiveBill, isLoading: billsLoading, updateMultipleBills } = useBills();
   const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, isLoading: importedBillsLoading } = useImportedBills();
   const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: recurringBillsLoading } = useRecurringBills();
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings();
@@ -66,6 +67,7 @@ const App: React.FC = () => {
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [postSetupAction, setPostSetupAction] = useState<(() => void) | null>(null);
   const [summaryBillForModal, setSummaryBillForModal] = useState<ImportedBill | null>(null);
+  const [isCsvImporterOpen, setIsCsvImporterOpen] = useState(false);
   const initRef = useRef(false);
 
   // --- Navigation ---
@@ -352,6 +354,7 @@ const App: React.FC = () => {
   const handleCreateFromTemplate = (template: RecurringBill) => navigate(`#/create?fromTemplate=${template.id}`);
   const handleEditTemplate = (template: RecurringBill) => navigate(`#/create?editTemplate=${template.id}`);
   const handleGoHome = () => navigate('#/');
+  const handleOpenCsvImporter = () => setIsCsvImporterOpen(true);
   
   const handleSetDashboardView = (view: 'bills' | 'participants') => {
     const params = new URLSearchParams(currentPath.split('?')[1] || '');
@@ -612,12 +615,24 @@ const App: React.FC = () => {
             onClose={() => setSummaryBillForModal(null)}
         />
       )}
+      {isCsvImporterOpen && settings && (
+        <CsvImporterModal
+          onClose={() => setIsCsvImporterOpen(false)}
+          onImportSuccess={(newBills) => {
+            addMultipleBills(newBills);
+            setIsCsvImporterOpen(false);
+            showNotification(`${newBills.length} bill(s) imported successfully!`, 'success');
+          }}
+          settings={settings}
+        />
+      )}
       <Header 
         onGoHome={handleGoHome}
         onCreateNewBill={handleCreateNewBill} 
         onGoToSettings={handleGoToSettings} 
         onGoToRecurringBills={handleGoToRecurringBills}
         onNavigate={navigate}
+        onOpenCsvImporter={handleOpenCsvImporter}
         hasRecurringBills={recurringBills.length > 0}
         theme={theme}
         setTheme={setTheme}
