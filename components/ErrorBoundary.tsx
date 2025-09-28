@@ -34,11 +34,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
+  // FIX: Converted to an arrow function to correctly bind `this`.
   handleReset = () => {
     // A full page replacement is the most reliable way to reset state after a major error.
     window.location.replace('/');
   }
   
+  // FIX: Converted to an arrow function to correctly bind `this`.
   handleHardReset = () => {
     console.warn("Performing hard reset from error boundary.");
     this.setState({ resetMessage: null }); // Clear previous messages
