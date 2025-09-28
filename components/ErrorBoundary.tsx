@@ -9,20 +9,21 @@ interface Props {
 interface State {
   hasError: boolean;
   error?: Error;
+  resetMessage?: {
+    type: 'error' | 'blocked';
+    title: string;
+    text: string;
+  } | null;
 }
 
-// FIX: Export the ErrorBoundary class to make it available for import.
 export class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: Refactored to use modern class property syntax for state and arrow functions for handlers.
-  // This approach is cleaner and avoids potential issues with 'this' context, resolving errors
-  // where TypeScript failed to recognize `props` and `setState` on the class instance.
   public state: State = {
     hasError: false,
     error: undefined,
+    resetMessage: null,
   };
 
   static getDerivedStateFromError(error: Error): State {
-    // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
   }
 
@@ -30,37 +31,50 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
-  // FIX: Converted to an arrow function to correctly bind `this` and allow access to `setState`. This resolves errors where `this.setState` would be undefined when called from an event handler.
+  // FIX: Converted to arrow function to automatically bind `this`.
   private handleReset = () => {
-    this.setState({ hasError: false });
-    // This is a bit of a heavy hammer, but it's the most reliable way to
-    // fully reset state after a boundary-level error.
+    // A full page replacement is the most reliable way to reset state after a major error.
     window.location.replace('/');
   }
   
-  // FIX: Converted to an arrow function for consistency and to avoid potential `this` context issues.
+  // FIX: Converted to arrow function to automatically bind `this`, ensuring `this.setState` is available.
   private handleHardReset = () => {
-      console.warn("Performing hard reset from error boundary.");
-      const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
-      
-      deleteRequest.onsuccess = () => {
-        console.log("Database deleted successfully.");
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.reload();
-      };
-      
-      deleteRequest.onerror = () => {
-        alert("Could not delete the database. Please clear your browser's site data manually through the browser settings.");
-      };
-      
-      deleteRequest.onblocked = () => {
-        alert("Database is locked, likely by another open tab. To reset the app, please close all other tabs for this site and then reload this page to try again.");
-      };
+    console.warn("Performing hard reset from error boundary.");
+    this.setState({ resetMessage: null }); // Clear previous messages
+
+    const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
+
+    deleteRequest.onsuccess = () => {
+      console.log("Database deleted successfully.");
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.reload();
+    };
+
+    deleteRequest.onerror = () => {
+      this.setState({
+        resetMessage: {
+          type: 'error',
+          title: 'Reset Failed',
+          text: "Could not delete the database. Please clear your browser's site data manually through the browser settings."
+        }
+      });
+    };
+
+    deleteRequest.onblocked = () => {
+      this.setState({
+        resetMessage: {
+          type: 'blocked',
+          title: 'Action Required',
+          text: "Database is locked, likely by another open tab. To reset the app, please close all other tabs for this site and then click 'Hard Reset' again."
+        }
+      });
+    };
   }
 
   public render() {
     if (this.state.hasError) {
+      const { resetMessage } = this.state;
       return (
         <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-4 font-sans">
           <div className="w-full max-w-lg mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
@@ -71,6 +85,30 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <p className="text-slate-500 dark:text-slate-400 mt-2 mb-6">
               The application encountered an unexpected problem. You can try to recover or reset the application.
             </p>
+
+            {resetMessage && (
+              <div className={`mb-4 p-4 rounded-r-lg border-l-4 text-left ${
+                  resetMessage.type === 'error'
+                    ? 'bg-red-100 dark:bg-red-900/40 border-red-500'
+                    : 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-500'
+                }`}>
+                <h4 className={`font-bold ${
+                    resetMessage.type === 'error'
+                      ? 'text-red-800 dark:text-red-200'
+                      : 'text-yellow-800 dark:text-yellow-200'
+                  }`}>
+                  {resetMessage.title}
+                </h4>
+                <p className={`text-sm mt-1 ${
+                    resetMessage.type === 'error'
+                      ? 'text-red-700 dark:text-red-300'
+                      : 'text-yellow-700 dark:text-yellow-300'
+                  }`}>
+                  {resetMessage.text}
+                </p>
+              </div>
+            )}
+
             <div className="space-y-4">
               <button onClick={this.handleReset} className="w-full px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">
                 Reload App
@@ -83,18 +121,4 @@ export class ErrorBoundary extends React.Component<Props, State> {
               </p>
             </div>
              <details className="mt-4 text-left text-xs text-slate-400 dark:text-slate-500">
-              <summary className="cursor-pointer">Error Details</summary>
-              <pre className="mt-2 p-2 bg-slate-100 dark:bg-slate-700 rounded overflow-auto whitespace-pre-wrap">
-                <code>{this.state.error?.name}: {this.state.error?.message}\n\n{this.state.error?.stack}</code>
-              </pre>
-            </details>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-export default ErrorBoundary;
+              <summary className="

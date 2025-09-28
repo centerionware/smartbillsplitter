@@ -1,5 +1,6 @@
 import { getApiUrl, fetchWithRetry } from './api.ts';
 import type { Bill } from '../types.ts';
+import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 
 // The expected structure of the response from our serverless function.
 interface ScannedReceiptData {
@@ -52,14 +53,14 @@ export const parseReceipt = async (base64Image: string, mimeType: string): Promi
 // --- CSV Parsing ---
 export type ParsedBillFromCsv = Omit<Bill, 'id' | 'status'>;
 
-export const parseCsv = async (csvContent: string, myDisplayName: string): Promise<ParsedBillFromCsv[]> => {
+export const parseCsv = async (csvContent: string, myDisplayName: string, subscriptionStatus: SubscriptionStatus, customerId?: string): Promise<ParsedBillFromCsv[]> => {
     try {
         const response = await fetchWithRetry(getApiUrl('/parse-csv'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ csvContent, myDisplayName }),
+            body: JSON.stringify({ csvContent, myDisplayName, subscriptionStatus, customerId }),
         });
 
         if (!response.ok) {

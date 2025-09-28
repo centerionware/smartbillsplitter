@@ -2,14 +2,18 @@ import React, { useState, useCallback, useRef } from 'react';
 import { parseCsv, ParsedBillFromCsv } from '../services/geminiService.ts';
 import type { Settings } from '../types.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
+import type { SubscriptionStatus } from '../hooks/useAuth.ts';
+import type { SubscriptionDetails } from '../services/db.ts';
 
 interface CsvImporterModalProps {
   onClose: () => void;
   onImportSuccess: (bills: ParsedBillFromCsv[]) => void;
   settings: Settings;
+  subscriptionStatus: SubscriptionStatus;
+  subscriptionDetails: SubscriptionDetails | null;
 }
 
-const CsvImporterModal: React.FC<CsvImporterModalProps> = ({ onClose, onImportSuccess, settings }) => {
+const CsvImporterModal: React.FC<CsvImporterModalProps> = ({ onClose, onImportSuccess, settings, subscriptionStatus, subscriptionDetails }) => {
     const [status, setStatus] = useState<'idle' | 'processing' | 'error'>('idle');
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,7 +37,7 @@ const CsvImporterModal: React.FC<CsvImporterModalProps> = ({ onClose, onImportSu
                 if (!csvContent) {
                     throw new Error("Could not read file content.");
                 }
-                const parsedBills = await parseCsv(csvContent, settings.myDisplayName);
+                const parsedBills = await parseCsv(csvContent, settings.myDisplayName, subscriptionStatus, subscriptionDetails?.customerId);
                 if (parsedBills.length === 0) {
                    showNotification("AI couldn't find any valid bills in the CSV.", 'info');
                    onClose();
