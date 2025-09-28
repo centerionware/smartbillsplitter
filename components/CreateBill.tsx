@@ -152,11 +152,25 @@ export const CreateBill: React.FC<CreateBillProps> = ({
     if (data.date) setDate(data.date);
     if (data.total) setTotalAmount(data.total);
 
+    // Find the current user in the participants list to auto-assign items.
+    let myParticipantId: string | null = null;
+    if (settings?.myDisplayName) {
+        const myNameLower = settings.myDisplayName.toLowerCase().trim();
+        const meAsParticipant = participants.find(p => p.name.trim().toLowerCase() === myNameLower);
+        if (meAsParticipant) {
+            myParticipantId = meAsParticipant.id;
+        } else if (participants.length > 0 && participants[0].name.trim() !== '') {
+            // As a fallback, if the user might have edited their name in the list,
+            // we'll assume the first non-empty participant is the user creating the bill.
+            myParticipantId = participants[0].id;
+        }
+    }
+
     const newItems = data.items.map((item: any, index: number) => ({
       id: `item-scan-${Date.now()}-${index}`,
       name: item.name,
       price: item.price,
-      assignedTo: [],
+      assignedTo: myParticipantId ? [myParticipantId] : [],
     }));
     setItems(newItems);
 
