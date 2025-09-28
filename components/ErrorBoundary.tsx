@@ -13,23 +13,13 @@ interface State {
 
 // FIX: Export the ErrorBoundary class to make it available for import.
 export class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: Explicitly declare the state property on the class. This is required by some
-  // TypeScript configurations and resolves the errors about 'state', 'props', and 'setState' not existing.
-  public state: State;
-
-  // FIX: Moved state initialization to the constructor for broader compatibility
-  // and to help older TypeScript versions correctly infer component types,
-  // which resolves errors about 'setState' and 'props' not existing.
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: undefined,
-    };
-    // FIX: Bind event handlers in the constructor to ensure 'this' is correctly bound, resolving issues where `this.setState` was not found.
-    this.handleReset = this.handleReset.bind(this);
-    this.handleHardReset = this.handleHardReset.bind(this);
-  }
+  // FIX: Refactored to use modern class property syntax for state and arrow functions for handlers.
+  // This approach is cleaner and avoids potential issues with 'this' context, resolving errors
+  // where TypeScript failed to recognize `props` and `setState` on the class instance.
+  public state: State = {
+    hasError: false,
+    error: undefined,
+  };
 
   static getDerivedStateFromError(error: Error): State {
     // Update state so the next render will show the fallback UI.
@@ -40,16 +30,14 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("Uncaught error in ErrorBoundary:", error, errorInfo);
   }
 
-  // FIX: Converted to a class method and bound in constructor for maximum compatibility.
-  private handleReset() {
+  private handleReset = () => {
     this.setState({ hasError: false });
     // This is a bit of a heavy hammer, but it's the most reliable way to
     // fully reset state after a boundary-level error.
     window.location.replace('/');
   }
   
-  // FIX: Converted to a class method and bound in constructor for maximum compatibility.
-  private handleHardReset() {
+  private handleHardReset = () => {
       console.warn("Performing hard reset from error boundary.");
       const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
       

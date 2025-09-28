@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { ImportedBill, Settings } from '../types.ts';
 import PaymentMethodsModal from './PaymentMethodsModal.tsx';
+import ExportActionSheet from './ExportActionSheet.tsx';
 
 interface ImportedBillDetailsProps {
   importedBill: ImportedBill;
@@ -14,6 +15,7 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isExportSheetOpen, setIsExportSheetOpen] = useState(false);
 
   const { bill } = importedBill.sharedData;
   const myParticipant = bill.participants.find(p => p.id === importedBill.myParticipantId);
@@ -125,7 +127,19 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
           )}
 
           <div>
-            <h3 className="text-xl font-semibold mb-4 text-slate-700 dark:text-slate-200">All Participants</h3>
+            <div className="mb-4 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200">All Participants</h3>
+              <button
+                  onClick={() => setIsExportSheetOpen(true)}
+                  className="inline-flex items-center gap-2 bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 font-semibold px-4 py-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                  aria-label="Export this bill"
+              >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Export</span>
+              </button>
+            </div>
             <ul className="space-y-3">
               {bill.participants.map(p => {
                 const isMe = myParticipant && p.id === myParticipant.id;
@@ -173,6 +187,9 @@ const ImportedBillDetails: React.FC<ImportedBillDetailsProps> = ({ importedBill,
             creatorName={importedBill.creatorName}
             onClose={() => setIsPaymentModalOpen(false)}
         />
+      )}
+      {isExportSheetOpen && (
+          <ExportActionSheet bill={bill} onClose={() => setIsExportSheetOpen(false)} />
       )}
     </>
   );

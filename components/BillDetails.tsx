@@ -3,6 +3,7 @@ import type { Bill, Settings, Participant } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import ShareModal from './ShareModal.tsx';
 import ShareActionSheet from './ShareActionSheet.tsx';
+import ExportActionSheet from './ExportActionSheet.tsx';
 import { generateShareText, generateShareLink, encryptAndSignPayload, recreateShareSession } from '../services/shareService.ts';
 import * as cryptoService from '../services/cryptoService.ts';
 import { getBillSigningKey } from '../services/db.ts';
@@ -25,6 +26,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareMenuParticipant, setShareMenuParticipant] = useState<Participant | null>(null);
+  const [isExportSheetOpen, setIsExportSheetOpen] = useState(false);
   const { showNotification } = useAppControl();
 
   const pushShareUpdate = useCallback(async (updatedBill: Bill) => {
@@ -197,16 +199,28 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
           <div>
             <div className="mb-6 flex justify-between items-center">
               <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Participants</h3>
-               <button
-                  onClick={() => setIsShareModalOpen(true)}
-                  className="inline-flex items-center gap-2 bg-teal-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-teal-600 transition-colors"
-                  aria-label="Share this bill"
-               >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                  </svg>
-                  <span>Share Bill</span>
-               </button>
+               <div className="flex items-center gap-2">
+                 <button
+                    onClick={() => setIsExportSheetOpen(true)}
+                    className="inline-flex items-center gap-2 bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 font-semibold px-4 py-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                    aria-label="Export this bill"
+                 >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Export</span>
+                 </button>
+                 <button
+                    onClick={() => setIsShareModalOpen(true)}
+                    className="inline-flex items-center gap-2 bg-teal-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-teal-600 transition-colors"
+                    aria-label="Share this bill"
+                 >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                    </svg>
+                    <span>Share Bill</span>
+                 </button>
+               </div>
             </div>
             <ul className="space-y-3">
               {bill.participants.map(p => (
@@ -253,6 +267,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, settings, onUpdateBill,
             onShareLinkGeneric={() => handleShareLink(shareMenuParticipant, 'generic')}
             shareContext="bill"
         />
+      )}
+      
+      {isExportSheetOpen && (
+        <ExportActionSheet bill={bill} onClose={() => setIsExportSheetOpen(false)} />
       )}
 
       {isReceiptModalOpen && bill.receiptImage && (
