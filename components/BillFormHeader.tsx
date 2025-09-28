@@ -21,8 +21,8 @@ const BillFormHeader: React.FC<BillFormHeaderProps> = ({ isEditing, fromTemplate
           id="isRecurring"
           type="button"
           onClick={() => setIsRecurring(!isRecurring)}
-          disabled={isEditing}
-          className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${isEditing ? 'opacity-50 cursor-not-allowed' : ''} ${isRecurring ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+          disabled={isEditing || !!fromTemplateId}
+          className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${isEditing || !!fromTemplateId ? 'opacity-50 cursor-not-allowed' : ''} ${isRecurring ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-600'}`}
         >
           <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${isRecurring ? 'translate-x-5' : 'translate-x-0'}`} />
         </button>

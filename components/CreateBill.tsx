@@ -56,7 +56,7 @@ export const CreateBill: React.FC<CreateBillProps> = ({
 
   // --- Bill Logic State ---
   const [splitMode, setSplitMode] = useState<SplitMode>(template?.splitMode || 'equally');
-  const [isRecurring, setIsRecurring] = useState(isEditing || !!template?.recurrenceRule);
+  const [isRecurring, setIsRecurring] = useState(isEditing);
   const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>(template?.recurrenceRule || {
     frequency: 'monthly', interval: 1, dayOfMonth: new Date().getDate()
   });

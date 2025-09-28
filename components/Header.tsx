@@ -16,27 +16,27 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettings, onGoToRecurringBills, onNavigate, onOpenCsvImporter, hasRecurringBills, theme, setTheme }) => {
-  const [isFabMenuOpen, setIsFabMenuOpen] = useState(false);
+  const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-  const fabRef = useRef<HTMLDivElement>(null);
+  const optionsMenuRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (fabRef.current && !fabRef.current.contains(event.target as Node)) {
-        setIsFabMenuOpen(false);
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target as Node)) {
+        setIsOptionsMenuOpen(false);
       }
     };
-    if (isFabMenuOpen) {
+    if (isOptionsMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isFabMenuOpen]);
+  }, [isOptionsMenuOpen]);
   
-  const handleFabAction = (action: () => void) => {
+  const handleMenuAction = (action: () => void) => {
     action();
-    setIsFabMenuOpen(false);
+    setIsOptionsMenuOpen(false);
   }
   
   const handleScanSuccess = (url: string) => {
@@ -68,67 +68,74 @@ const Header: React.FC<HeaderProps> = ({ onGoHome, onCreateNewBill, onGoToSettin
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">SharedBills</h1>
         </button>
         <div className="flex items-center gap-2 md:gap-4">
+          
+          {/* Consolidated Menu */}
+          <div ref={optionsMenuRef} className="relative">
+            <button
+              onClick={() => setIsOptionsMenuOpen(prev => !prev)}
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all duration-300"
+              aria-label="More options"
+              aria-haspopup="true"
+              aria-expanded={isOptionsMenuOpen}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
+            
+            {isOptionsMenuOpen && (
+              <div
+                className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 py-1 z-20"
+                role="menu"
+              >
+                <button
+                  onClick={() => handleMenuAction(() => setIsQrModalOpen(true))}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  role="menuitem"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h-1m-1-5v1m-2-1v1m-2-1v1m-2-1v1m-6 0h1m6 5h1m-1-5v1m-2-1v1m-2-1v1m-2-1v1M4 12h1m6 5h1m-1-5v1m-2-1v1m-2-1v1m-2-1v1" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h1a2 2 0 002-2v-1a2 2 0 012-2h1.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h1A2.5 2.5 0 0014 5.5V3.935M9 21v-1.5a2.5 2.5 0 012.5-2.5h1A2.5 2.5 0 0115 19.5V21" />
+                  </svg>
+                  <span>Scan QR Code</span>
+                </button>
+                <button
+                  onClick={() => handleMenuAction(onOpenCsvImporter)}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  role="menuitem"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  <span>Import from CSV</span>
+                </button>
+                 {hasRecurringBills && (
+                    <button onClick={() => handleMenuAction(onGoToRecurringBills)} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700" role="menuitem">
+                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M4 18v-5h5m10-4h5v5h-5M14 18h5v-5h-5" /></svg>
+                      <span>Recurring Bills</span>
+                    </button>
+                  )}
+              </div>
+            )}
+          </div>
+
           <ThemeToggle theme={theme} setTheme={setTheme} />
           
           <button
-            onClick={onOpenCsvImporter}
-            className="p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-all duration-300"
-            aria-label="Import from CSV"
+            onClick={onCreateNewBill}
+            className="flex items-center justify-center h-10 w-10 bg-teal-500 text-white rounded-full hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all duration-300"
+            aria-label="Create new bill"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
           </button>
-
-          <button
-            onClick={() => setIsQrModalOpen(true)}
-            className="p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-all duration-300"
-            aria-label="Scan QR code"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h-1m-1-5v1m-2-1v1m-2-1v1m-2-1v1m-6 0h1m6 5h1m-1-5v1m-2-1v1m-2-1v1m-2-1v1M4 12h1m6 5h1m-1-5v1m-2-1v1m-2-1v1m-2-1v1" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h1a2 2 0 002-2v-1a2 2 0 012-2h1.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h1A2.5 2.5 0 0014 5.5V3.935M9 21v-1.5a2.5 2.5 0 012.5-2.5h1A2.5 2.5 0 0115 19.5V21" />
-            </svg>
-          </button>
-          
-           <div ref={fabRef} className="relative">
-             <button
-              onClick={() => setIsFabMenuOpen(prev => !prev)}
-              className={`flex items-center justify-center h-12 w-12 bg-teal-500 text-white rounded-full hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-all duration-300 transform ${isFabMenuOpen ? 'rotate-45' : 'rotate-0'}`}
-              aria-label="Create new bill"
-              aria-haspopup="true"
-              aria-expanded={isFabMenuOpen}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            </button>
-
-            {isFabMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-56 flex flex-col items-end gap-3 z-20">
-                 {hasRecurringBills && (
-                    <button onClick={() => handleFabAction(onGoToRecurringBills)} className="flex items-center gap-3 w-full justify-end">
-                      <span className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold px-4 py-2 rounded-lg shadow-md">Recurring Bills</span>
-                      <span className="flex items-center justify-center h-10 w-10 bg-white dark:bg-slate-600 text-teal-500 rounded-full shadow-md">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M4 18v-5h5m10-4h5v5h-5M14 18h5v-5h-5" /></svg>
-                      </span>
-                    </button>
-                  )}
-                  <button onClick={() => handleFabAction(onCreateNewBill)} className="flex items-center gap-3 w-full justify-end">
-                    <span className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold px-4 py-2 rounded-lg shadow-md">New Bill</span>
-                    <span className="flex items-center justify-center h-10 w-10 bg-white dark:bg-slate-600 text-teal-500 rounded-full shadow-md">
-                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    </span>
-                  </button>
-              </div>
-            )}
-           </div>
 
            <button
             onClick={onGoToSettings}
-            className="p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-all duration-300"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 transition-all duration-300"
             aria-label="Settings"
           >
              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066 2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
              </svg>
            </button>

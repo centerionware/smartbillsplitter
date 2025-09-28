@@ -18,8 +18,8 @@ interface State {
 
 export class ErrorBoundary extends React.Component<Props, State> {
   // FIX: Refactored the class component to use class property syntax for state
-  // and arrow functions for methods. This is a more modern and robust way to handle
-  // `this` context in React, resolving the errors where `state` and `setState` were not found.
+  // and arrow functions for methods to ensure `this` is correctly bound. This resolves
+  // the errors where `setState` and `props` were not found on the component instance.
   state: State = {
     hasError: false,
     error: undefined,
