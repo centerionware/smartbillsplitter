@@ -1,5 +1,6 @@
 import { HttpRequest, HttpResponse, HttpHandler } from './http-types.ts';
 import { scanReceiptHandler } from './functions/scan-receipt.ts';
+import { parseCsvHandler } from './functions/parse-csv.ts';
 import { syncHandler } from './functions/sync.ts';
 import { createCheckoutSessionHandler, verifyPaymentHandler, manageSubscriptionHandler, updateCustomerMetadataHandler, cancelSubscriptionHandler, getPayPalSubscriptionDetailsHandler } from './functions/payment.ts';
 import { shareHandler } from './functions/share.ts';
@@ -84,6 +85,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
   if (path.startsWith('/paypal-subscription-details')) return getPayPalSubscriptionDetailsHandler(req);
 
   if (path.startsWith('/scan-receipt')) return scanReceiptHandler(req);
+  if (path.startsWith('/parse-csv')) return parseCsvHandler(req);
   if (path.startsWith('/sync')) return syncHandler(req, context);
   
   if (path.match(/^\/onetime-key\/?$/) && method === 'POST') return onetimeKeyHandler(req, context);
