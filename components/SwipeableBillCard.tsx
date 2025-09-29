@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import type { Bill } from '../types';
 import BillCard from './BillCard.tsx';
@@ -88,7 +89,13 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
       if (translateX !== 0) {
         setTranslateX(0); // Close actions on tap
       } else {
-        if (e) onClick(e as React.MouseEvent);
+        if (e) {
+          // FIX: Prevent the default action (like a ghost click) on touch devices.
+          if (e.type === 'touchend') {
+            e.preventDefault();
+          }
+          onClick(e as React.MouseEvent);
+        }
       }
       return;
     }

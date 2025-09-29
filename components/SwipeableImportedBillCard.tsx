@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react';
 import type { ImportedBill } from '../types';
 import ImportedBillCard from './ImportedBillCard.tsx';
@@ -92,7 +93,13 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = (pro
       if (translateX !== 0) {
         setTranslateX(0);
       } else {
-        if (e) onClick(e as React.MouseEvent);
+        if (e) {
+          // FIX: Prevent the default action (like a ghost click) on touch devices.
+          if (e.type === 'touchend') {
+            e.preventDefault();
+          }
+          onClick(e as React.MouseEvent);
+        }
       }
       return;
     }

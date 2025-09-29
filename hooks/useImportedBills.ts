@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import { useState, useEffect, useCallback } from 'react';
 import type { ImportedBill } from '../types';
 import { 
@@ -50,6 +45,16 @@ export const useImportedBills = () => {
         updated.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
         return updated;
     });
+  }, []);
+
+  const updateMultipleImportedBills = useCallback(async (billsToUpdate: ImportedBill[]) => {
+      await mergeImportedBillsDB([], billsToUpdate);
+      setImportedBills(prev => {
+          const updatedMap = new Map(billsToUpdate.map(b => [b.id, b]));
+          const finalBills = prev.map(b => updatedMap.get(b.id) || b);
+          finalBills.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
+          return finalBills;
+      });
   }, []);
 
   const archiveImportedBill = useCallback(async (billId: string) => {
@@ -109,5 +114,5 @@ export const useImportedBills = () => {
       return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };
   }, [importedBills]);
 
-  return { importedBills, isLoading, addImportedBill, updateImportedBill, archiveImportedBill, unarchiveImportedBill, deleteImportedBill, mergeImportedBills };
+  return { importedBills, isLoading, addImportedBill, updateImportedBill, archiveImportedBill, unarchiveImportedBill, deleteImportedBill, mergeImportedBills, updateMultipleImportedBills };
 };

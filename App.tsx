@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill, RecurringBill, RequestConfirmationFn, SettingsSection, SummaryFilter, DashboardView } from './types';
 import { View } from './types';
@@ -60,7 +61,7 @@ const App: React.FC = () => {
     // --- Hooks ---
     const { settings, updateSettings, isLoading: isSettingsLoading } = useSettings();
     const { bills, addBill, updateBill: originalUpdateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills, isLoading: isBillsLoading } = useBills();
-    const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, isLoading: isImportedLoading } = useImportedBills();
+    const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, updateMultipleImportedBills, isLoading: isImportedLoading } = useImportedBills();
     const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: isRecurringLoading } = useRecurringBills();
     const { theme, setTheme } = useTheme();
     const { subscriptionStatus } = useAuth();
@@ -111,9 +112,8 @@ const App: React.FC = () => {
             const billsToUpdate = await pollImportedBills(activeImported);
 
             if (billsToUpdate.length > 0) {
-                for (const updatedBill of billsToUpdate) {
-                    await updateImportedBill(updatedBill);
-                }
+                // FIX: Use the more performant bulk update function to refresh the UI.
+                await updateMultipleImportedBills(billsToUpdate);
             }
         };
 
@@ -121,7 +121,7 @@ const App: React.FC = () => {
         poll(); // Also poll immediately on mount/dependency change
 
         return () => clearInterval(intervalId);
-    }, [importedBills, updateImportedBill]);
+    }, [importedBills, updateMultipleImportedBills]);
 
     // Effect for polling OWNED shared bills to check for expiration
     useEffect(() => {
