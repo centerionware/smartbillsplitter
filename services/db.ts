@@ -17,6 +17,7 @@ const STORES = {
   CRYPTO_KEYS: 'crypto_keys', // Note: This is now legacy and unused.
   BILL_SIGNING_KEYS: 'bill_signing_keys',
   MANAGED_PAYPAL_SUBSCRIPTIONS: 'managed_paypal_subscriptions',
+  COMMUNICATION_KEYS: 'communication_keys',
 };
 
 // Singleton key for settings, theme, subscription stores
@@ -86,6 +87,7 @@ export function initDB(): Promise<void> {
         { name: STORES.SUBSCRIPTION_DETAILS },
         { name: STORES.BILL_SIGNING_KEYS, options: { keyPath: 'billId' } },
         { name: STORES.MANAGED_PAYPAL_SUBSCRIPTIONS },
+        { name: STORES.COMMUNICATION_KEYS },
       ];
 
       storesToCreate.forEach(storeInfo => {
@@ -264,6 +266,11 @@ interface BillSigningKeyRecord {
 export const getBillSigningKey = (billId: string) => get<BillSigningKeyRecord>(STORES.BILL_SIGNING_KEYS, billId);
 export const saveBillSigningKey = (billId: string, privateKey: CryptoKey) => set(STORES.BILL_SIGNING_KEYS, { billId, privateKey });
 export const deleteBillSigningKeyDB = (billId: string) => del(STORES.BILL_SIGNING_KEYS, billId);
+
+// --- Communication Key Operations ---
+const COMM_KEY_ID = 'user_comm_key';
+export const getCommunicationKeyPair = () => get<CryptoKeyPair>(STORES.COMMUNICATION_KEYS, COMM_KEY_ID);
+export const saveCommunicationKeyPair = (keyPair: CryptoKeyPair) => set(STORES.COMMUNICATION_KEYS, keyPair, COMM_KEY_ID);
 
 // --- PayPal Subscription Management ---
 export const getManagedPayPalSubscriptions = () => get<PayPalSubscriptionDetails[]>(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS, SINGLE_KEY).then(res => res || []);

@@ -1,4 +1,7 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { getCommunicationKeyPair } from './db.ts';
+import { sign, verify } from './cryptoService.ts';
+
 
 const CHANNEL_NAME = 'smart-bill-splitter-sync';
 
@@ -25,22 +28,42 @@ export interface BroadcastMessage {
   payload?: any; 
 }
 
+interface SignedBroadcastMessage {
+  payload: BroadcastMessage;
+  signature: string;
+}
+
 /**
- * Posts a message to all other tabs of this application.
+ * Posts a signed message to all other tabs of this application.
  * @param message The message to send.
  */
-export const postMessage = (message: BroadcastMessage) => {
-  if (channel) {
-    channel.postMessage(message);
+export const postMessage = async (message: BroadcastMessage) => {
+  if (!channel) return;
+
+  try {
+    const keyPair = await getCommunicationKeyPair();
+    if (!keyPair?.privateKey) {
+        console.error("Broadcast: Communication private key not found. Cannot sign message.");
+        return;
+    }
+
+    const payloadString = JSON.stringify(message);
+    const signature = await sign(payloadString, keyPair.privateKey);
+
+    const signedMessage: SignedBroadcastMessage = {
+        payload: message,
+        signature: signature,
+    };
+
+    channel.postMessage(signedMessage);
+  } catch (error) {
+    console.error("Failed to sign and post broadcast message:", error);
   }
 };
 
 /**
- * A React hook to listen for messages from other tabs.
- * This implementation uses a ref to store the callback, ensuring the event listener
- * always has access to the latest version of the handler without needing to be
- * removed and re-added on every render. This prevents race conditions and stale closures.
- * @param onMessage A memoized callback function to execute when a message is received.
+ * A React hook to listen for verified messages from other tabs.
+ * @param onMessage A memoized callback function to execute when a valid message is received.
  */
 export const useBroadcastListener = (onMessage: (message: BroadcastMessage) => void) => {
   const onMessageRef = useRef(onMessage);
@@ -55,10 +78,33 @@ export const useBroadcastListener = (onMessage: (message: BroadcastMessage) => v
         return;
     }
     
-    // The event handler itself is defined only once.
-    // It calls the `current` value of the ref, which is always up-to-date.
-    const handleMessage = (event: MessageEvent<BroadcastMessage>) => {
-      onMessageRef.current(event.data);
+    // The event handler is now async to handle key retrieval and verification
+    const handleMessage = async (event: MessageEvent<any>) => {
+        const signedMessage = event.data;
+
+        if (!signedMessage || typeof signedMessage.payload !== 'object' || typeof signedMessage.signature !== 'string') {
+            console.warn("Broadcast: Received a malformed or unsigned message. Ignoring.", signedMessage);
+            return;
+        }
+
+        try {
+            const keyPair = await getCommunicationKeyPair();
+            if (!keyPair?.publicKey) {
+                console.error("Broadcast: Communication public key not found. Cannot verify message.");
+                return;
+            }
+
+            const payloadString = JSON.stringify(signedMessage.payload);
+            const isVerified = await verify(payloadString, signedMessage.signature, keyPair.publicKey);
+
+            if (isVerified) {
+                onMessageRef.current(signedMessage.payload);
+            } else {
+                console.warn("Broadcast: Received a message with an INVALID signature. Ignoring. This could be a security issue or a key mismatch between tabs.", signedMessage);
+            }
+        } catch (error) {
+            console.error("Error during broadcast message verification:", error);
+        }
     };
 
     channel.addEventListener('message', handleMessage);
@@ -67,7 +113,5 @@ export const useBroadcastListener = (onMessage: (message: BroadcastMessage) => v
     return () => {
       channel.removeEventListener('message', handleMessage);
     };
-    // The empty dependency array ensures this effect runs only once,
-    // setting up and tearing down the listener for the component's entire lifecycle.
   }, []);
 };

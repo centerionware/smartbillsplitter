@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Settings } from '../types';
-import { getSettings, saveSettings } from '../services/db.ts';
+import { getSettings, saveSettings, getCommunicationKeyPair, saveCommunicationKeyPair } from '../services/db.ts';
+import { generateSigningKeyPair } from '../services/cryptoService.ts';
 import { postMessage, useBroadcastListener } from '../services/broadcastService';
 
 const initialSettings: Settings = {
@@ -33,6 +34,16 @@ export const useSettings = () => {
       } else {
         dbSettings = { ...initialSettings, ...dbSettings, paymentDetails: {...initialSettings.paymentDetails, ...dbSettings.paymentDetails} };
       }
+      
+      if (isInitialLoad) {
+          let commKeyPair = await getCommunicationKeyPair();
+          if (!commKeyPair) {
+              console.log("Communication key pair not found, generating a new one.");
+              commKeyPair = await generateSigningKeyPair();
+              await saveCommunicationKeyPair(commKeyPair);
+          }
+      }
+
       setSettings(dbSettings);
     } catch (error) {
       console.error("Failed to load settings from IndexedDB:", error);
@@ -62,6 +73,7 @@ export const useSettings = () => {
       }
     };
     await saveSettings(updatedSettings);
+    // Use the async postMessage but don't wait for it
     postMessage({ type: 'settings-updated' });
     // Also update local state immediately for the current tab
     setSettings(updatedSettings);
