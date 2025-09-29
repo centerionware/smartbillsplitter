@@ -16,7 +16,7 @@ jobs:
         uses: c-hive/gha-remove-artifacts@v1
         with:
           age: '1 day'
-          token: ${{ env.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ env.GH_TOKEN }}
 
   cleanup-images:
     name: Purge Docker Images for ${{ matrix.package }}
