@@ -3,6 +3,7 @@
 
 
 
+
 import React, { ErrorInfo, ReactNode } from 'react';
 
 interface Props {
@@ -17,10 +18,7 @@ interface State {
 // FIX: Changed to a named export to resolve module resolution issues.
 export class ErrorBoundary extends React.Component<Props, State> {
   // FIX: Refactored state initialization to use a constructor to be more explicit and robust, resolving potential `this` context issues.
-  public constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+  public state: State = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };

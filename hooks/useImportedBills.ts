@@ -3,6 +3,7 @@
 
 
 
+
 import { useState, useEffect, useCallback } from 'react';
 import type { ImportedBill } from '../types';
 import { 
@@ -79,8 +80,7 @@ export const useImportedBills = () => {
       let skippedCount = 0;
 
       // FIX: Use a for...of loop with explicit typing for the iterated item to prevent type inference issues.
-      for (const incomingBill of billsToMerge) {
-          const typedIncomingBill = incomingBill as Omit<ImportedBill, 'status' | 'liveStatus'>;
+      for (const typedIncomingBill of billsToMerge) {
           const existingBill = existingBillMap.get(typedIncomingBill.id);
           if (existingBill) {
               if (typedIncomingBill.lastUpdatedAt > existingBill.lastUpdatedAt) {

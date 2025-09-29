@@ -13,6 +13,7 @@ interface ParticipantDetailViewProps {
   onArchiveBill: (billId: string) => void;
   onUnarchiveBill: (billId: string) => void;
   onDeleteBill: (billId: string) => void;
+  onReshareBill: (billId: string) => void;
   dashboardStatusFilter: 'active' | 'archived';
   searchQuery: string;
   selectedParticipant: string;
@@ -27,6 +28,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
   onArchiveBill,
   onUnarchiveBill,
   onDeleteBill,
+  onReshareBill,
   dashboardStatusFilter,
   searchQuery,
   selectedParticipant,
@@ -62,7 +64,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
             <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">Active Bills</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {active.map(bill => (
-                <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
+                <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
               ))}
             </div>
           </div>
@@ -72,7 +74,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
             <h3 className="text-xl font-semibold text-red-700 dark:text-red-400 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">Unpaid Archived Bills</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {unpaidArchived.map(bill => (
-                <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
+                <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
               ))}
             </div>
           </div>
@@ -103,7 +105,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
             {allArchived.map(bill => (
-            <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
+            <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
             ))}
         </div>
       </>
