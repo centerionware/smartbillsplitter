@@ -215,12 +215,16 @@ export const generateOneTimeShareLink = async (
     const { shareId } = shareResult;
 
     const participantId = summaryBill.participants[0].id;
-    const encryptedParticipantId = await cryptoService.encrypt(participantId, billEncryptionKey);
+    // FIX: Compress participant ID before encrypting to match client-side decompression.
+    const compressedParticipantId = pako.deflate(participantId);
+    const encryptedParticipantId = await cryptoService.encrypt(compressedParticipantId, billEncryptionKey);
     const urlSafeEncryptedParticipantId = encryptedParticipantId.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
     const fragmentKey = await cryptoService.generateEncryptionKey();
     const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
-    const encryptedBillKey = await cryptoService.encrypt(JSON.stringify(billEncryptionKeyJwk), fragmentKey);
+    // FIX: Compress the bill key before encrypting to match client-side decompression.
+    const compressedBillKey = pako.deflate(JSON.stringify(billEncryptionKeyJwk));
+    const encryptedBillKey = await cryptoService.encrypt(compressedBillKey, fragmentKey);
 
     const keyResponse = await fetchWithRetry(getApiUrl('/onetime-key'), {
         method: 'POST',
@@ -332,7 +336,9 @@ export const generateShareLink = async (
         const billEncryptionKey = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
         const fragmentKey = await cryptoService.generateEncryptionKey();
         const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
-        const encryptedBillKey = await cryptoService.encrypt(JSON.stringify(billEncryptionKeyJwk), fragmentKey);
+        // FIX: Compress the bill key before encrypting to match client-side decompression.
+        const compressedBillKey = pako.deflate(JSON.stringify(billEncryptionKeyJwk));
+        const encryptedBillKey = await cryptoService.encrypt(compressedBillKey, fragmentKey);
 
         const keyResponse = await fetchWithRetry(getApiUrl('/onetime-key'), {
             method: 'POST',
@@ -356,7 +362,9 @@ export const generateShareLink = async (
     }
     
     const billEncryptionKey = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
-    const encryptedParticipantId = await cryptoService.encrypt(participantId, billEncryptionKey);
+    // FIX: Compress participant ID before encrypting to match client-side decompression.
+    const compressedParticipantId = pako.deflate(participantId);
+    const encryptedParticipantId = await cryptoService.encrypt(compressedParticipantId, billEncryptionKey);
     const urlSafeEncryptedParticipantId = encryptedParticipantId.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
     const finalShareInfo = updatedBill.participantShareInfo[participantId];
