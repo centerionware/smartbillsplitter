@@ -1,4 +1,5 @@
-import type { RecurringBill } from '../types.ts';
+
+import type { RecurringBill } from '../types';
 
 /**
  * Checks if the browser supports scheduled notifications.
@@ -53,7 +54,7 @@ export const scheduleNotification = async (bill: RecurringBill, daysBefore: numb
       body: `Your "${bill.description}" bill is due in ${daysBefore} day${daysBefore > 1 ? 's' : ''}.`,
       tag: tag,
       // @ts-ignore - showTrigger is not yet in the default TS DOM libs
-      showTrigger: new TimestampTrigger(triggerTimestamp),
+      showTrigger: new (window as any).TimestampTrigger(triggerTimestamp),
     });
     console.log(`Notification scheduled for "${bill.description}" on ${new Date(triggerTimestamp).toLocaleString()}`);
   } catch (error) {

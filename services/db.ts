@@ -1,5 +1,6 @@
-import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscriptionDetails } from '../types.ts';
-import type { SubscriptionStatus } from '../hooks/useAuth.ts';
+
+import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscriptionDetails } from '../types';
+import type { SubscriptionStatus } from '../hooks/useAuth';
 
 const DB_NAME = 'SmartBillSplitterDB';
 const DB_VERSION = 11; // Incremented to force migration for all users
@@ -145,6 +146,19 @@ export const addMultipleBillsDB = (bills: Bill[]): Promise<void> => {
     });
 };
 
+export const mergeBillsDB = (billsToAdd: Bill[], billsToUpdate: Bill[]): Promise<void> => {
+    if (!db) return Promise.reject("Database not initialized.");
+    const tx = db.transaction(STORES.BILLS, 'readwrite');
+    const store = tx.objectStore(STORES.BILLS);
+    billsToAdd.forEach(bill => store.put(bill));
+    billsToUpdate.forEach(bill => store.put(bill));
+    
+    return new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+};
+
 // --- Recurring Bill Operations ---
 export const getRecurringBills = () => getAll<RecurringBill>(STORES.RECURRING_BILLS);
 export const addRecurringBill = (bill: RecurringBill) => set(STORES.RECURRING_BILLS, bill);
@@ -156,6 +170,31 @@ export const getImportedBills = () => getAll<ImportedBill>(STORES.IMPORTED_BILLS
 export const addImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS, bill);
 export const updateImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS, bill);
 export const deleteImportedBillDB = (billId: string) => del(STORES.IMPORTED_BILLS, billId);
+
+export const addMultipleImportedBillsDB = (bills: ImportedBill[]): Promise<void> => {
+    if (!db) return Promise.reject("Database not initialized.");
+    const tx = db.transaction(STORES.IMPORTED_BILLS, 'readwrite');
+    const store = tx.objectStore(STORES.IMPORTED_BILLS);
+    bills.forEach(bill => store.put(bill));
+    
+    return new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+};
+
+export const mergeImportedBillsDB = (billsToAdd: ImportedBill[], billsToUpdate: ImportedBill[]): Promise<void> => {
+    if (!db) return Promise.reject("Database not initialized.");
+    const tx = db.transaction(STORES.IMPORTED_BILLS, 'readwrite');
+    const store = tx.objectStore(STORES.IMPORTED_BILLS);
+    billsToAdd.forEach(bill => store.put(bill));
+    billsToUpdate.forEach(bill => store.put(bill));
+    
+    return new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+};
 
 // --- Settings Operations ---
 export const getSettings = () => get<Settings>(STORES.SETTINGS, SINGLE_KEY);

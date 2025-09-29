@@ -32,6 +32,7 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({
   
   return (
     <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md mb-8">
+      <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 px-2">Quick Filters</h3>
       <div className="flex flex-wrap items-stretch text-center gap-4">
         <div 
           className={`${summaryCardBaseClasses} ${dashboardSummaryFilter === 'total' ? summaryCardActiveClasses : (dashboardStatusFilter === 'active' ? summaryCardInactiveClasses : '')} ${dashboardStatusFilter === 'archived' ? summaryCardDisabledClasses : ''}`}

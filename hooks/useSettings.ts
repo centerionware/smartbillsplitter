@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import type { Settings } from '../types.ts';
+import type { Settings } from '../types';
 import { getSettings, saveSettings } from '../services/db.ts';
 
 const initialSettings: Settings = {

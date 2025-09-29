@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import type { Theme } from '../types.ts';
+import type { Theme } from '../types';
 import { getTheme, saveTheme } from '../services/db.ts';
 
 export const useTheme = () => {

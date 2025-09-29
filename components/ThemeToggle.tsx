@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Theme } from '../types.ts';
+import type { Theme } from '../types';
 
 interface ThemeToggleProps {
   theme: Theme;

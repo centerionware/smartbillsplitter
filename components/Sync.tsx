@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 // FIX: Updated import path for RequestConfirmationFn to central types file.
-import type { RequestConfirmationFn } from '../types.ts';
+import type { RequestConfirmationFn } from '../types';
 import { exportData, importData } from '../services/db.ts';
 import * as cryptoService from '../services/cryptoService.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';

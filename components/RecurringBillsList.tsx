@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import type { RecurringBill } from '../types.ts';
+import type { RecurringBill } from '../types';
 import SwipeableRecurringBillCard from './SwipeableRecurringBillCard.tsx';
 
 interface RecurringBillsListProps {

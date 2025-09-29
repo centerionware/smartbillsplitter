@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import type { ReceiptItem, Participant } from '../types.ts';
+import type { ReceiptItem, Participant } from '../types';
 
 interface ItemEditorProps {
   initialItems: ReceiptItem[];

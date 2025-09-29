@@ -1,5 +1,7 @@
+
+
 import { useState, useEffect, useCallback } from 'react';
-import type { RecurringBill, RecurrenceRule } from '../types.ts';
+import type { RecurringBill, RecurrenceRule } from '../types';
 import { getRecurringBills, addRecurringBill as addDB, updateRecurringBill as updateDB, deleteRecurringBillDB } from '../services/db.ts';
 
 /**
@@ -113,7 +115,7 @@ export const useRecurringBills = () => {
   const addRecurringBill = useCallback(async (newBillData: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => {
     const newBill: RecurringBill = {
       ...newBillData,
-      id: `rb-${new Date().getTime()}`,
+      id: `rb-${Date.now()}`,
       status: 'active',
       nextDueDate: calculateFirstDueDate(newBillData.recurrenceRule, new Date()),
     };

@@ -150,6 +150,15 @@ export const importPublicKey = async (jwk: JsonWebKey): Promise<CryptoKey> => {
 };
 
 /**
+ * Imports a private key from JWK format for signing.
+ * @param jwk The private key in JWK format.
+ */
+export const importPrivateKey = async (jwk: JsonWebKey): Promise<CryptoKey> => {
+  return crypto.subtle.importKey('jwk', jwk, SIGNING_KEY_OPTIONS, true, ['sign']);
+};
+
+
+/**
  * Creates a digital signature for a given data string.
  * @param data The data to sign.
  * @param privateKey The private key to sign with.

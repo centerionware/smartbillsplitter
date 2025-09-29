@@ -1,145 +1,161 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Bill } from '../types.ts';
-import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB, deleteBillSigningKeyDB, addMultipleBillsDB } from '../services/db.ts';
+import type { Bill, Participant } from '../types';
+import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB, addMultipleBillsDB, mergeBillsDB } from '../services/db';
 
-const initialBills: Bill[] = [
-  {
-    id: '1',
-    description: 'Team Lunch at The Daily Grill',
-    totalAmount: 145.50,
-    date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    participants: [
-      { id: 'p1', name: 'Alice', amountOwed: 48.50, paid: true },
-      { id: 'p2', name: 'Bob', amountOwed: 48.50, paid: false },
-      { id: 'p3', name: 'Charlie', amountOwed: 48.50, paid: true },
-    ],
-    status: 'active',
-  },
-  {
-    id: '2',
-    description: 'Groceries for the week',
-    totalAmount: 92.75,
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    participants: [
-      { id: 'p4', name: 'David', amountOwed: 46.38, paid: false },
-      { id: 'p5', name: 'Eve', amountOwed: 46.37, paid: false },
-    ],
-    status: 'active',
-  },
-];
+const createDefaultBills = (): Bill[] => {
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const defaultBills: Bill[] = [
+        {
+            id: `bill-${Date.now() - 1000}`,
+            description: "Morning Coffee Run",
+            totalAmount: 12.75,
+            date: yesterday.toISOString(),
+            status: 'active',
+            participants: [
+                { id: 'p1', name: 'Myself', amountOwed: 4.25, paid: true },
+                { id: 'p2', name: 'Alex', amountOwed: 4.25, paid: false },
+                { id: 'p3', name: 'Casey', amountOwed: 4.25, paid: false },
+            ],
+            lastUpdatedAt: Date.now(),
+        },
+        {
+            id: `bill-${Date.now() - 2000}`,
+            description: "Movie Night Tickets",
+            totalAmount: 30.00,
+            date: new Date(today.setDate(today.getDate() - 7)).toISOString(),
+            status: 'archived',
+            participants: [
+                { id: 'p1', name: 'Myself', amountOwed: 15.00, paid: true },
+                { id: 'p2', name: 'Jordan', amountOwed: 15.00, paid: true },
+            ],
+            lastUpdatedAt: Date.now() - 10000,
+        }
+    ];
+    return defaultBills;
+};
+
 
 export const useBills = () => {
   const [bills, setBills] = useState<Bill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadBills = async () => {
       try {
         setIsLoading(true);
-        let dbBills = await getBills();
-        
-        // If the database is empty, seed it with initial data.
-        if (dbBills.length === 0) {
-          await Promise.all(initialBills.map(bill => addBillDB(bill)));
-          dbBills = initialBills;
-        }
+        const dbBills = await getBills();
 
-        // Sort bills by date descending before setting state
+        // Check if DB is empty and if we've never loaded defaults before
+        if (dbBills.length === 0 && !localStorage.getItem('sharedbills.defaultDataLoaded')) {
+            console.log("First launch: creating default example bills.");
+            const defaultBills = createDefaultBills();
+            await addMultipleBillsDB(defaultBills);
+            dbBills.push(...defaultBills);
+            localStorage.setItem('sharedbills.defaultDataLoaded', 'true');
+        }
+        
         dbBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setBills(dbBills);
-      } catch (err) {
-        console.error("Failed to load bills from IndexedDB:", err);
-        setError("Could not load bill data.");
+      } catch (error) {
+        console.error("Failed to load bills from IndexedDB:", error);
       } finally {
         setIsLoading(false);
       }
     };
-
     loadBills();
   }, []);
-  
-  const sortAndSetBills = (newBills: Bill[]) => {
-      newBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setBills(newBills);
-  }
 
   const addBill = useCallback(async (newBillData: Omit<Bill, 'id' | 'status'>) => {
     const newBill: Bill = {
       ...newBillData,
-      id: new Date().getTime().toString(),
+      id: `bill-${Date.now()}`,
       status: 'active',
+      lastUpdatedAt: Date.now(),
     };
     await addBillDB(newBill);
-    setBills(prevBills => {
-        const updated = [newBill, ...prevBills];
-        updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        return updated;
-    });
-  }, []);
-
-  const addMultipleBills = useCallback(async (billsData: Omit<Bill, 'id' | 'status'>[]) => {
-    const newBills: Bill[] = billsData.map((billData, index) => ({
-      ...billData,
-      id: `bill-${Date.now()}-${index}`,
-      status: 'active',
-    }));
-
-    if (newBills.length > 0) {
-      await addMultipleBillsDB(newBills);
-      setBills(prevBills => {
-          const updated = [...newBills, ...prevBills];
-          updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          return updated;
-      });
-    }
-    return newBills;
+    setBills(prevBills => [newBill, ...prevBills]);
   }, []);
 
   const updateBill = useCallback(async (updatedBill: Bill) => {
-    await updateBillDB(updatedBill);
-    setBills(prevBills =>
-      prevBills.map(bill => (bill.id === updatedBill.id ? updatedBill : bill))
-    );
-  }, []);
-
-  const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {
-    // A transaction would be more robust, but for simplicity we await all promises.
-    await Promise.all(billsToUpdate.map(bill => updateBillDB(bill)));
-
+    const billWithTimestamp = { ...updatedBill, lastUpdatedAt: Date.now() };
+    await updateBillDB(billWithTimestamp);
     setBills(prevBills => {
-        const updatedBillsMap = new Map(billsToUpdate.map(b => [b.id, b]));
-        return prevBills.map(bill => updatedBillsMap.get(bill.id) || bill);
+      const updated = prevBills.map(bill => (bill.id === billWithTimestamp.id ? billWithTimestamp : bill));
+      updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return updated;
     });
+  }, []);
+  
+  const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {
+      const now = Date.now();
+      const billsWithTimestamp = billsToUpdate.map(b => ({ ...b, lastUpdatedAt: now }));
+      const tx = mergeBillsDB([], billsWithTimestamp);
+      await tx;
+      setBills(prev => {
+          const updatedMap = new Map(billsWithTimestamp.map(b => [b.id, b]));
+          const updated = prev.map(b => updatedMap.get(b.id) || b);
+          updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          return updated;
+      });
   }, []);
 
   const deleteBill = useCallback(async (billId: string) => {
     await deleteBillDB(billId);
-    await deleteBillSigningKeyDB(billId); // Also delete the associated signing key
     setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
   }, []);
 
   const archiveBill = useCallback(async (billId: string) => {
-    const billToArchive = bills.find(b => b.id === billId);
-    if (billToArchive) {
-      const updatedBill = { ...billToArchive, status: 'archived' as const };
-      await updateBillDB(updatedBill);
-      setBills(prevBills =>
-        prevBills.map(bill => (bill.id === billId ? updatedBill : bill))
-      );
+    const billToUpdate = bills.find(b => b.id === billId);
+    if (billToUpdate) {
+      await updateBill({ ...billToUpdate, status: 'archived' });
     }
-  }, [bills]);
+  }, [bills, updateBill]);
 
   const unarchiveBill = useCallback(async (billId: string) => {
-    const billToUnarchive = bills.find(b => b.id === billId);
-    if (billToUnarchive) {
-      const updatedBill = { ...billToUnarchive, status: 'active' as const };
-      await updateBillDB(updatedBill);
-      setBills(prevBills =>
-        prevBills.map(bill => (bill.id === billId ? updatedBill : bill))
-      );
+    const billToUpdate = bills.find(b => b.id === billId);
+    if (billToUpdate) {
+      await updateBill({ ...billToUpdate, status: 'active' });
     }
+  }, [bills, updateBill]);
+
+  const mergeBills = useCallback(async (billsToMerge: (Omit<Bill, 'status'>)[]) => {
+      const existingBillMap = new Map(bills.map(b => [b.id, b]));
+      const billsToAdd: Bill[] = [];
+      const billsToUpdate: Bill[] = [];
+      let skippedCount = 0;
+
+      // FIX: Replaced a forEach loop with a for...of loop. This ensures correct TypeScript type inference for `incomingBill`, resolving errors related to accessing properties like `lastUpdatedAt` and using the spread operator.
+      for (const incomingBill of billsToMerge) {
+          const existingBill = existingBillMap.get(incomingBill.id);
+
+          if (existingBill) {
+              if ((incomingBill.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
+                  billsToUpdate.push({ ...existingBill, ...incomingBill, status: existingBill.status });
+              } else {
+                  skippedCount++;
+              }
+          } else {
+              billsToAdd.push({ ...incomingBill, status: 'active' });
+          }
+      }
+
+      if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
+          await mergeBillsDB(billsToAdd, billsToUpdate);
+          setBills(prev => {
+              const updatedMap = new Map(billsToUpdate.map(b => [b.id, b]));
+              const currentBillsMap = new Map(prev.map(b => [b.id, b]));
+              updatedMap.forEach((value, key) => currentBillsMap.set(key, value));
+              const finalBills = [...Array.from(currentBillsMap.values()), ...billsToAdd];
+              finalBills.sort((a: Bill, b: Bill) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              return finalBills;
+          });
+      }
+
+      return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };
   }, [bills]);
 
-  return { bills, addBill, addMultipleBills, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, isLoading, error };
+  return { bills, isLoading, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills };
 };

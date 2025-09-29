@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import type { Bill, Settings, Participant } from '../types.ts';
+import type { Bill, Settings, Participant } from '../types';
 import { generateShareLink } from '../services/shareService.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 
@@ -67,7 +67,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
         }
       }
     } else {
-      // Fallback for browsers without navigator.share
       navigator.clipboard.writeText(message);
       showNotification('Share message with link copied.', 'success');
       setCopied(p.id);
@@ -93,7 +92,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
     }
   };
 
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
@@ -104,45 +102,25 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
             {bill.participants.map(p => (
               <li key={p.id} className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
                 <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold text-xs">{p.name.charAt(0)}</div>
-                    <p className="font-semibold text-slate-800 dark:text-slate-100">{p.name}</p>
+                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold text-xs">
+                    {p.name.charAt(0)}
+                  </div>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{p.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                    {loading.has(p.id) ? (
-                        <svg className="animate-spin h-5 w-5 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    ) : (
-                        <>
-                            {p.phone && <ActionButton title="Share via Text" onClick={() => handleSms(p)}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zM7 8H5v2h2V8zm2 0h2v2H9V8zm6 0h-2v2h2V8z" clipRule="evenodd" /></svg></ActionButton>}
-                            {p.email && <ActionButton title="Share via Email" onClick={() => handleEmail(p)}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg></ActionButton>}
-                            <ActionButton title="Copy Link" onClick={() => handleCopy(p)}>
-                                {copied === p.id 
-                                ? <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                                : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2-2H9a2 2 0 01-2-2V9z" /><path d="M4 3a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H4z" /></svg>
-                                }
-                            </ActionButton>
-                             <ActionButton 
-                                title={navigator.share ? "Share..." : "Copy Message & Link"} 
-                                onClick={() => handleShare(p)}
-                            >
-                                {navigator.share 
-                                    ? <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" /></svg>
-                                    : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm2 0v12h8V4H6zm1 9a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>
-                                }
-                            </ActionButton>
-                        </>
-                    )}
+                  {p.phone && <ActionButton title="Share via Text Message" onClick={() => handleSms(p)} disabled={loading.has(p.id)}><span className="text-xl" role="img" aria-label="Text message">💬</span></ActionButton>}
+                  {p.email && <ActionButton title="Share via Email" onClick={() => handleEmail(p)} disabled={loading.has(p.id)}><span className="text-xl" role="img" aria-label="Email">📧</span></ActionButton>}
+                  <ActionButton title="Copy Link" onClick={() => handleCopy(p)} disabled={loading.has(p.id)}>
+                    {copied === p.id ? <span className="text-xl" role="img" aria-label="Checkmark">✅</span> : <span className="text-xl" role="img" aria-label="Copy">📋</span>}
+                  </ActionButton>
+                  <ActionButton title="Share..." onClick={() => handleShare(p)} disabled={loading.has(p.id)}><span className="text-xl" role="img" aria-label="Share">🔗</span></ActionButton>
                 </div>
               </li>
             ))}
           </ul>
         </div>
         <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-            <button
-                onClick={onClose}
-                className="px-5 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors"
-            >
-                Done
-            </button>
+          <button onClick={onClose} className="px-5 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Done</button>
         </div>
       </div>
     </div>

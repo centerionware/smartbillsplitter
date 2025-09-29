@@ -26,6 +26,9 @@ interface BillListProps {
   onSettleUp: (bill: ImportedBill) => void;
   loadMoreRef: React.RefObject<HTMLDivElement>;
   hasMore: boolean;
+  onConvertToTemplate: (bill: Bill) => void;
+  onExportOwnedBill: (bill: Bill) => void;
+  onExportImportedBill: (bill: ImportedBill) => void;
 }
 
 const BillList: React.FC<BillListProps> = ({
@@ -47,6 +50,9 @@ const BillList: React.FC<BillListProps> = ({
   onSettleUp,
   loadMoreRef,
   hasMore,
+  onConvertToTemplate,
+  onExportOwnedBill,
+  onExportImportedBill,
 }) => {
   const itemsWithAds = useMemo(() => {
     const billsToShow = filteredBills.slice(0, visibleCount);
@@ -67,6 +73,8 @@ const BillList: React.FC<BillListProps> = ({
             onUnarchive={() => onUnarchiveBill(bill.id)}
             onDelete={() => onDeleteBill(bill.id)}
             onClick={() => onSelectBill(bill)}
+            onConvertToTemplate={() => onConvertToTemplate(bill)}
+            onExport={() => onExportOwnedBill(bill)}
           />
         </div>
       );
@@ -76,7 +84,7 @@ const BillList: React.FC<BillListProps> = ({
       }
     });
     return renderedItems;
-  }, [filteredBills, visibleCount, subscriptionStatus, onArchiveBill, onUnarchiveBill, onDeleteBill, onSelectBill, archivingBillIds]);
+  }, [filteredBills, visibleCount, subscriptionStatus, onArchiveBill, onUnarchiveBill, onDeleteBill, onSelectBill, archivingBillIds, onConvertToTemplate, onExportOwnedBill]);
 
   return (
     <>
@@ -95,6 +103,7 @@ const BillList: React.FC<BillListProps> = ({
                 onClick={() => onSelectImportedBill(ib)}
                 onShowSummaryDetails={() => onShowSummaryDetails(ib)}
                 onSettleUp={() => onSettleUp(ib)}
+                onExport={() => onExportImportedBill(ib)}
               />
             ))}
           </div>

@@ -1,5 +1,6 @@
+
 import React from 'react';
-import type { RecurringBill } from '../types.ts';
+import type { RecurringBill } from '../types';
 
 interface RecurringBillCardProps {
   bill: RecurringBill;

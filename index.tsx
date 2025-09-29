@@ -1,3 +1,13 @@
+
+
+
+
+
+
+
+
+
+
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import AppGate from './AppGate.tsx';
@@ -236,6 +246,7 @@ try {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
       <React.StrictMode>
+        {/* FIX: The ErrorBoundary component requires a 'children' prop to function. Wrapping the <Root /> component provides this prop and ensures errors within the application are caught. */}
         <ErrorBoundary>
           <Root />
         </ErrorBoundary>

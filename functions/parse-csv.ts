@@ -49,13 +49,13 @@ export const parseCsvHandler = async (req: HttpRequest): Promise<HttpResponse> =
             You are an intelligent data processor for a bill splitting application. Your task is to analyze the following CSV data and convert it into a JSON array of bill objects.
 
             **Instructions:**
-            1.  Read the CSV data carefully. The columns might be in any order and might not have standard names.
-            2.  Identify logical groupings of rows that belong to the same bill. Rows with the same description, date, or a clear grouping indicator should be treated as a single bill with multiple participants.
+            1.  Read the CSV data carefully. The columns might be in any order and might not have standard names. You must infer the meaning of each column (e.g., 'item', 'cost', 'person', 'date').
+            2.  Identify logical groupings of rows that belong to the same bill. Rows with the same description, date, or a clear grouping indicator should be treated as a single bill with multiple participants. A single CSV file can contain multiple distinct bills.
             3.  For each bill, you must extract: a description, a total amount, a date (in YYYY-MM-DD format), and a list of participants.
             4.  For each participant, you must extract their name, the amount they owe, and their payment status (paid: true/false).
-            5.  The user who is performing this import is named "${myDisplayName}". If the CSV indicates a single person paid for a bill (e.g., they are the 'payer' or 'paid by' column), assume it is "${myDisplayName}" and set their "paid" status to true. All other participants should be "paid: false". If payment information is unclear, default all participants to "paid: false".
-            6.  The \`totalAmount\` for a bill should be the sum of all \`amountOwed\` for its participants.
-            7.  The final output MUST be a JSON array that strictly conforms to the provided schema. Do not include any extra text or explanations.
+            5.  The user who is performing this import is named "${myDisplayName}". If the CSV indicates a single person paid for a bill (e.g., they are in a 'payer' or 'paid by' column), assume it is "${myDisplayName}" and set their "paid" status to true. All other participants should be "paid: false". If payment information is unclear, default all participants to "paid: false".
+            6.  The \`totalAmount\` for a bill MUST be the sum of all \`amountOwed\` for its participants. Calculate this sum yourself.
+            7.  The final output MUST be a JSON array that strictly conforms to the provided schema. Do not include any extra text or explanations. If the CSV is empty or unparsable, return an empty array.
 
             **CSV Data:**
             \`\`\`csv

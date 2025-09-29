@@ -1,5 +1,6 @@
+
 import React from 'react';
-import type { RecurrenceRule } from '../types.ts';
+import type { RecurrenceRule } from '../types';
 
 interface RecurrenceSelectorProps {
   value: RecurrenceRule;

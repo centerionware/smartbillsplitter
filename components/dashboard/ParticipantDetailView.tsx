@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Bill } from '../../types';
+import type { Bill } from '../../types.ts';
 import SwipeableBillCard from '../SwipeableBillCard.tsx';
 import EmptyState from './EmptyState.tsx';
 
@@ -16,6 +16,7 @@ interface ParticipantDetailViewProps {
   dashboardStatusFilter: 'active' | 'archived';
   searchQuery: string;
   selectedParticipant: string;
+  onExport: () => void;
 }
 
 const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
@@ -27,6 +28,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
   dashboardStatusFilter,
   searchQuery,
   selectedParticipant,
+  onExport,
 }) => {
   const { active, allArchived, unpaidArchived } = participantBills;
 
@@ -41,6 +43,16 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
     }
     return (
       <div className="space-y-8">
+        <div className="flex justify-end -mb-4">
+             <button
+                onClick={onExport}
+                className="p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500"
+                aria-label={`Export all bills for ${selectedParticipant} as CSV`}
+                title="Export CSV"
+             >
+                <span className="text-xl" role="img" aria-label="Download">📥</span>
+             </button>
+        </div>
         {active.length > 0 && (
           <div>
             <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">Active Bills</h3>
@@ -74,11 +86,23 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
       );
     }
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {allArchived.map(bill => (
-          <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} />
-        ))}
-      </div>
+      <>
+        <div className="flex justify-end -mb-4">
+             <button
+                onClick={onExport}
+                className="p-2 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500"
+                aria-label={`Export all bills for ${selectedParticipant} as CSV`}
+                title="Export CSV"
+             >
+                <span className="text-xl" role="img" aria-label="Download">📥</span>
+             </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+            {allArchived.map(bill => (
+            <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} />
+            ))}
+        </div>
+      </>
     );
   }
 };
