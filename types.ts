@@ -1,5 +1,7 @@
 
 
+declare var pako: any;
+
 export interface Participant {
   id: string;
   name: string;

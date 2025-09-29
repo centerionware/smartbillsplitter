@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 // FIX: Updated import path for RequestConfirmationFn to central types file.
 import type { RequestConfirmationFn } from '../types';
@@ -7,6 +8,9 @@ import * as cryptoService from '../services/cryptoService.ts';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import { useQrScanner } from '../hooks/useQrScanner.ts';
 import { getApiUrl, fetchWithRetry } from '../services/api.ts';
+
+// FIX: Added declaration for pako, which is loaded as a global script.
+declare var pako: any;
 
 interface SyncProps {
   onBack: () => void;
@@ -85,10 +89,11 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             
             const result = JSON.parse(resultText);
 
-            // 2. Decrypt data
+            // 2. Decrypt and decompress data
             setReceiveStatus('decrypting');
             const key = await cryptoService.importEncryptionKey(keyJwk);
-            const decryptedJson = await cryptoService.decrypt(result.encryptedData, key);
+            const decryptedBytes = await cryptoService.decrypt(result.encryptedData, key);
+            const decryptedJson = pako.inflate(decryptedBytes, { to: 'string' });
             const importedData = JSON.parse(decryptedJson);
 
             // 3. Confirm with user
@@ -137,7 +142,9 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             const key = await cryptoService.generateEncryptionKey();
             const exportedKey = await cryptoService.exportKey(key);
             const dataToExport = await exportData();
-            const encryptedData = await cryptoService.encrypt(JSON.stringify(dataToExport), key);
+            const jsonString = JSON.stringify(dataToExport);
+            const compressedData = pako.deflate(jsonString);
+            const encryptedData = await cryptoService.encrypt(compressedData, key);
 
             const response = await fetchWithRetry(getApiUrl('/sync'), {
                 method: 'POST',

@@ -86,13 +86,13 @@ export const importEncryptionKey = async (jwk: JsonWebKey): Promise<CryptoKey> =
 
 /**
  * Encrypts a string of data using a given CryptoKey.
- * @param data The string data to encrypt.
+ * @param data The string or Uint8Array data to encrypt.
  * @param key The CryptoKey for encryption.
  * @returns A base64 encoded string containing the IV and the encrypted data.
  */
-export const encrypt = async (data: string, key: CryptoKey): Promise<string> => {
+export const encrypt = async (data: string | Uint8Array, key: CryptoKey): Promise<string> => {
   const iv = crypto.getRandomValues(new Uint8Array(12)); // IV for GCM should be 12 bytes
-  const encodedData = new TextEncoder().encode(data);
+  const encodedData = typeof data === 'string' ? new TextEncoder().encode(data) : data;
 
   const encryptedContent = await crypto.subtle.encrypt(
     { name: SYMMETRIC_ALGORITHM, iv },
@@ -114,9 +114,9 @@ export const encrypt = async (data: string, key: CryptoKey): Promise<string> => 
  * Decrypts a base64 encoded string using a given CryptoKey.
  * @param encryptedData The base64 string containing the IV and ciphertext.
  * @param key The CryptoKey for decryption.
- * @returns The original decrypted string.
+ * @returns The original decrypted data as a Uint8Array.
  */
-export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<string> => {
+export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<Uint8Array> => {
   // Decode the base64 string back to an ArrayBuffer using the robust helper
   const combined = decodeBase64(encryptedData);
   
@@ -129,7 +129,7 @@ export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<st
     ciphertext
   );
 
-  return new TextDecoder().decode(decryptedContent);
+  return new Uint8Array(decryptedContent);
 };
 
 // --- Digital Signature Functions ---

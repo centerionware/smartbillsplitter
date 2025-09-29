@@ -6,6 +6,9 @@ import { getApiUrl, fetchWithRetry } from '../services/api.ts';
 import PaymentMethodsModal from './PaymentMethodsModal.tsx';
 import SummaryBillDetailsModal from './SummaryBillDetailsModal.tsx';
 
+// FIX: Added declaration for pako, which is loaded as a global script.
+declare var pako: any;
+
 interface ViewSharedBillProps {
   onImportComplete: () => void;
   settings: Settings;
@@ -134,13 +137,15 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         // 2. Decrypt the long-term key using the key from the URL fragment.
         const fragmentKeyJwk = JSON.parse(base64UrlDecode(fragmentKeyStr));
         const fragmentKey = await cryptoService.importEncryptionKey(fragmentKeyJwk);
-        const decryptedBillKeyJson = await cryptoService.decrypt(encryptedBillKey, fragmentKey);
+        const decryptedBillKeyBytes = await cryptoService.decrypt(encryptedBillKey, fragmentKey);
+        const decryptedBillKeyJson = pako.inflate(decryptedBillKeyBytes, { to: 'string' });
         const billKeyToUse: JsonWebKey = JSON.parse(decryptedBillKeyJson);
         setBillEncryptionKey(billKeyToUse);
         const symmetricKey = await cryptoService.importEncryptionKey(billKeyToUse);
         
         // 3. Decrypt the participant ID from the URL using the now-decrypted bill key.
-        const decryptedParticipantId = await cryptoService.decrypt(encryptedParticipantId, symmetricKey);
+        const decryptedParticipantIdBytes = await cryptoService.decrypt(encryptedParticipantId, symmetricKey);
+        const decryptedParticipantId = pako.inflate(decryptedParticipantIdBytes, { to: 'string' });
         setMyParticipantId(decryptedParticipantId);
 
         // 4. Fetch the main encrypted bill data
@@ -160,7 +165,8 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
 
         // 5. Decrypt and verify the main payload
         setStatus('verifying');
-        const decryptedJson = await cryptoService.decrypt(encryptedData, symmetricKey);
+        const decryptedBytes = await cryptoService.decrypt(encryptedData, symmetricKey);
+        const decryptedJson = pako.inflate(decryptedBytes, { to: 'string' });
         const data: SharedBillPayload = JSON.parse(decryptedJson);
 
         const publicKey = await cryptoService.importPublicKey(data.publicKey);

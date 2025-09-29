@@ -4,6 +4,9 @@ import * as cryptoService from './cryptoService.ts';
 import { getBillSigningKey, saveBillSigningKey, deleteBillSigningKeyDB } from './db.ts';
 import { getApiUrl, fetchWithRetry } from './api.ts';
 
+// FIX: Added declaration for pako, which is loaded as a global script.
+declare var pako: any;
+
 interface ShareBillInfo {
     description: string;
     amountOwed: number;
@@ -388,27 +391,39 @@ export async function encryptAndSignPayload(
         payload.constituentShares = constituentShares;
     }
     
-    // Log a deep copy and its size for debugging before encryption
+    const payloadString = JSON.stringify(payload);
+    
+    // Use TextEncoder for an accurate byte size measurement of the original payload
+    const originalSize = new TextEncoder().encode(payloadString).length;
+    
+    // Compress the payload
+    const compressedPayload = pako.deflate(payloadString);
+    const compressedSize = compressedPayload.byteLength;
+
+    // Encrypt the compressed data
+    const encryptedData = await cryptoService.encrypt(compressedPayload, encryptionKey);
+    // Base64 string length is a good proxy for final size. 1 char ~ 1 byte for ASCII-range.
+    const encryptedSize = encryptedData.length;
+
+    const formatBytes = (bytes: number): string => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     try {
-        const payloadString = JSON.stringify(payload);
-        // Use TextEncoder for an accurate byte size measurement
-        const payloadSize = new TextEncoder().encode(payloadString).length;
         const payloadCopy = JSON.parse(payloadString);
-
-        const formatBytes = (bytes: number): string => {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        };
-
-        console.debug(`About to encrypt and share payload (Size: ${formatBytes(payloadSize)}):`, payloadCopy);
+        console.debug(
+            `Sharing payload stats: Original: ${formatBytes(originalSize)}, Compressed: ${formatBytes(compressedSize)}, Encrypted: ${formatBytes(encryptedSize)}`,
+            payloadCopy
+        );
     } catch (e) {
-        console.warn('Could not create a deep copy of the share payload for logging.');
+        console.warn('Could not log share payload for debugging.');
     }
-
-    return cryptoService.encrypt(JSON.stringify(payload), encryptionKey);
+    
+    return encryptedData;
 }
 
 export const recreateShareSession = async (
@@ -544,7 +559,8 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
                 if (!originalBill) continue;
                 try {
                     const symmetricKey = await cryptoService.importEncryptionKey(originalBill.shareEncryptionKey);
-                    const decryptedJson = await cryptoService.decrypt(share.encryptedData, symmetricKey);
+                    const decryptedBytes = await cryptoService.decrypt(share.encryptedData, symmetricKey);
+                    const decryptedJson = pako.inflate(decryptedBytes, { to: 'string' });
                     const data: SharedBillPayload = JSON.parse(decryptedJson);
                     const publicKey = await cryptoService.importPublicKey(data.publicKey);
                     if (!(await cryptoService.verify(JSON.stringify(data.bill), data.signature, publicKey))) {
