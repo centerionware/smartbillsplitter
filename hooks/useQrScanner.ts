@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 interface QrScannerHook {
