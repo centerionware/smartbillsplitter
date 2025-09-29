@@ -123,13 +123,15 @@ export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<Ui
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
-  // FIX: Explicitly pass the underlying ArrayBuffer of the Uint8Array view
-  // to resolve type conflicts in environments with multiple Uint8Array definitions (e.g., DOM vs. Node).
-  // The .slice() method creates a new ArrayBuffer, so this is safe and does not expose other data.
+  // FIX: Create a new ArrayBuffer by copying the Uint8Array's view. This resolves
+  // a TypeScript error where the buffer is inferred as ArrayBufferLike (which could be a
+  // SharedArrayBuffer), which is not compatible with the Web Crypto API.
+  const ciphertextBuffer = ciphertext.buffer.slice(ciphertext.byteOffset, ciphertext.byteOffset + ciphertext.byteLength);
+
   const decryptedContent = await crypto.subtle.decrypt(
     { name: SYMMETRIC_ALGORITHM, iv },
     key,
-    ciphertext
+    ciphertextBuffer
   );
 
   return new Uint8Array(decryptedContent);
@@ -185,8 +187,10 @@ export const verify = async (data: string, signature: string, publicKey: CryptoK
   // Decode the signature using the robust helper
   const signatureBytes = decodeBase64(signature);
   
-  // FIX: Explicitly pass the underlying ArrayBuffer of the Uint8Array views
-  // to resolve type conflicts in environments with multiple Uint8Array definitions (e.g., DOM vs. Node).
-  // Both decodeBase64 and TextEncoder.encode create new ArrayBuffers, so this is safe.
-  return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes, encodedData);
+  // FIX: Create a new ArrayBuffer by copying the Uint8Array's view. This resolves
+  // a TypeScript error where the buffer is inferred as ArrayBufferLike (which could be a
+  // SharedArrayBuffer), which is not compatible with the Web Crypto API.
+  const signatureBuffer = signatureBytes.buffer.slice(signatureBytes.byteOffset, signatureBytes.byteOffset + signatureBytes.byteLength);
+
+  return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBuffer, encodedData);
 };
