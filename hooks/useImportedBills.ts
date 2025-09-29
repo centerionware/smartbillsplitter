@@ -39,12 +39,14 @@ export const useImportedBills = () => {
   const addImportedBill = useCallback(async (newBill: ImportedBill) => {
     await addDB(newBill);
     postMessage({ type: 'imported-bills-updated' });
-  }, []);
+    await loadImportedBills(false);
+  }, [loadImportedBills]);
 
   const updateImportedBill = useCallback(async (updatedBill: ImportedBill) => {
     await updateDB(updatedBill);
     postMessage({ type: 'imported-bills-updated' });
-  }, []);
+    await loadImportedBills(false);
+  }, [loadImportedBills]);
 
   const updateMultipleImportedBills = useCallback(async (billsToUpdate: ImportedBill[]) => {
       if (billsToUpdate.length === 0) return;
@@ -62,12 +64,14 @@ export const useImportedBills = () => {
 
       await mergeImportedBillsDB([], billsWithSyncedStatus);
       postMessage({ type: 'imported-bills-updated' });
-  }, []);
+      await loadImportedBills(false);
+  }, [loadImportedBills]);
 
   const deleteImportedBill = useCallback(async (billId: string) => {
     await deleteImportedBillDB(billId);
     postMessage({ type: 'imported-bills-updated' });
-  }, []);
+    await loadImportedBills(false);
+  }, [loadImportedBills]);
 
   const archiveImportedBill = useCallback(async (billId: string) => {
     const billToUpdate = importedBills.find(b => b.id === billId);
@@ -107,10 +111,11 @@ export const useImportedBills = () => {
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeImportedBillsDB(billsToAdd, billsToUpdate);
           postMessage({ type: 'imported-bills-updated' });
+          await loadImportedBills(false);
       }
 
       return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };
-  }, [importedBills]);
+  }, [importedBills, loadImportedBills]);
   
   return { importedBills, isLoading, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, updateMultipleImportedBills };
 };

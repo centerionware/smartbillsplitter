@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 
 const CHANNEL_NAME = 'smart-bill-splitter-sync';
 
@@ -37,19 +37,37 @@ export const postMessage = (message: BroadcastMessage) => {
 
 /**
  * A React hook to listen for messages from other tabs.
+ * This implementation uses a ref to store the callback, ensuring the event listener
+ * always has access to the latest version of the handler without needing to be
+ * removed and re-added on every render. This prevents race conditions and stale closures.
  * @param onMessage A memoized callback function to execute when a message is received.
  */
 export const useBroadcastListener = (onMessage: (message: BroadcastMessage) => void) => {
-  const handleMessage = useCallback((event: MessageEvent<BroadcastMessage>) => {
-    onMessage(event.data);
+  const onMessageRef = useRef(onMessage);
+
+  // Always keep the ref updated with the latest callback from the parent component.
+  useEffect(() => {
+    onMessageRef.current = onMessage;
   }, [onMessage]);
 
   useEffect(() => {
-    if (channel) {
-      channel.addEventListener('message', handleMessage);
-      return () => {
-        channel.removeEventListener('message', handleMessage);
-      };
+    if (!channel) {
+        return;
     }
-  }, [handleMessage]);
+    
+    // The event handler itself is defined only once.
+    // It calls the `current` value of the ref, which is always up-to-date.
+    const handleMessage = (event: MessageEvent<BroadcastMessage>) => {
+      onMessageRef.current(event.data);
+    };
+
+    channel.addEventListener('message', handleMessage);
+
+    // The cleanup function removes the single, consistent event handler.
+    return () => {
+      channel.removeEventListener('message', handleMessage);
+    };
+    // The empty dependency array ensures this effect runs only once,
+    // setting up and tearing down the listener for the component's entire lifecycle.
+  }, []);
 };

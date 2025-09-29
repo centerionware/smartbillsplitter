@@ -84,26 +84,30 @@ export const useBills = () => {
     };
     await addBillDB(newBill);
     postMessage({ type: 'bills-updated' });
-  }, []);
+    await loadBills(false);
+  }, [loadBills]);
 
   const updateBill = useCallback(async (updatedBill: Bill): Promise<Bill> => {
     const billWithTimestamp = { ...updatedBill, lastUpdatedAt: Date.now() };
     await updateBillDB(billWithTimestamp);
     postMessage({ type: 'bills-updated' });
+    await loadBills(false);
     return billWithTimestamp;
-  }, []);
+  }, [loadBills]);
   
   const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {
       const now = Date.now();
       const billsWithTimestamp = billsToUpdate.map(b => ({ ...b, lastUpdatedAt: now }));
       await mergeBillsDB([], billsWithTimestamp);
       postMessage({ type: 'bills-updated' });
-  }, []);
+      await loadBills(false);
+  }, [loadBills]);
 
   const deleteBill = useCallback(async (billId: string) => {
     await deleteBillDB(billId);
     postMessage({ type: 'bills-updated' });
-  }, []);
+    await loadBills(false);
+  }, [loadBills]);
 
   const archiveBill = useCallback(async (billId: string) => {
     const billToUpdate = bills.find(b => b.id === billId);
@@ -144,10 +148,11 @@ export const useBills = () => {
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeBillsDB(billsToAdd, billsToUpdate);
           postMessage({ type: 'bills-updated' });
+          await loadBills(false);
       }
 
       return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };
-  }, [bills]);
+  }, [bills, loadBills]);
 
   return { bills, isLoading, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills };
 };
