@@ -111,7 +111,7 @@ export const useImportedBills = () => {
 
           if (existingBill) {
               if ((typedIncomingBill.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
-                  billsToUpdate.push({ ...existingBill, ...typedIncomingBill, status: existingBill.status });
+                  billsToUpdate.push({ ...existingBill, ...typedIncomingBill, status: existingBill.status, liveStatus: 'live' });
               } else {
                   skippedCount++;
               }

@@ -151,6 +151,7 @@ export const useBills = () => {
               const currentBillsMap = new Map(prev.map(b => [b.id, b]));
               updatedMap.forEach((value, key) => currentBillsMap.set(key, value));
               const finalBills = [...Array.from(currentBillsMap.values()), ...billsToAdd];
+              // FIX: Add explicit types to sort callback arguments to avoid implicit 'any'.
               finalBills.sort((a: Bill, b: Bill) => new Date(b.date).getTime() - new Date(a.date).getTime());
               return finalBills;
           });

@@ -73,7 +73,7 @@ const DebugConsole: React.FC = () => {
         };
         
         window.fetch = async (...args: [RequestInfo | URL, RequestInit?]) => {
-            // FIX: Removed incorrect spread operator on `args[0]`, which is not an iterable.
+            // FIX: Correctly construct the Request object. The original code used a spread operator on `args[0]`, which is not iterable.
             const request = new Request(args[0], args[1]);
             const now = new Date();
             let requestBody: any = null;

@@ -48,11 +48,12 @@ const PaymentMethodsModal: React.FC<PaymentMethodsModalProps> = ({ paymentDetail
     }
   };
 
+  // FIX: Explicitly cast string literals to the `PaymentMethod` type to resolve TypeScript error where 'string' is not assignable to the specific union type.
   const methods: { id: PaymentMethod; name: string; logo: string; info: string | null }[] = [
-    { id: 'venmo', name: 'Venmo', logo: 'https://cdn.simpleicons.org/venmo/008CFF', info: paymentDetails.venmo },
-    { id: 'paypal', name: 'PayPal', logo: 'https://cdn.simpleicons.org/paypal/00457C', info: paymentDetails.paypal },
-    { id: 'cashApp', name: 'Cash App', logo: 'https://cdn.simpleicons.org/cashapp/00C246', info: paymentDetails.cashApp },
-    { id: 'zelle', name: 'Zelle', logo: 'https://cdn.simpleicons.org/zelle/6D1AD8', info: paymentDetails.zelle }
+    { id: 'venmo' as PaymentMethod, name: 'Venmo', logo: 'https://cdn.simpleicons.org/venmo/008CFF', info: paymentDetails.venmo },
+    { id: 'paypal' as PaymentMethod, name: 'PayPal', logo: 'https://cdn.simpleicons.org/paypal/00457C', info: paymentDetails.paypal },
+    { id: 'cashApp' as PaymentMethod, name: 'Cash App', logo: 'https://cdn.simpleicons.org/cashapp/00C246', info: paymentDetails.cashApp },
+    { id: 'zelle' as PaymentMethod, name: 'Zelle', logo: 'https://cdn.simpleicons.org/zelle/6D1AD8', info: paymentDetails.zelle }
   ].filter(method => method.info && method.info.trim() !== '');
 
   const ActionButton: React.FC<{ logo: string; name: string; onClick: () => void }> = ({ logo, name, onClick }) => (
@@ -94,7 +95,7 @@ const PaymentMethodsModal: React.FC<PaymentMethodsModalProps> = ({ paymentDetail
                 <p className="font-mono text-lg font-semibold my-2 p-2 bg-slate-200 dark:bg-slate-600 rounded break-all">{method.info}</p>
                 {method.id !== 'zelle' &&
                     <button onClick={() => handleLaunchApp(method.id)} className="w-full mt-4 px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">
-                        Launch {method.name}
+                        Launch App
                     </button>
                 }
             </div>

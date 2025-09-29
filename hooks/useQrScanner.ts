@@ -16,7 +16,7 @@ export const useQrScanner = (onScan: (data: string) => void): QrScannerHook => {
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  // FIX (line 17): Initialize useRef with null to provide an initial value, satisfying TypeScript's requirement for an argument.
+  // FIX: Initialize useRef with null to provide an initial value, satisfying TypeScript's requirement for an argument.
   const animationFrameRef = useRef<number | null>(null);
 
   const scan = useCallback(() => {
@@ -32,7 +32,7 @@ export const useQrScanner = (onScan: (data: string) => void): QrScannerHook => {
         const code = jsQR(imageData.data, imageData.width, imageData.height);
 
         if (code && code.data) {
-          // FIX (line 33): Pass the scanned data string (code.data) to the onScan callback.
+          // FIX: Pass the scanned data string (code.data) to the onScan callback instead of the entire result object.
           onScan(code.data);
           // Stop scanning once a code is found
           // The component using the hook is responsible for calling stopScanner to close the UI

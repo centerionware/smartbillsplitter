@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 // FIX: Changed import statement to correctly import `View` as a value (for enums)
 // and other symbols as types, resolving 'cannot be used as a value' error.
@@ -75,7 +72,7 @@ const SettingsModal: React.FC<SettingsModalProps> = (props) => {
     reminders: { title: 'Bill Reminders', component: <BillReminders settings={formData} onSettingsChange={handleFormChange} />, hasSave: true },
     data: { title: 'Data & Tools', component: <DataManagement requestConfirmation={props.requestConfirmation} onOpenCsvImporter={props.onOpenCsvImporter} onOpenQrImporter={props.onOpenQrImporter} bills={props.bills} importedBills={props.importedBills} /> },
     sync: { title: 'Sync Devices', component: <DataSync onNavigate={() => { onClose(); props.onNavigate(View.Sync); }} /> },
-    subscription: { title: 'Subscription', component: <SubscriptionManagement onNavigate={() => { onClose(); props.onNavigate(View.ManageSubscription); }} onGoToManageSubscriptionPage={() => { onClose(); props.onNavigate(View.ManageSubscription); }} /> },
+    subscription: { title: 'Subscription', component: <SubscriptionManagement onNavigate={props.onNavigate} onGoToManageSubscriptionPage={() => props.onNavigate(View.ManageSubscription)} /> },
     danger: { title: 'Danger Zone', component: <DangerZone requestConfirmation={props.requestConfirmation} /> },
   };
 
