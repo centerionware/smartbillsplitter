@@ -76,6 +76,31 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const [isInfoEditorOpen, setIsInfoEditorOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
 
+  // FIX: This effect recalculates the owed amounts for participants whenever
+  // the itemization or split mode changes, ensuring the data is always correct.
+  useEffect(() => {
+    if (splitMode === 'item') {
+        const newParticipants = participants.map(p => {
+            let totalOwed = 0;
+            items.forEach(item => {
+                if (item.assignedTo.includes(p.id)) {
+                    // Divide item price by number of people it's assigned to
+                    const share = item.price / (item.assignedTo.length || 1);
+                    totalOwed += share;
+                }
+            });
+            // round to 2 decimal places to avoid floating point issues
+            return { ...p, amountOwed: parseFloat(totalOwed.toFixed(2)) };
+        });
+        
+        // Only update if there's a change to prevent infinite loops
+        if (JSON.stringify(newParticipants) !== JSON.stringify(participants)) {
+            setParticipants(newParticipants);
+        }
+    }
+  }, [items, splitMode, participants, setParticipants]);
+
+
   useEffect(() => {
     if (isFromTemplate && fromTemplate) {
       // When creating from a template, all participants should start as unpaid.
@@ -199,10 +224,14 @@ const CreateBill: React.FC<CreateBillProps> = ({
             }
         }
     } else {
+        // FIX: When scanning a new receipt, automatically assign all items to the current user.
+        const selfParticipant = participants.find(p => p.name.toLowerCase().trim() === settings.myDisplayName.toLowerCase().trim());
+        const selfId = selfParticipant ? selfParticipant.id : null;
+
         const newItems: ReceiptItem[] = scannedItems.map((item, index) => ({
             ...item,
             id: `item-scanned-${Date.now()}-${index}`,
-            assignedTo: [],
+            assignedTo: selfId ? [selfId] : [],
         }));
         setItems(newItems);
         setSplitMode('item');
