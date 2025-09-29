@@ -99,7 +99,7 @@ const HalfScreenAdModal: React.FC<HalfScreenAdModalProps> = ({ onClose }) => {
                   border: '0',
                   overflow: 'hidden',
                 }}
-                sandbox="allow-scripts allow-same-origin"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                 aria-label="Advertisement Content"
               ></iframe>
             )}
