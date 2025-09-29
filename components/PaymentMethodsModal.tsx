@@ -29,7 +29,9 @@ const PaymentMethodsModal: React.FC<PaymentMethodsModalProps> = ({ paymentDetail
             break;
         case 'cashApp':
             // Cash App's $cashtag link is simple and effective.
-            url = `https://cash.app/$${paymentDetails.cashApp}/${amount}`;
+            // Ensure there's only one '$' at the beginning by removing any existing ones and then adding it back.
+            const cleanCashtag = paymentDetails.cashApp.replace(/^\$+/, '');
+            url = `https://cash.app/$${cleanCashtag}/${amount}`;
             window.open(url, '_blank', 'noopener,noreferrer');
             break;
     }

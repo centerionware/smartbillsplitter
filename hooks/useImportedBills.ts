@@ -104,7 +104,7 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX(line 113, 114): Explicitly cast the iterated item to its correct type inside the loop. This resolves a TypeScript inference issue where the item's type was incorrectly being treated as 'unknown', causing errors when accessing its properties like `lastUpdatedAt` and when using the spread operator.
+      // FIX: Explicitly cast the iterated item to its correct type inside the loop. This resolves a TypeScript inference issue where the item's type was incorrectly being treated as 'unknown', causing errors when accessing its properties like `lastUpdatedAt` and when using the spread operator.
       for (const incomingBill of billsToMerge) {
           const typedIncomingBill = incomingBill as Omit<ImportedBill, 'status' | 'liveStatus'>;
           const existingBill = existingBillMap.get(typedIncomingBill.id);

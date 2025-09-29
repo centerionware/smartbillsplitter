@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import AppGate from './AppGate.tsx';
@@ -237,7 +238,7 @@ try {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
       <React.StrictMode>
-        {/* FIX(line 240): The error on this line was a symptom of an issue within the ErrorBoundary component itself. The fix has been applied in `components/ErrorBoundary.tsx`. */}
+        {/* FIX(line 241): The error on this line was a symptom of an issue within the ErrorBoundary component itself. The fix has been applied in `components/ErrorBoundary.tsx`. */}
         <ErrorBoundary>
           <Root />
         </ErrorBoundary>
