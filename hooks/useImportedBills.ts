@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import type { ImportedBill } from '../types';
 import { 
@@ -48,6 +47,7 @@ export const useImportedBills = () => {
   }, []);
 
   const updateMultipleImportedBills = useCallback(async (billsToUpdate: ImportedBill[]) => {
+      if (billsToUpdate.length === 0) return;
       await mergeImportedBillsDB([], billsToUpdate);
       setImportedBills(prev => {
           const updatedMap = new Map(billsToUpdate.map(b => [b.id, b]));
@@ -57,39 +57,38 @@ export const useImportedBills = () => {
       });
   }, []);
 
+  const deleteImportedBill = useCallback(async (billId: string) => {
+    await deleteImportedBillDB(billId);
+    setImportedBills(prev => prev.filter(bill => bill.id !== billId));
+  }, []);
+
   const archiveImportedBill = useCallback(async (billId: string) => {
     const billToUpdate = importedBills.find(b => b.id === billId);
     if (billToUpdate) {
-      await updateDB({ ...billToUpdate, status: 'archived' });
-      setImportedBills(prev => prev.map(b => b.id === billId ? {...b, status: 'archived'} : b));
+      await updateImportedBill({ ...billToUpdate, status: 'archived' });
     }
-  }, [importedBills]);
+  }, [importedBills, updateImportedBill]);
 
   const unarchiveImportedBill = useCallback(async (billId: string) => {
     const billToUpdate = importedBills.find(b => b.id === billId);
     if (billToUpdate) {
-      await updateDB({ ...billToUpdate, status: 'active' });
-      setImportedBills(prev => prev.map(b => b.id === billId ? {...b, status: 'active'} : b));
+      await updateImportedBill({ ...billToUpdate, status: 'active' });
     }
-  }, [importedBills]);
+  }, [importedBills, updateImportedBill]);
 
-  const deleteImportedBill = useCallback(async (billId: string) => {
-    await deleteImportedBillDB(billId);
-    setImportedBills(prev => prev.filter(b => b.id !== billId));
-  }, []);
-
-  const mergeImportedBills = useCallback(async (billsToMerge: Omit<ImportedBill, 'status' | 'liveStatus'>[]) => {
+  const mergeImportedBills = useCallback(async (billsToMerge: (Omit<ImportedBill, 'status' | 'liveStatus'>)[]) => {
       const existingBillMap = new Map(importedBills.map(b => [b.id, b]));
       const billsToAdd: ImportedBill[] = [];
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX: Use a for...of loop with explicit typing for the iterated item to prevent type inference issues.
+      // FIX: Explicitly type the iterated item to prevent type inference issues where it becomes 'unknown'.
       for (const typedIncomingBill of billsToMerge) {
           const existingBill = existingBillMap.get(typedIncomingBill.id);
+
           if (existingBill) {
-              if (typedIncomingBill.lastUpdatedAt > existingBill.lastUpdatedAt) {
-                  billsToUpdate.push({ ...existingBill, ...typedIncomingBill, status: existingBill.status, liveStatus: existingBill.liveStatus });
+              if ((typedIncomingBill.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
+                  billsToUpdate.push({ ...existingBill, ...typedIncomingBill, status: existingBill.status });
               } else {
                   skippedCount++;
               }
@@ -105,7 +104,7 @@ export const useImportedBills = () => {
               const currentBillsMap = new Map(prev.map(b => [b.id, b]));
               updatedMap.forEach((value, key) => currentBillsMap.set(key, value));
               const finalBills = [...Array.from(currentBillsMap.values()), ...billsToAdd];
-              // FIX: Explicitly typing the sort callback arguments resolves potential type inference issues.
+              // FIX: Add explicit types to sort callback arguments to avoid implicit 'any'.
               finalBills.sort((a: ImportedBill, b: ImportedBill) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
               return finalBills;
           });
@@ -113,6 +112,6 @@ export const useImportedBills = () => {
 
       return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };
   }, [importedBills]);
-
-  return { importedBills, isLoading, addImportedBill, updateImportedBill, archiveImportedBill, unarchiveImportedBill, deleteImportedBill, mergeImportedBills, updateMultipleImportedBills };
+  
+  return { importedBills, isLoading, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, updateMultipleImportedBills };
 };

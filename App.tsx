@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Bill, Settings, ImportedBill, RecurringBill, RequestConfirmationFn, SettingsSection, SummaryFilter, DashboardView } from './types';
 import { View } from './types';
@@ -112,13 +111,14 @@ const App: React.FC = () => {
             const billsToUpdate = await pollImportedBills(activeImported);
 
             if (billsToUpdate.length > 0) {
-                // FIX: Use the more performant bulk update function to refresh the UI.
+                // Use the more performant bulk update function to refresh the UI.
                 await updateMultipleImportedBills(billsToUpdate);
             }
         };
 
-        const intervalId = setInterval(poll, 30 * 1000); // Poll every 30 seconds
-        poll(); // Also poll immediately on mount/dependency change
+        // FIX: Ensure the bulk update is called on refresh (component mount) and then every 30 seconds.
+        poll(); // Poll immediately on mount/dependency change
+        const intervalId = setInterval(poll, 30 * 1000); // Then continue polling every 30 seconds
 
         return () => clearInterval(intervalId);
     }, [importedBills, updateMultipleImportedBills]);

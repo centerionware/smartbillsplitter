@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import { useState, useEffect, useCallback } from 'react';
 import type { Bill, Participant } from '../types';
 import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB, addMultipleBillsDB, mergeBillsDB } from '../services/db';
@@ -133,7 +127,7 @@ export const useBills = () => {
       const billsToUpdate: Bill[] = [];
       let skippedCount = 0;
 
-      // FIX: Use a for...of loop with explicit typing for the iterated item to prevent type inference issues.
+      // FIX: Explicitly type the iterated item to prevent type inference issues where it becomes 'unknown'.
       for (const typedIncomingBill of billsToMerge) {
           const existingBill = existingBillMap.get(typedIncomingBill.id);
 
