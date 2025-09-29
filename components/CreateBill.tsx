@@ -76,29 +76,77 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const [isInfoEditorOpen, setIsInfoEditorOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
 
-  // FIX: This effect recalculates the owed amounts for participants whenever
-  // the itemization or split mode changes, ensuring the data is always correct.
+  // This effect recalculates owed amounts whenever the split logic changes.
   useEffect(() => {
-    if (splitMode === 'item') {
-        const newParticipants = participants.map(p => {
-            let totalOwed = 0;
-            items.forEach(item => {
-                if (item.assignedTo.includes(p.id)) {
-                    // Divide item price by number of people it's assigned to
-                    const share = item.price / (item.assignedTo.length || 1);
-                    totalOwed += share;
-                }
-            });
-            // round to 2 decimal places to avoid floating point issues
-            return { ...p, amountOwed: parseFloat(totalOwed.toFixed(2)) };
+    // Only calculate for participants with names.
+    const activeParticipants = participants.filter(p => p.name.trim() !== '');
+    if (activeParticipants.length === 0) return;
+
+    let newParticipants = [...participants];
+
+    switch (splitMode) {
+      case 'equally': {
+        const amountPerPerson = (totalAmount || 0) / activeParticipants.length;
+        newParticipants = participants.map(p => ({
+          ...p,
+          amountOwed: p.name.trim() !== '' ? parseFloat(amountPerPerson.toFixed(2)) : 0,
+        }));
+        break;
+      }
+      case 'amount':
+        newParticipants = participants.map(p => ({
+          ...p,
+          amountOwed: p.splitValue || 0,
+        }));
+        break;
+      case 'percentage': {
+        const totalPercentage = participants.reduce((sum, p) => sum + (p.splitValue || 0), 0);
+        if (totalPercentage > 0) {
+          newParticipants = participants.map(p => ({
+            ...p,
+            amountOwed: parseFloat(((totalAmount || 0) * ((p.splitValue || 0) / totalPercentage)).toFixed(2)),
+          }));
+        } else {
+          newParticipants = participants.map(p => ({ ...p, amountOwed: 0 }));
+        }
+        break;
+      }
+      case 'item': {
+        newParticipants = participants.map(p => {
+          let totalOwedByParticipant = 0;
+          items.forEach(item => {
+            if (item.assignedTo.includes(p.id)) {
+              const share = item.price / (item.assignedTo.length || 1);
+              totalOwedByParticipant += share;
+            }
+          });
+          return { ...p, amountOwed: parseFloat(totalOwedByParticipant.toFixed(2)) };
         });
+        break;
+      }
+    }
+
+    // Correct for rounding errors by assigning the remainder to the first participant.
+    // This is not done for 'item' mode, as the total is derived from item prices.
+    if (splitMode !== 'item') {
+        const currentTotalOwed = newParticipants.reduce((sum, p) => sum + p.amountOwed, 0);
+        const difference = (totalAmount || 0) - currentTotalOwed;
         
-        // Only update if there's a change to prevent infinite loops
-        if (JSON.stringify(newParticipants) !== JSON.stringify(participants)) {
-            setParticipants(newParticipants);
+        if (Math.abs(difference) > 0.001 && newParticipants.length > 0) {
+            const firstActiveParticipantIndex = newParticipants.findIndex(p => p.name.trim() !== '');
+            if (firstActiveParticipantIndex !== -1) {
+                newParticipants[firstActiveParticipantIndex].amountOwed += difference;
+                // Ensure it's still 2 decimal places
+                newParticipants[firstActiveParticipantIndex].amountOwed = parseFloat(newParticipants[firstActiveParticipantIndex].amountOwed.toFixed(2));
+            }
         }
     }
-  }, [items, splitMode, participants, setParticipants]);
+
+    // Only update state if there's an actual change to prevent infinite loops
+    if (JSON.stringify(newParticipants) !== JSON.stringify(participants)) {
+      setParticipants(newParticipants);
+    }
+  }, [totalAmount, splitMode, items, participants]);
 
 
   useEffect(() => {
