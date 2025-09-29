@@ -95,8 +95,7 @@ const BillList: React.FC<BillListProps> = ({
             {filteredImportedBills.map(ib => (
               <SwipeableImportedBillCard 
                 key={ib.id} 
-                importedBill={ib} 
-                onUpdate={onUpdateImportedBill}
+                bill={ib}
                 onArchive={() => onArchiveImportedBill(ib.id)}
                 onUnarchive={() => onUnarchiveImportedBill(ib.id)}
                 onDelete={() => onDeleteImportedBill(ib.id)}

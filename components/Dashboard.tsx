@@ -1,9 +1,6 @@
-
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-// FIX: Changed import for `View` to be a value import, as it's an enum used at runtime.
 import { View } from '../types';
-import type { Bill, Settings, ImportedBill, Participant, SummaryFilter } from '../types';
+import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import ShareActionSheet from './ShareActionSheet.tsx';
 import { generateShareText, generateOneTimeShareLink } from '../services/shareService.ts';
@@ -17,14 +14,16 @@ import { exportData } from '../services/exportService.ts';
 import DashboardSummary from './dashboard/DashboardSummary.tsx';
 import DashboardControls from './dashboard/DashboardControls.tsx';
 import BillList from './dashboard/BillList.tsx';
-import ParticipantList, { ParticipantData } from './dashboard/ParticipantList.tsx';
+import ParticipantList, { ParticipantData } from '../ParticipantList.tsx';
 import ParticipantDetailView from './dashboard/ParticipantDetailView.tsx';
 import EmptyState from './dashboard/EmptyState.tsx';
+import RecurringBillCard from '../RecurringBillCard.tsx';
 
 
 interface DashboardProps {
   bills: Bill[];
   importedBills: ImportedBill[];
+  recurringBills: RecurringBill[];
   settings: Settings;
   subscriptionStatus: SubscriptionStatus;
   onSelectBill: (bill: Bill) => void;
@@ -38,14 +37,14 @@ interface DashboardProps {
   onUnarchiveImportedBill: (billId: string) => void;
   onDeleteImportedBill: (billId: string) => void;
   onShowSummaryDetails: (bill: ImportedBill) => void;
-  // FIX: Added missing navigate prop to align with usage in App.tsx
+  onCreateFromTemplate: (template: RecurringBill) => void;
   navigate: (view: View, params?: any) => void;
   // Navigation State & Handlers
-  dashboardView: 'bills' | 'participants';
+  dashboardView: DashboardView;
   selectedParticipant: string | null;
   dashboardStatusFilter: 'active' | 'archived';
   dashboardSummaryFilter: SummaryFilter;
-  onSetDashboardView: (view: 'bills' | 'participants') => void;
+  onSetDashboardView: (view: DashboardView) => void;
   onSetDashboardStatusFilter: (status: 'active' | 'archived') => void;
   onSetDashboardSummaryFilter: (filter: SummaryFilter) => void;
   onSelectParticipant: (name: string) => void;
@@ -55,11 +54,11 @@ interface DashboardProps {
 const BILLS_PER_PAGE = 15;
 
 const Dashboard: React.FC<DashboardProps> = ({ 
-  bills, importedBills, settings, subscriptionStatus, 
+  bills, importedBills, recurringBills, settings, subscriptionStatus, 
   onSelectBill, onSelectImportedBill, 
   onArchiveBill, onUnarchiveBill, onDeleteBill, onUpdateMultipleBills, 
   onUpdateImportedBill, onArchiveImportedBill, onUnarchiveImportedBill, onDeleteImportedBill,
-  onShowSummaryDetails,
+  onShowSummaryDetails, onCreateFromTemplate,
   navigate,
   dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter,
   onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant
@@ -72,6 +71,23 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isHalfScreenAdOpen, setIsHalfScreenAdOpen] = useState(false);
   const [settleUpBill, setSettleUpBill] = useState<ImportedBill | null>(null);
   const { showNotification } = useAppControl();
+
+  const hasRecurringBills = recurringBills.length > 0;
+
+  // If the last recurring bill is deleted, switch back to the main 'bills' view.
+  useEffect(() => {
+    if (!hasRecurringBills && (dashboardView === 'upcoming' || dashboardView === 'templates')) {
+        onSetDashboardView('bills');
+    }
+  }, [hasRecurringBills, dashboardView, onSetDashboardView]);
+
+
+  // Reset search mode when switching to a view that doesn't support participant search
+  useEffect(() => {
+    if (['upcoming', 'templates'].includes(dashboardView)) {
+        setSearchMode('description');
+    }
+  }, [dashboardView]);
 
   // --- Calculations for Summary & Participant View ---
   const activeBills = useMemo(() => bills.filter(b => b.status === 'active'), [bills]);
@@ -179,7 +195,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [bills, selectedParticipant, searchQuery, searchMode]);
 
   const filteredBills = useMemo(() => {
-    if (selectedParticipant || dashboardView === 'participants') return [];
+    if (selectedParticipant || dashboardView !== 'bills') return [];
     const lowercasedQuery = searchQuery.toLowerCase().trim();
     const myNameLower = settings.myDisplayName.toLowerCase().trim();
     let billsToFilter = lowercasedQuery ? bills.filter(bill => searchMode === 'description' ? bill.description.toLowerCase().includes(lowercasedQuery) : bill.participants.some(p => p.name.toLowerCase().includes(lowercasedQuery))) : bills;
@@ -195,7 +211,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [bills, searchQuery, searchMode, dashboardStatusFilter, selectedParticipant, dashboardView, dashboardSummaryFilter, settings.myDisplayName]);
   
   const filteredImportedBills = useMemo(() => {
-    if (selectedParticipant || dashboardView === 'participants') return [];
+    if (selectedParticipant || dashboardView !== 'bills') return [];
     let baseFiltered = importedBills.filter(bill => bill.status === dashboardStatusFilter);
     if (dashboardStatusFilter === 'active') {
         if (dashboardSummaryFilter === 'othersOweMe') return [];
@@ -204,14 +220,55 @@ const Dashboard: React.FC<DashboardProps> = ({
     return baseFiltered;
   }, [importedBills, dashboardStatusFilter, dashboardSummaryFilter, selectedParticipant, dashboardView]);
   
+  const upcomingRecurringBills = useMemo(() => {
+    const lowercasedQuery = searchQuery.toLowerCase().trim();
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    const filtered = recurringBills.filter(bill => {
+        if (bill.status !== 'active') return false;
+        
+        const dueDate = new Date(bill.nextDueDate);
+        if (dueDate > thirtyDaysFromNow) return false;
+
+        if (lowercasedQuery && !bill.description.toLowerCase().includes(lowercasedQuery)) {
+            return false;
+        }
+        return true;
+    });
+
+    return filtered.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
+  }, [recurringBills, searchQuery]);
+
+  const allRecurringBills = useMemo(() => {
+      const lowercasedQuery = searchQuery.toLowerCase().trim();
+      
+      const filtered = recurringBills.filter(bill => {
+          if (bill.status !== 'active') return false;
+
+          if (lowercasedQuery && !bill.description.toLowerCase().includes(lowercasedQuery)) {
+              return false;
+          }
+          return true;
+      });
+
+      return filtered.sort((a, b) => a.description.localeCompare(b.description));
+  }, [recurringBills, searchQuery]);
+
   useEffect(() => {
     setVisibleCount(BILLS_PER_PAGE);
   }, [dashboardStatusFilter, searchQuery, searchMode, dashboardView, selectedParticipant, dashboardSummaryFilter]);
   
-  const hasMore = visibleCount < filteredBills.length;
+  const hasMore = useMemo(() => {
+      if (dashboardView === 'upcoming') return visibleCount < upcomingRecurringBills.length;
+      if (dashboardView === 'templates') return visibleCount < allRecurringBills.length;
+      return visibleCount < filteredBills.length;
+  }, [dashboardView, visibleCount, upcomingRecurringBills.length, allRecurringBills.length, filteredBills.length]);
+  
   const loadMore = useCallback(() => {
     if (hasMore) setVisibleCount(prev => prev + BILLS_PER_PAGE);
   }, [hasMore]);
+  
   const { ref: loadMoreRef } = useIntersectionObserver({ onIntersect: loadMore });
 
   const getShareTextForParticipant = useCallback((participantName: string): string => {
@@ -305,14 +362,20 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (dashboardView === 'participants') {
       return dashboardStatusFilter === 'active' ? { title: "No outstanding debts", message: "Everyone is all paid up!" } : { title: "No settled participants", message: "Participants who are fully paid up across all bills will appear here." };
     }
+    if (dashboardView === 'upcoming') {
+        return { title: "No upcoming bills", message: "Recurring bills due in the next 30 days will appear here." };
+    }
+    if (dashboardView === 'templates') {
+        return { title: "No recurring bills", message: "Create a recurring bill template to get started." };
+    }
     if (dashboardSummaryFilter === 'othersOweMe' && filteredBills.length === 0) {
       return { title: "All Caught Up!", message: "No one currently owes you money on active bills." };
     }
     if (dashboardSummaryFilter === 'iOwe' && filteredBills.length === 0 && filteredImportedBills.length === 0) {
       return { title: "You're All Paid Up!", message: "You don't currently owe money on any active bills." };
     }
-    if (searchQuery && filteredBills.length === 0 && filteredImportedBills.length === 0) {
-      return { title: "No results found", message: `Your search for "${searchQuery}" did not match any ${dashboardStatusFilter} bills.` };
+    if (searchQuery) {
+        return { title: "No results found", message: `Your search for "${searchQuery}" did not match any items.` };
     }
     if (dashboardStatusFilter === 'active' && bills.every(b => b.status === 'archived') && importedBills.every(b => b.status === 'archived')) {
       return { title: "All bills archived", message: "You can view your archived bills or create a new one." };
@@ -356,33 +419,59 @@ const Dashboard: React.FC<DashboardProps> = ({
             return <ParticipantList participantsData={participantsData} onSetShareSheetParticipant={setShareSheetParticipant} onMarkParticipantAsPaid={handleMarkParticipantAsPaid} />;
         }
     } else if (selectedParticipant) {
-        return <ParticipantDetailView participantBills={participantBills} onSelectBill={onSelectBill} onArchiveBill={onArchiveBill} onUnarchiveBill={onUnarchiveBill} onDeleteBill={onDeleteBill} dashboardStatusFilter={dashboardStatusFilter} searchQuery={searchQuery} selectedParticipant={selectedParticipant} onExport={() => handleExportParticipant(selectedParticipant)} />;
-    } else {
-        if (filteredBills.length > 0 || filteredImportedBills.length > 0) {
-            return <BillList 
-                filteredBills={filteredBills} 
-                filteredImportedBills={filteredImportedBills} 
-                visibleCount={visibleCount} 
-                subscriptionStatus={subscriptionStatus} 
-                archivingBillIds={archivingBillIds} 
-                onSelectBill={onSelectBill} 
-                onArchiveBill={onArchiveBill} 
-                onUnarchiveBill={onUnarchiveBill} 
-                onDeleteBill={onDeleteBill} 
-                onSelectImportedBill={onSelectImportedBill} 
-                onUpdateImportedBill={onUpdateImportedBill} 
-                onArchiveImportedBill={onArchiveImportedBill} 
-                onUnarchiveImportedBill={onUnarchiveImportedBill} 
-                onDeleteImportedBill={onDeleteImportedBill} 
-                onShowSummaryDetails={onShowSummaryDetails} 
-                onSettleUp={handleSettleUp} 
-                loadMoreRef={loadMoreRef} 
-                hasMore={hasMore}
-                onConvertToTemplate={handleConvertToTemplate}
-                onExportOwnedBill={handleExportOwnedBill}
-                onExportImportedBill={handleExportImportedBill}
-            />;
-        }
+        return <ParticipantDetailView 
+                  participantBills={participantBills} 
+                  onSelectBill={onSelectBill} 
+                  onArchiveBill={onArchiveBill} 
+                  onUnarchiveBill={onUnarchiveBill} 
+                  onDeleteBill={onDeleteBill} 
+                  dashboardStatusFilter={dashboardStatusFilter} 
+                  searchQuery={searchQuery} 
+                  selectedParticipant={selectedParticipant} 
+                  onExport={() => handleExportParticipant(selectedParticipant)}
+                  onConvertToTemplate={handleConvertToTemplate}
+                  onExportBill={handleExportOwnedBill}
+                />;
+    } else if (dashboardView === 'upcoming' && upcomingRecurringBills.length > 0) {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {upcomingRecurringBills.slice(0, visibleCount).map(bill => (
+                    <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} />
+                ))}
+            </div>
+        );
+    } else if (dashboardView === 'templates' && allRecurringBills.length > 0) {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {allRecurringBills.slice(0, visibleCount).map(bill => (
+                    <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} />
+                ))}
+            </div>
+        );
+    } else if (dashboardView === 'bills' && (filteredBills.length > 0 || filteredImportedBills.length > 0)) {
+        return <BillList 
+            filteredBills={filteredBills} 
+            filteredImportedBills={filteredImportedBills} 
+            visibleCount={visibleCount} 
+            subscriptionStatus={subscriptionStatus} 
+            archivingBillIds={archivingBillIds} 
+            onSelectBill={onSelectBill} 
+            onArchiveBill={onArchiveBill} 
+            onUnarchiveBill={onUnarchiveBill} 
+            onDeleteBill={onDeleteBill} 
+            onSelectImportedBill={onSelectImportedBill} 
+            onUpdateImportedBill={onUpdateImportedBill} 
+            onArchiveImportedBill={onArchiveImportedBill} 
+            onUnarchiveImportedBill={onUnarchiveImportedBill} 
+            onDeleteImportedBill={onDeleteImportedBill} 
+            onShowSummaryDetails={onShowSummaryDetails} 
+            onSettleUp={handleSettleUp} 
+            loadMoreRef={loadMoreRef} 
+            hasMore={hasMore}
+            onConvertToTemplate={handleConvertToTemplate}
+            onExportOwnedBill={handleExportOwnedBill}
+            onExportImportedBill={handleExportImportedBill}
+        />;
     }
     
     const { title, message } = getEmptyState();
@@ -391,8 +480,22 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div>
-      <DashboardSummary summaryTotals={summaryTotals} dashboardStatusFilter={dashboardStatusFilter} dashboardSummaryFilter={dashboardSummaryFilter} onSetDashboardSummaryFilter={onSetDashboardSummaryFilter} />
-      <DashboardControls selectedParticipant={selectedParticipant} onClearParticipant={onClearParticipant} dashboardView={dashboardView} onSetDashboardView={onSetDashboardView} dashboardStatusFilter={dashboardStatusFilter} onSetDashboardStatusFilter={onSetDashboardStatusFilter} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchMode={searchMode} setSearchMode={setSearchMode} />
+      {!['upcoming', 'templates'].includes(dashboardView) &&
+        <DashboardSummary summaryTotals={summaryTotals} dashboardStatusFilter={dashboardStatusFilter} dashboardSummaryFilter={dashboardSummaryFilter} onSetDashboardSummaryFilter={onSetDashboardSummaryFilter} />
+      }
+      <DashboardControls 
+        selectedParticipant={selectedParticipant} 
+        onClearParticipant={onClearParticipant} 
+        dashboardView={dashboardView} 
+        onSetDashboardView={onSetDashboardView} 
+        dashboardStatusFilter={dashboardStatusFilter} 
+        onSetDashboardStatusFilter={onSetDashboardStatusFilter} 
+        searchQuery={searchQuery} 
+        setSearchQuery={setSearchQuery} 
+        searchMode={searchMode} 
+        setSearchMode={setSearchMode}
+        hasRecurringBills={hasRecurringBills}
+      />
       
       {activeFilterTag && dashboardView === 'bills' && (
         <div className="mb-4">
@@ -406,6 +509,16 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {renderContent()}
+
+      {hasMore && (
+        <div ref={loadMoreRef} className="flex justify-center items-center p-8">
+          <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+      )}
+      
       {shareSheetParticipant && <ShareActionSheet 
         participant={{ ...shareSheetParticipant, id: shareSheetParticipant.name, amountOwed: shareSheetParticipant.amount, paid: false } as Participant} 
         onClose={() => setShareSheetParticipant(null)} 

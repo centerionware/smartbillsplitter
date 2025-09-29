@@ -1,5 +1,4 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { initDB } from '../services/db.ts';
 
 interface Props {
   children: ReactNode;
