@@ -1,7 +1,7 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import type { Settings } from '../types';
 import { getSettings, saveSettings } from '../services/db.ts';
+import { postMessage, useBroadcastListener } from '../services/broadcastService';
 
 const initialSettings: Settings = {
   paymentDetails: {
@@ -21,29 +21,36 @@ export const useSettings = () => {
   const [settings, setSettings] = useState<Settings>(initialSettings);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        let dbSettings = await getSettings();
-        if (!dbSettings) {
-          // If no settings in DB, save and use initial settings.
+  const loadSettings = useCallback(async (isInitialLoad: boolean = false) => {
+    if (isInitialLoad) setIsLoading(true);
+    try {
+      let dbSettings = await getSettings();
+      if (!dbSettings) {
+        if (isInitialLoad) {
           await saveSettings(initialSettings);
-          dbSettings = initialSettings;
-        } else {
-          // Merge saved settings with defaults to handle new fields
-          dbSettings = { ...initialSettings, ...dbSettings, paymentDetails: {...initialSettings.paymentDetails, ...dbSettings.paymentDetails} };
         }
-        setSettings(dbSettings);
-      } catch (error) {
-        console.error("Failed to load settings from IndexedDB:", error);
-        // Fallback to initial settings on error
-        setSettings(initialSettings);
-      } finally {
-        setIsLoading(false);
+        dbSettings = initialSettings;
+      } else {
+        dbSettings = { ...initialSettings, ...dbSettings, paymentDetails: {...initialSettings.paymentDetails, ...dbSettings.paymentDetails} };
       }
-    };
-    loadSettings();
+      setSettings(dbSettings);
+    } catch (error) {
+      console.error("Failed to load settings from IndexedDB:", error);
+      setSettings(initialSettings);
+    } finally {
+      if (isInitialLoad) setIsLoading(false);
+    }
   }, []);
+  
+  useEffect(() => {
+    loadSettings(true);
+  }, [loadSettings]);
+
+  useBroadcastListener(useCallback(message => {
+    if (message.type === 'settings-updated') {
+      loadSettings(false);
+    }
+  }, [loadSettings]));
 
   const updateSettings = useCallback(async (newSettings: Partial<Settings>) => {
     const updatedSettings: Settings = {
@@ -55,6 +62,8 @@ export const useSettings = () => {
       }
     };
     await saveSettings(updatedSettings);
+    postMessage({ type: 'settings-updated' });
+    // Also update local state immediately for the current tab
     setSettings(updatedSettings);
   }, [settings]);
 

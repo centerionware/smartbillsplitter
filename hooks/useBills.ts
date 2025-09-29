@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Bill, Participant } from '../types';
 import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB, addMultipleBillsDB, mergeBillsDB } from '../services/db';
+import { postMessage, useBroadcastListener } from '../services/broadcastService';
 
 const createDefaultBills = (): Bill[] => {
     const today = new Date();
@@ -42,31 +43,37 @@ export const useBills = () => {
   const [bills, setBills] = useState<Bill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadBills = async () => {
-      try {
-        setIsLoading(true);
-        const dbBills = await getBills();
+  const loadBills = useCallback(async (isInitialLoad: boolean = false) => {
+    if (isInitialLoad) setIsLoading(true);
+    try {
+      const dbBills = await getBills();
 
-        // Check if DB is empty and if we've never loaded defaults before
-        if (dbBills.length === 0 && !localStorage.getItem('sharedbills.defaultDataLoaded')) {
-            console.log("First launch: creating default example bills.");
-            const defaultBills = createDefaultBills();
-            await addMultipleBillsDB(defaultBills);
-            dbBills.push(...defaultBills);
-            localStorage.setItem('sharedbills.defaultDataLoaded', 'true');
-        }
-        
-        dbBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setBills(dbBills);
-      } catch (error) {
-        console.error("Failed to load bills from IndexedDB:", error);
-      } finally {
-        setIsLoading(false);
+      if (isInitialLoad && dbBills.length === 0 && !localStorage.getItem('sharedbills.defaultDataLoaded')) {
+          console.log("First launch: creating default example bills.");
+          const defaultBills = createDefaultBills();
+          await addMultipleBillsDB(defaultBills);
+          dbBills.push(...defaultBills);
+          localStorage.setItem('sharedbills.defaultDataLoaded', 'true');
       }
-    };
-    loadBills();
+      
+      dbBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setBills(dbBills);
+    } catch (error) {
+      console.error("Failed to load bills from IndexedDB:", error);
+    } finally {
+      if (isInitialLoad) setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadBills(true);
+  }, [loadBills]);
+
+  useBroadcastListener(useCallback(message => {
+    if (message.type === 'bills-updated') {
+      loadBills(false);
+    }
+  }, [loadBills]));
 
   const addBill = useCallback(async (newBillData: Omit<Bill, 'id' | 'status'>) => {
     const newBill: Bill = {
@@ -76,36 +83,26 @@ export const useBills = () => {
       lastUpdatedAt: Date.now(),
     };
     await addBillDB(newBill);
-    setBills(prevBills => [newBill, ...prevBills]);
+    postMessage({ type: 'bills-updated' });
   }, []);
 
   const updateBill = useCallback(async (updatedBill: Bill): Promise<Bill> => {
     const billWithTimestamp = { ...updatedBill, lastUpdatedAt: Date.now() };
     await updateBillDB(billWithTimestamp);
-    setBills(prevBills => {
-      const updated = prevBills.map(bill => (bill.id === billWithTimestamp.id ? billWithTimestamp : bill));
-      updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      return updated;
-    });
+    postMessage({ type: 'bills-updated' });
     return billWithTimestamp;
   }, []);
   
   const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {
       const now = Date.now();
       const billsWithTimestamp = billsToUpdate.map(b => ({ ...b, lastUpdatedAt: now }));
-      const tx = mergeBillsDB([], billsWithTimestamp);
-      await tx;
-      setBills(prev => {
-          const updatedMap = new Map(billsWithTimestamp.map(b => [b.id, b]));
-          const updated = prev.map(b => updatedMap.get(b.id) || b);
-          updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          return updated;
-      });
+      await mergeBillsDB([], billsWithTimestamp);
+      postMessage({ type: 'bills-updated' });
   }, []);
 
   const deleteBill = useCallback(async (billId: string) => {
     await deleteBillDB(billId);
-    setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
+    postMessage({ type: 'bills-updated' });
   }, []);
 
   const archiveBill = useCallback(async (billId: string) => {
@@ -146,15 +143,7 @@ export const useBills = () => {
 
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeBillsDB(billsToAdd, billsToUpdate);
-          setBills(prev => {
-              const updatedMap = new Map(billsToUpdate.map(b => [b.id, b]));
-              const currentBillsMap = new Map(prev.map(b => [b.id, b]));
-              updatedMap.forEach((value, key) => currentBillsMap.set(key, value));
-              const finalBills = [...Array.from(currentBillsMap.values()), ...billsToAdd];
-              // FIX: Add explicit types to sort callback arguments to avoid implicit 'any'.
-              finalBills.sort((a: Bill, b: Bill) => new Date(b.date).getTime() - new Date(a.date).getTime());
-              return finalBills;
-          });
+          postMessage({ type: 'bills-updated' });
       }
 
       return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };

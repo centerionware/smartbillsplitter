@@ -1,8 +1,7 @@
-
-
 import { useState, useEffect, useCallback } from 'react';
 import type { RecurringBill, RecurrenceRule } from '../types';
 import { getRecurringBills, addRecurringBill as addDB, updateRecurringBill as updateDB, deleteRecurringBillDB } from '../services/db.ts';
+import { postMessage, useBroadcastListener } from '../services/broadcastService';
 
 /**
  * Calculates the *first* upcoming due date for a *new* recurring bill template.
@@ -91,9 +90,8 @@ export const useRecurringBills = () => {
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
+  const loadRecurringBills = useCallback(async (isInitialLoad: boolean = false) => {
+      if (isInitialLoad) setIsLoading(true);
       try {
         let dbBills = await getRecurringBills();
         dbBills.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
@@ -101,17 +99,20 @@ export const useRecurringBills = () => {
       } catch (err) {
         console.error("Failed to load recurring bills:", err);
       } finally {
-        setIsLoading(false);
+        if (isInitialLoad) setIsLoading(false);
       }
-    };
-    loadData();
   }, []);
-  
-  const sortAndSet = (bills: RecurringBill[]) => {
-      bills.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
-      setRecurringBills(bills);
-  }
 
+  useEffect(() => {
+    loadRecurringBills(true);
+  }, [loadRecurringBills]);
+
+  useBroadcastListener(useCallback(message => {
+    if (message.type === 'recurring-bills-updated') {
+        loadRecurringBills(false);
+    }
+  }, [loadRecurringBills]));
+  
   const addRecurringBill = useCallback(async (newBillData: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => {
     const newBill: RecurringBill = {
       ...newBillData,
@@ -120,11 +121,7 @@ export const useRecurringBills = () => {
       nextDueDate: calculateFirstDueDate(newBillData.recurrenceRule, new Date()),
     };
     await addDB(newBill);
-    setRecurringBills(prev => {
-        const updated = [...prev, newBill];
-        sortAndSet(updated);
-        return updated;
-    });
+    postMessage({ type: 'recurring-bills-updated' });
     return newBill;
   }, []);
 
@@ -134,11 +131,7 @@ export const useRecurringBills = () => {
         updatedBill.nextDueDate = calculateFirstDueDate(updatedBill.recurrenceRule, new Date());
     }
     await updateDB(updatedBill);
-    setRecurringBills(prev => {
-        const updated = prev.map(bill => (bill.id === updatedBill.id ? updatedBill : bill));
-        sortAndSet(updated);
-        return updated;
-    });
+    postMessage({ type: 'recurring-bills-updated' });
   }, [recurringBills]);
   
   const updateRecurringBillDueDate = useCallback(async (billId: string) => {
@@ -149,11 +142,7 @@ export const useRecurringBills = () => {
             nextDueDate: calculateNextDueDate(billToUpdate.recurrenceRule, billToUpdate.nextDueDate)
         };
         await updateDB(updatedBill);
-        setRecurringBills(prev => {
-            const updated = prev.map(b => (b.id === billId ? updatedBill : b));
-            sortAndSet(updated);
-            return updated;
-        });
+        postMessage({ type: 'recurring-bills-updated' });
     }
   }, [recurringBills]);
 
@@ -162,7 +151,7 @@ export const useRecurringBills = () => {
     if (billToUpdate) {
       const updatedBill = { ...billToUpdate, status: 'archived' as const };
       await updateDB(updatedBill);
-      setRecurringBills(prev => prev.map(bill => (bill.id === billId ? updatedBill : bill)));
+      postMessage({ type: 'recurring-bills-updated' });
     }
   }, [recurringBills]);
   
@@ -171,17 +160,13 @@ export const useRecurringBills = () => {
     if (billToUpdate) {
       const updatedBill = { ...billToUpdate, status: 'active' as const, nextDueDate: calculateFirstDueDate(billToUpdate.recurrenceRule, new Date()) };
       await updateDB(updatedBill);
-      setRecurringBills(prev => {
-        const updated = prev.map(bill => (bill.id === billId ? updatedBill : bill));
-        sortAndSet(updated);
-        return updated;
-      });
+      postMessage({ type: 'recurring-bills-updated' });
     }
   }, [recurringBills]);
 
   const deleteRecurringBill = useCallback(async (billId: string) => {
     await deleteRecurringBillDB(billId);
-    setRecurringBills(prev => prev.filter(bill => bill.id !== billId));
+    postMessage({ type: 'recurring-bills-updated' });
   }, []);
 
   return { recurringBills, addRecurringBill, updateRecurringBill, archiveRecurringBill, unarchiveRecurringBill, deleteRecurringBill, updateRecurringBillDueDate, isLoading };

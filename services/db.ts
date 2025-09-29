@@ -1,6 +1,6 @@
-
 import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscriptionDetails } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
+import { postMessage } from './broadcastService';
 
 const DB_NAME = 'SmartBillSplitterDB';
 const DB_VERSION = 11; // Incremented to force migration for all users
@@ -22,7 +22,7 @@ const STORES = {
 // Singleton key for settings, theme, subscription stores
 const SINGLE_KEY = 'current';
 
-let db: IDBDatabase;
+let db: IDBDatabase | null = null;
 
 export interface SubscriptionDetails {
   provider: 'stripe' | 'paypal';
@@ -31,6 +31,28 @@ export interface SubscriptionDetails {
   startDate: string;
   duration: 'monthly' | 'yearly';
 }
+
+/**
+ * Closes the database connection. Called by other tabs when an upgrade is needed.
+ */
+export const closeDB = (): void => {
+    if (db) {
+        db.close();
+        db = null;
+        console.log("Database connection closed on request from another tab.");
+    }
+};
+
+/**
+ * Gets the current DB connection. Throws an error if it's not initialized or has been closed.
+ */
+const getDB = (): IDBDatabase => {
+    if (!db) {
+        throw new Error("Database not initialized or has been closed. Call initDB first.");
+    }
+    return db;
+};
+
 
 // --- Promise Wrapper for IDBRequest ---
 function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
@@ -43,6 +65,10 @@ function promisifyRequest<T>(request: IDBRequest<T>): Promise<T> {
 // --- DB Initialization ---
 export function initDB(): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (db) {
+      return resolve();
+    }
+    
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
@@ -71,24 +97,30 @@ export function initDB(): Promise<void> {
     
     request.onblocked = () => {
       // This event fires if an old version of the app is open in another tab.
-      // It prevents the onupgradeneeded event from firing, leading to a hang.
-      // We must reject here to show the error fallback UI.
-      console.error("Database upgrade is blocked. The app might be open in another tab.");
-      reject(new Error("The app update is being blocked. Please close all other tabs with this app open and reload."));
+      // Proactively notify other tabs to close their connections and wait.
+      console.warn("Database upgrade is blocked. Broadcasting close request to other tabs.");
+      postMessage({ type: 'db-close-request' });
+      // Reject to show a user-friendly error in the current (upgrading) tab's UI.
+      reject(new Error("Waiting for other tabs to apply the update. If this message persists, please close all other tabs for this site."));
     };
 
     request.onsuccess = (event) => {
-      db = (event.target as IDBOpenDBRequest).result;
+      const dbInstance = (event.target as IDBOpenDBRequest).result;
+      db = dbInstance;
 
-      // This is a critical handler. If another tab requests a DB deletion or upgrade,
-      // this event is fired on the existing connection. We must close our connection
-      // to allow the other tab's operation to proceed.
+      // The 'versionchange' event is the browser's native way of handling this.
+      // If another tab triggers an upgrade, this event fires, forcing this tab to close.
       db.onversionchange = () => {
-        console.warn("Database version change detected from another tab. Closing connection and preparing for reload.");
-        db.close();
-        // Dispatch a custom event that the React app can listen to, to show a user-friendly message.
+        console.warn("Database version change detected from another tab. Closing connection.");
+        closeDB(); // Use our own close function
         window.dispatchEvent(new CustomEvent('db-versionchange'));
       };
+      
+      const eventWithVersions = event as IDBVersionChangeEvent;
+      if (eventWithVersions.oldVersion > 0 && eventWithVersions.newVersion !== eventWithVersions.oldVersion) {
+          console.log(`Database migration from v${eventWithVersions.oldVersion} to v${eventWithVersions.newVersion} was successful. Notifying other tabs.`);
+          postMessage({ type: 'db-migration-complete' });
+      }
 
       resolve();
     };
@@ -96,7 +128,6 @@ export function initDB(): Promise<void> {
     request.onerror = (event) => {
       const error = (event.target as IDBOpenDBRequest).error;
       console.error('Database error:', error);
-      // Reject with a proper Error object so it can be caught and displayed correctly.
       reject(new Error(`Error opening database: ${error?.message}`));
     };
   });
@@ -104,8 +135,8 @@ export function initDB(): Promise<void> {
 
 // --- Generic Store Operations ---
 async function getStore(storeName: string, mode: IDBTransactionMode) {
-    if (!db) await initDB();
-    return db.transaction(storeName, mode).objectStore(storeName);
+    const currentDb = getDB();
+    return currentDb.transaction(storeName, mode).objectStore(storeName);
 }
 
 async function getAll<T>(storeName: string): Promise<T[]> {
@@ -134,25 +165,21 @@ export const addBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const updateBill = (bill: Bill) => set(STORES.BILLS, bill);
 export const deleteBillDB = (billId: string) => del(STORES.BILLS, billId);
 
-export const addMultipleBillsDB = (bills: Bill[]): Promise<void> => {
-    if (!db) return Promise.reject("Database not initialized.");
-    const tx = db.transaction(STORES.BILLS, 'readwrite');
-    const store = tx.objectStore(STORES.BILLS);
+export const addMultipleBillsDB = async (bills: Bill[]): Promise<void> => {
+    const store = await getStore(STORES.BILLS, 'readwrite');
+    const tx = store.transaction;
     bills.forEach(bill => store.put(bill));
-    
     return new Promise<void>((resolve, reject) => {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
     });
 };
 
-export const mergeBillsDB = (billsToAdd: Bill[], billsToUpdate: Bill[]): Promise<void> => {
-    if (!db) return Promise.reject("Database not initialized.");
-    const tx = db.transaction(STORES.BILLS, 'readwrite');
-    const store = tx.objectStore(STORES.BILLS);
+export const mergeBillsDB = async (billsToAdd: Bill[], billsToUpdate: Bill[]): Promise<void> => {
+    const store = await getStore(STORES.BILLS, 'readwrite');
+    const tx = store.transaction;
     billsToAdd.forEach(bill => store.put(bill));
     billsToUpdate.forEach(bill => store.put(bill));
-    
     return new Promise<void>((resolve, reject) => {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
@@ -171,25 +198,21 @@ export const addImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS
 export const updateImportedBill = (bill: ImportedBill) => set(STORES.IMPORTED_BILLS, bill);
 export const deleteImportedBillDB = (billId: string) => del(STORES.IMPORTED_BILLS, billId);
 
-export const addMultipleImportedBillsDB = (bills: ImportedBill[]): Promise<void> => {
-    if (!db) return Promise.reject("Database not initialized.");
-    const tx = db.transaction(STORES.IMPORTED_BILLS, 'readwrite');
-    const store = tx.objectStore(STORES.IMPORTED_BILLS);
+export const addMultipleImportedBillsDB = async (bills: ImportedBill[]): Promise<void> => {
+    const store = await getStore(STORES.IMPORTED_BILLS, 'readwrite');
+    const tx = store.transaction;
     bills.forEach(bill => store.put(bill));
-    
     return new Promise<void>((resolve, reject) => {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
     });
 };
 
-export const mergeImportedBillsDB = (billsToAdd: ImportedBill[], billsToUpdate: ImportedBill[]): Promise<void> => {
-    if (!db) return Promise.reject("Database not initialized.");
-    const tx = db.transaction(STORES.IMPORTED_BILLS, 'readwrite');
-    const store = tx.objectStore(STORES.IMPORTED_BILLS);
+export const mergeImportedBillsDB = async (billsToAdd: ImportedBill[], billsToUpdate: ImportedBill[]): Promise<void> => {
+    const store = await getStore(STORES.IMPORTED_BILLS, 'readwrite');
+    const tx = store.transaction;
     billsToAdd.forEach(bill => store.put(bill));
     billsToUpdate.forEach(bill => store.put(bill));
-    
     return new Promise<void>((resolve, reject) => {
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
@@ -269,10 +292,8 @@ export const exportData = async () => {
     };
 };
 
-// FIX: Refactored to use a single atomic transaction for all import operations.
-// This resolves a type error with the non-standard `tx.commit` and fixes a logic bug
-// where the import was not atomic, risking data inconsistency on failure.
-export const importData = (data: any): Promise<void> => {
+export const importData = async (data: any): Promise<void> => {
+    const db = getDB();
     const tx = db.transaction(Object.values(STORES), 'readwrite');
     const txPromise = new Promise<void>((resolve, reject) => {
         tx.oncomplete = () => resolve();
@@ -311,5 +332,5 @@ export const importData = (data: any): Promise<void> => {
         tx.objectStore(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS).put(data.managedPayPalSubscriptions, SINGLE_KEY);
     }
 
-    return txPromise;
+    await txPromise;
 };

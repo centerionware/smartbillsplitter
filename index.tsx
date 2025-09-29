@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import AppGate from './AppGate.tsx';
 import { AuthProvider } from './hooks/useAuth.ts';
 import { AppControlContext } from './contexts/AppControlContext.tsx';
-import { initDB } from './services/db.ts';
-// FIX: Changed import to a named import as ErrorBoundary is not a default export.
+import { initDB, closeDB } from './services/db.ts';
+import { useBroadcastListener, BroadcastMessage } from './services/broadcastService.ts';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { initializeApi } from './services/api.ts';
 
@@ -51,7 +51,6 @@ const renderErrorFallback = (error: Error) => {
     </div>
   `;
 
-  // Attach event listeners directly, as onclick attributes in innerHTML can be unreliable.
   document.getElementById('fallback-reload-btn')?.addEventListener('click', () => {
     window.location.reload();
   });
@@ -110,7 +109,6 @@ try {
     throw new Error("Could not find root element to mount to");
   }
 
-  // Render a static loading spinner immediately to provide instant feedback.
   rootElement.innerHTML = `
     <div class="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center text-center p-4 font-sans">
       <svg class="animate-spin h-10 w-10 text-teal-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -130,19 +128,35 @@ try {
   const Root: React.FC = () => {
     const [notification, setNotification] = useState<NotificationState | null>(null);
     const [isUpdateRequired, setIsUpdateRequired] = useState(false);
+    const [isWaitingForMigration, setIsWaitingForMigration] = useState(false);
+
+    const triggerReload = useCallback(() => {
+        if (isUpdateRequired || isWaitingForMigration) return;
+        setIsUpdateRequired(true);
+        setTimeout(() => {
+            window.location.reload();
+        }, 4000);
+    }, [isUpdateRequired, isWaitingForMigration]);
 
     useEffect(() => {
-        const handleVersionChange = () => {
-            setIsUpdateRequired(true);
-            setTimeout(() => {
-                window.location.reload();
-            }, 4000); // 4 seconds to read the message
-        };
-        window.addEventListener('db-versionchange', handleVersionChange);
+        window.addEventListener('db-versionchange', triggerReload);
         return () => {
-            window.removeEventListener('db-versionchange', handleVersionChange);
+            window.removeEventListener('db-versionchange', triggerReload);
         };
-    }, []);
+    }, [triggerReload]);
+    
+    useBroadcastListener(useCallback((message: BroadcastMessage) => {
+        if (message.type === 'db-close-request') {
+            console.log("Received request to close DB connection for migration.");
+            closeDB();
+            setIsWaitingForMigration(true);
+        } else if (message.type === 'db-migration-complete') {
+            if (isWaitingForMigration) {
+                console.log("Migration complete in another tab. Reloading now.");
+                window.location.reload();
+            }
+        }
+    }, [isWaitingForMigration]));
 
     useEffect(() => {
         if (notification) {
@@ -177,27 +191,31 @@ try {
             default: return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>;
         }
     };
+    
+    const UpdateScreen: React.FC<{title: string; message: string; showSpinner: boolean}> = ({title, message, showSpinner}) => (
+        <div className="fixed inset-0 bg-slate-900 bg-opacity-80 z-[100] flex justify-center items-center p-4 font-sans backdrop-blur-sm">
+            <div className="w-full max-w-md mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M4 18v-5h5m10-4h5v5h-5M14 18h5v-5h-5" />
+                 </svg>
+                <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-4">{title}</h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-2 mb-6">{message}</p>
+                {showSpinner && <div className="flex justify-center items-center">
+                    <svg className="animate-spin h-6 w-6 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>}
+            </div>
+        </div>
+    );
 
     if (isUpdateRequired) {
-        return (
-            <div className="fixed inset-0 bg-slate-900 bg-opacity-80 z-[100] flex justify-center items-center p-4 font-sans backdrop-blur-sm">
-                <div className="w-full max-w-md mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M4 18v-5h5m10-4h5v5h-5M14 18h5v-5h-5" />
-                     </svg>
-                    <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-4">App Update Required</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2 mb-6">
-                        A new version of the app is running in another tab. This page will reload automatically to apply the update.
-                    </p>
-                    <div className="flex justify-center items-center">
-                        <svg className="animate-spin h-6 w-6 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-        );
+        return <UpdateScreen title="App Update Required" message="A new version of the app is running in another tab. This page will reload automatically to apply the update." showSpinner={true} />;
+    }
+    
+    if (isWaitingForMigration) {
+        return <UpdateScreen title="Applying App Update..." message="Please wait while the update finishes in another tab. This page will reload automatically." showSpinner={true} />;
     }
 
     return (
@@ -221,35 +239,27 @@ try {
     try {
       await initializeApi();
     } catch (apiErr) {
-      // API discovery is not critical, the app can fall back to relative paths.
-      // The discovery function itself handles fallbacks and logging. We just log the failure here.
       console.warn("API discovery process encountered an error.", apiErr);
     }
-    // initDB will throw if it fails, and this will be caught by the final .catch()
     await initDB();
   };
 
-  // Initialize the app
   startup().then(() => {
-    // Clear the static loader before mounting the React app
     rootElement.innerHTML = '';
     const root = ReactDOM.createRoot(rootElement);
     root.render(
       <React.StrictMode>
-        {/* FIX: Pass the Root component as a child to ErrorBoundary to satisfy its `children` prop requirement. */}
         <ErrorBoundary>
           <Root />
         </ErrorBoundary>
       </React.StrictMode>
     );
   }).catch(err => {
-    // This catches critical errors from initDB
-    console.error("Failed to initialize the database.", err);
+    console.error("Failed to initialize the application.", err);
     renderErrorFallback(err);
   });
 
 } catch (error) {
-  // This is the ultimate catch-all for any synchronous error during startup.
   console.error("A catastrophic error occurred during app startup:", error);
   if (error instanceof Error) {
     renderErrorFallback(error);
