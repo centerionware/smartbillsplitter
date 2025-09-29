@@ -1,7 +1,7 @@
 // services/adProviderService.ts
 
-// Safely access env to prevent crashes in environments where import.meta.env might not be defined.
-const env = (import.meta as any)?.env;
+// The `env` constant using import.meta.env is no longer needed, as variables
+// will be accessed via `process.env` which is defined by Vite at build time.
 
 interface AdResult {
     content: string | null;
@@ -63,13 +63,14 @@ const getCustomAdContent = (encodedHtml: string): AdResult => {
  * @returns An AdResult object with the HTML string for the ad iframe, and a potential error message.
  */
 export const getAdConfig = (): AdResult => {
-    const AD_PROVIDER = env?.VITE_AD_PROVIDER || 'a-ads';
-    const AADS_ID = env?.VITE_AADS_ID;
-    const CUSTOM_AD_HTML_BASE64 = env?.VITE_CUSTOM_AD_HTML_BASE64;
+    // Read from `process.env` which is replaced by Vite's `define` config.
+    const AD_PROVIDER = process.env.VITE_AD_PROVIDER || 'a-ads';
+    const AADS_ID = process.env.VITE_AADS_ID;
+    const CUSTOM_AD_HTML_BASE64 = process.env.VITE_CUSTOM_AD_HTML_BASE64;
 
     switch (AD_PROVIDER) {
         case 'a-ads':
-            if (!AADS_ID) {
+            if (!AADS_ID || AADS_ID.trim() === '') {
                 const errorMsg = "Ad provider is 'a-ads' but the required VITE_AADS_ID environment variable is missing. Ads will not be displayed.";
                 console.warn(errorMsg);
                 return { content: null, error: errorMsg };

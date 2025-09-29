@@ -51,68 +51,46 @@ export const parseReceipt = async (base64Image: string, mimeType: string): Promi
 };
 
 /**
- * Uses AI to match items from a new scan to a template's itemization rules.
+ * Uses AI to match items from a new scan to a template's itemization rules by calling a secure backend endpoint.
  */
 interface MatchAndAssignItemsParams {
   templateItems: ReceiptItem[];
   scannedItems: { name: string; price: number }[];
   participants: Participant[];
 }
-export const matchAndAssignItems = async ({ templateItems, scannedItems, participants }: MatchAndAssignItemsParams): Promise<ReceiptItem[]> => {
-    const responseSchema = {
-        type: Type.ARRAY,
-        description: "The list of newly scanned items with participant assignments based on the template.",
-        items: {
-            type: Type.OBJECT,
-            properties: {
-                name: { type: Type.STRING },
-                price: { type: Type.NUMBER },
-                assignedTo: {
-                    type: Type.ARRAY,
-                    description: "An array of participant IDs that this item is assigned to.",
-                    items: { type: Type.STRING }
-                }
-            },
-            required: ["name", "price", "assignedTo"]
-        }
-    };
-
-    const prompt = `
-        You are an intelligent data processor for a bill splitting app. A user has a template for a recurring bill with items assigned to specific people. They just scanned a new receipt for this month's bill. Your task is to assign the new items to the correct people based on the template.
-
-        Here is the context:
-        - Participants in the bill: ${JSON.stringify(participants.map(p => ({ id: p.id, name: p.name })))}
-        - The template's itemization (how items are usually split): ${JSON.stringify(templateItems.map(item => ({ name: item.name, assignedTo: item.assignedTo })))}
-        - The newly scanned items from this month's receipt: ${JSON.stringify(scannedItems)}
-
-        Your task:
-        Create a new JSON array of items based on the "newly scanned items". For each new item, you must determine who it should be assigned to by following these rules:
-        1.  Match new items to template items based on name similarity. If a new item's name is very similar to a template item's name (e.g., "Monthly Fee" vs "Service Fee", or "Netflix Premium" vs "Netflix"), assign the new item to the SAME participants as the template item. Use the participant IDs from the context provided.
-        2.  If a new item appears that has NO clear match in the template (e.g., a "Late Fee" or "One-Time Charge"), assign it EQUALLY to all participants from the provided participant list.
-        3.  The final JSON array must include ALL of the "newly scanned items", each with its original name and price, and your calculated 'assignedTo' array of participant IDs.
-        4.  The output must be a valid JSON array that strictly conforms to the provided schema. Do not include any other text or explanations.
-    `;
-
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: responseSchema,
-        },
+export const matchAndAssignItems = async (params: MatchAndAssignItemsParams): Promise<ReceiptItem[]> => {
+  try {
+    const response = await fetchWithRetry(getApiUrl('/match-items'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
     });
 
-    const responseText = response.text;
-    if (!responseText) {
-      throw new Error("AI returned an empty response.");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || `Failed to match items. Server responded with status: ${response.status}`;
+      throw new Error(errorMessage);
     }
 
-    const parsedJson = JSON.parse(responseText.trim());
+    const parsedJson = await response.json();
+    if (!Array.isArray(parsedJson)) {
+      throw new Error("Invalid response structure from the item matching service.");
+    }
+
     return parsedJson.map((item: any, index: number) => ({
-        ...item,
-        id: `item-matched-${Date.now()}-${index}`
+      ...item,
+      id: `item-matched-${Date.now()}-${index}`
     }));
+
+  } catch (error) {
+    console.error("Error calling item matching service:", error);
+    if (error instanceof Error) {
+      throw error; // Re-throw the specific error from the service
+    }
+    throw new Error("An unknown error occurred while matching items.");
+  }
 };
 
 
