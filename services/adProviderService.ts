@@ -4,7 +4,7 @@
 // Safely access env to prevent crashes in environments where import.meta.env might not be defined.
 const env = (import.meta as any)?.env;
 
-const AD_PROVIDER = env?.VITE_AD_PROVIDER || 'none';
+const AD_PROVIDER = env?.VITE_AD_PROVIDER || 'a-ads';
 const AADS_ID = env?.VITE_AADS_ID;
 const CUSTOM_AD_HTML_BASE64 = env?.VITE_CUSTOM_AD_HTML_BASE64;
 // const ADMOB_ID = env?.VITE_ADMOB_ID; // For future use
