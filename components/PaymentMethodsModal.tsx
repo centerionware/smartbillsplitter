@@ -23,15 +23,22 @@ const PaymentMethodsModal: React.FC<PaymentMethodsModalProps> = ({ paymentDetail
             window.location.href = url;
             break;
         case 'paypal':
-            // PayPal.me links are the standard for personal payments.
-            url = `https://paypal.me/${paymentDetails.paypal}/${amount}`;
+            // Sanitize input to handle full URLs or just usernames
+            let paypalIdentifier = paymentDetails.paypal.trim();
+            // Remove common prefixes to isolate the username/email
+            paypalIdentifier = paypalIdentifier.replace(/^(https?:\/\/)?(www\.)?paypal\.me\//i, '');
+            // Construct the correct PayPal.me URL
+            url = `https://paypal.me/${paypalIdentifier}/${amount}`;
             window.open(url, '_blank', 'noopener,noreferrer');
             break;
         case 'cashApp':
-            // Cash App's $cashtag link is simple and effective.
-            // Ensure there's only one '$' at the beginning by removing any existing ones and then adding it back.
-            const cleanCashtag = paymentDetails.cashApp.replace(/^\$+/, '');
+            // Cash App's $cashtag link. The format supports cashtag, amount, and an optional note.
+            const cleanCashtag = paymentDetails.cashApp.trim().replace(/^\$+/, '');
             url = `https://cash.app/$${cleanCashtag}/${amount}`;
+            // Add the note if it exists
+            if (billDescription) {
+                 url += `/${note}`;
+            }
             window.open(url, '_blank', 'noopener,noreferrer');
             break;
     }

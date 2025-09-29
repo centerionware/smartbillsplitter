@@ -11,7 +11,7 @@ interface State {
 
 // FIX: Changed to a named export to resolve module resolution issues.
 export class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: Refactored state initialization to use a constructor to be more explicit and robust, resolving potential `this` context issues.
+  // FIX: Initialize state in the constructor. This makes `this.state` available throughout the component and resolves errors where properties like `hasError` were accessed on an uninitialized state. It also ensures `this.props` is correctly set up.
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -80,7 +80,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
         </div>
       );
     }
-    // FIX: The error `Property 'props' does not exist` was resolved by ensuring the class correctly extends `React.Component` and accessing children via `this.props.children`, which is the standard way to render child components in a class-based error boundary.
     return this.props.children;
   }
 }
