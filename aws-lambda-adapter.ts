@@ -12,10 +12,10 @@ function toHttpRequest(event: APIGatewayProxyEventV2): HttpRequest {
 
   if (event.body) {
     try {
-      // Lambda body is base64 encoded if isBase64Encoded is true
-      // FIX: Replaced Node.js `Buffer` with platform-agnostic `atob` and `TextDecoder`
-      // to correctly handle Base64 encoded bodies in environments without Node.js types.
-      const bodyString = event.isBase64Encoded ? new TextDecoder().decode(Uint8Array.from(atob(event.body), c => c.charCodeAt(0))) : event.body;
+      // When the 'isBase64Encoded' flag is true, the body is a base64 string.
+      // We must decode it back into a UTF-8 string before JSON parsing.
+      // Using Buffer is the standard and most reliable method in a Node.js environment.
+      const bodyString = event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body;
       if (headers['content-type']?.includes('application/json')) {
         body = JSON.parse(bodyString);
       } else {
