@@ -385,11 +385,39 @@ export async function encryptAndSignPayload(
     encryptionKey: CryptoKey,
     constituentShares?: ConstituentShareInfo[]
 ): Promise<string> {
-    const { participantShareInfo, ...billForPayload } = bill;
+    // 1. Create a sanitized version of the bill for sharing
+    const { participantShareInfo, ...billData } = bill;
+
+    // Sanitize participants in the main bill by removing contact info
+    const sanitizedParticipants = billData.participants.map(({ phone, email, ...p }) => p);
+
+    // Sanitize participants in nested originalBillData within items (for summary bills)
+    const sanitizedItems = billData.items?.map(item => {
+        if (item.originalBillData) {
+            const sanitizedOriginalParticipants = item.originalBillData.participants.map(({ phone, email, ...p }) => p);
+            // Create a new item with sanitized originalBillData
+            return {
+                ...item,
+                originalBillData: {
+                    ...item.originalBillData,
+                    participants: sanitizedOriginalParticipants
+                }
+            };
+        }
+        return item;
+    });
+
+    // Construct the final bill object for the payload
+    const billForPayload = {
+        ...billData,
+        participants: sanitizedParticipants,
+        items: sanitizedItems,
+    };
     
+    // 2. Sign and create the payload with the sanitized bill
     const signature = await cryptoService.sign(JSON.stringify(billForPayload), privateKey);
     const payload: SharedBillPayload = {
-        bill: billForPayload,
+        bill: billForPayload as Bill,
         creatorName: settings.myDisplayName,
         publicKey: publicKeyJwk,
         signature,
@@ -401,16 +429,11 @@ export async function encryptAndSignPayload(
     
     const payloadString = JSON.stringify(payload);
     
-    // Use TextEncoder for an accurate byte size measurement of the original payload
+    // 3. Compress and encrypt the payload
     const originalSize = new TextEncoder().encode(payloadString).length;
-    
-    // Compress the payload
     const compressedPayload = pako.deflate(payloadString);
     const compressedSize = compressedPayload.byteLength;
-
-    // Encrypt the compressed data
     const encryptedData = await cryptoService.encrypt(compressedPayload, encryptionKey);
-    // Base64 string length is a good proxy for final size. 1 char ~ 1 byte for ASCII-range.
     const encryptedSize = encryptedData.length;
 
     const formatBytes = (bytes: number): string => {
