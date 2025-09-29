@@ -429,8 +429,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                   searchQuery={searchQuery} 
                   selectedParticipant={selectedParticipant} 
                   onExport={() => handleExportParticipant(selectedParticipant)}
-                  onConvertToTemplate={handleConvertToTemplate}
-                  onExportBill={handleExportOwnedBill}
                 />;
     } else if (dashboardView === 'upcoming' && upcomingRecurringBills.length > 0) {
         return (

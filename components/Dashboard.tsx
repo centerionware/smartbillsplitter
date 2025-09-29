@@ -14,10 +14,10 @@ import { exportData } from '../services/exportService.ts';
 import DashboardSummary from './dashboard/DashboardSummary.tsx';
 import DashboardControls from './dashboard/DashboardControls.tsx';
 import BillList from './dashboard/BillList.tsx';
-import ParticipantList, { ParticipantData } from '../ParticipantList.tsx';
+import ParticipantList, { ParticipantData } from './ParticipantList';
 import ParticipantDetailView from './dashboard/ParticipantDetailView.tsx';
 import EmptyState from './dashboard/EmptyState.tsx';
-import RecurringBillCard from '../RecurringBillCard.tsx';
+import RecurringBillCard from './RecurringBillCard';
 
 
 interface DashboardProps {

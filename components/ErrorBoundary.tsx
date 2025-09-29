@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -10,7 +10,7 @@ interface State {
 }
 
 // FIX: Changed to a named export to resolve module resolution issues.
-export class ErrorBoundary extends Component<Props, State> {
+export class ErrorBoundary extends React.Component<Props, State> {
   // FIX: Refactored state initialization to use a class field, which can be more robust in some environments and resolves potential `this` context issues.
   public state: State = { hasError: false, error: null };
 
