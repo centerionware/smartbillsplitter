@@ -79,7 +79,7 @@ export const useBills = () => {
     setBills(prevBills => [newBill, ...prevBills]);
   }, []);
 
-  const updateBill = useCallback(async (updatedBill: Bill) => {
+  const updateBill = useCallback(async (updatedBill: Bill): Promise<Bill> => {
     const billWithTimestamp = { ...updatedBill, lastUpdatedAt: Date.now() };
     await updateBillDB(billWithTimestamp);
     setBills(prevBills => {
@@ -87,6 +87,7 @@ export const useBills = () => {
       updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       return updated;
     });
+    return billWithTimestamp;
   }, []);
   
   const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {

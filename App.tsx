@@ -68,10 +68,10 @@ const App: React.FC = () => {
     
     // --- Wrapped updateBill to handle server sync ---
     const updateBill = useCallback(async (bill: Bill) => {
-        await originalUpdateBill(bill); // Update local DB first
-        if (bill.shareInfo?.shareId) {
+        const updatedBill = await originalUpdateBill(bill); // Update local DB first
+        if (updatedBill.shareInfo?.shareId) {
             // Fire-and-forget update to the server
-            syncSharedBillUpdate(bill, settings).catch(e => {
+            syncSharedBillUpdate(updatedBill, settings).catch(e => {
                 console.error("Failed to sync shared bill update:", e);
                 showNotification("Failed to sync bill update to server", 'error');
             });
