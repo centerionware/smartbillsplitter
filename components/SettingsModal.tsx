@@ -10,6 +10,7 @@ import DataSync from './settings/DataSync';
 import DangerZone from './settings/DangerZone';
 import SubscriptionManagement from './settings/SubscriptionManagement';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
+import AboutSupport from './settings/AboutSupport';
 
 interface SettingsModalProps {
   activeSection: SettingsSection;
@@ -74,6 +75,7 @@ const SettingsModal: React.FC<SettingsModalProps> = (props) => {
     sync: { title: 'Sync Devices', component: <DataSync onNavigate={() => { onClose(); props.onNavigate(View.Sync); }} /> },
     subscription: { title: 'Subscription', component: <SubscriptionManagement onNavigate={props.onNavigate} onGoToManageSubscriptionPage={() => props.onNavigate(View.ManageSubscription)} /> },
     danger: { title: 'Danger Zone', component: <DangerZone requestConfirmation={props.requestConfirmation} /> },
+    about: { title: 'About & Support', component: <AboutSupport /> },
   };
 
   const currentSection = sectionConfig[activeSection];

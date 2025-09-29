@@ -15,13 +15,14 @@ const Settings: React.FC<SettingsProps> = ({ onNavigateToSection, onBack }) => {
     { id: 'subscription', title: 'Subscription', description: 'Manage your Pro subscription', icon: '⭐' },
     { id: 'data', title: 'Data & Tools', description: 'Import, export, or scan QR', icon: '🛠️' },
     { id: 'sync', title: 'Sync Devices', description: 'Transfer data to another device', icon: '🔄' },
+    { id: 'about', title: 'About & Support', description: 'Project source, issues, and changelog', icon: 'ℹ️' },
     { id: 'danger', title: 'Danger Zone', description: 'Reset all application data', icon: '🔥' },
   ];
 
   return (
     <div className="max-w-4xl mx-auto">
       <button onClick={onBack} className="flex items-center gap-2 mb-6 text-teal-600 dark:text-teal-400 font-semibold hover:text-teal-800 dark:hover:text-teal-300">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l-4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
         Back
       </button>
 

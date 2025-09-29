@@ -161,4 +161,4 @@ export interface PayPalSubscriptionDetails {
     isCurrentDevice: boolean;
 }
 
-export type SettingsSection = 'personalization' | 'payments' | 'reminders' | 'data' | 'sync' | 'subscription' | 'danger';
+export type SettingsSection = 'personalization' | 'payments' | 'reminders' | 'data' | 'sync' | 'subscription' | 'danger' | 'about';

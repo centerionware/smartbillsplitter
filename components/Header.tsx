@@ -16,6 +16,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onOpenSettings, currentView }
     { id: 'payments', title: 'Payment Methods', icon: '💳' },
     { id: 'reminders', title: 'Bill Reminders', icon: '🔔' },
     { id: 'subscription', title: 'Subscription', icon: '⭐' },
+    { id: 'about', title: 'About & Support', icon: 'ℹ️' },
     { id: 'data', title: 'Data & Tools', icon: '🛠️' },
     { id: 'sync', title: 'Sync Devices', icon: '🔄' },
   ];
