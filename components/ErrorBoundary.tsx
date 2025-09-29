@@ -11,13 +11,8 @@ interface State {
 
 // FIX: Changed to a named export to resolve module resolution issues.
 export class ErrorBoundary extends Component<Props, State> {
-  // FIX (line 19): Refactored state initialization to use a constructor, which is more compatible
-  // with some build tools and resolves potential `this` context issues.
-  public state: State;
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+  // FIX: Refactored state initialization to use a class field, which can be more robust in some environments and resolves potential `this` context issues.
+  public state: State = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };

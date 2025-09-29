@@ -14,10 +14,10 @@ import { exportData } from '../../services/exportService.ts';
 import DashboardSummary from './DashboardSummary.tsx';
 import DashboardControls from './DashboardControls.tsx';
 import BillList from './BillList.tsx';
-import ParticipantList, { ParticipantData } from '../ParticipantList.tsx';
+import ParticipantList, { ParticipantData } from './ParticipantList';
 import ParticipantDetailView from './ParticipantDetailView.tsx';
 import EmptyState from './EmptyState.tsx';
-import RecurringBillCard from '../RecurringBillCard.tsx';
+import RecurringBillCard from '../RecurringBillCard';
 
 
 interface DashboardProps {
@@ -419,7 +419,19 @@ const Dashboard: React.FC<DashboardProps> = ({
             return <ParticipantList participantsData={participantsData} onSetShareSheetParticipant={setShareSheetParticipant} onMarkParticipantAsPaid={handleMarkParticipantAsPaid} />;
         }
     } else if (selectedParticipant) {
-        return <ParticipantDetailView participantBills={participantBills} onSelectBill={onSelectBill} onArchiveBill={onArchiveBill} onUnarchiveBill={onUnarchiveBill} onDeleteBill={onDeleteBill} dashboardStatusFilter={dashboardStatusFilter} searchQuery={searchQuery} selectedParticipant={selectedParticipant} onExport={() => handleExportParticipant(selectedParticipant)} />;
+        return <ParticipantDetailView 
+                  participantBills={participantBills} 
+                  onSelectBill={onSelectBill} 
+                  onArchiveBill={onArchiveBill} 
+                  onUnarchiveBill={onUnarchiveBill} 
+                  onDeleteBill={onDeleteBill} 
+                  dashboardStatusFilter={dashboardStatusFilter} 
+                  searchQuery={searchQuery} 
+                  selectedParticipant={selectedParticipant} 
+                  onExport={() => handleExportParticipant(selectedParticipant)}
+                  onConvertToTemplate={handleConvertToTemplate}
+                  onExportBill={handleExportOwnedBill}
+                />;
     } else if (dashboardView === 'upcoming' && upcomingRecurringBills.length > 0) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
