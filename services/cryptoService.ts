@@ -123,15 +123,14 @@ export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<Ui
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
-  // FIX: Create a new ArrayBuffer by copying the Uint8Array's view. This resolves
-  // a TypeScript error where the buffer is inferred as ArrayBufferLike (which could be a
-  // SharedArrayBuffer), which is not compatible with the Web Crypto API.
-  const ciphertextBuffer = ciphertext.buffer.slice(ciphertext.byteOffset, ciphertext.byteOffset + ciphertext.byteLength);
-
+  // FIX: By calling .slice() on the Uint8Array, we create a shallow copy with a new,
+  // guaranteed-standard ArrayBuffer. This resolves a TypeScript error where the buffer
+  // was inferred as potentially being a SharedArrayBuffer, which is incompatible
+  // with the Web Crypto API.
   const decryptedContent = await crypto.subtle.decrypt(
     { name: SYMMETRIC_ALGORITHM, iv },
     key,
-    ciphertextBuffer
+    ciphertext.slice()
   );
 
   return new Uint8Array(decryptedContent);
@@ -186,11 +185,15 @@ export const verify = async (data: string, signature: string, publicKey: CryptoK
   const encodedData = new TextEncoder().encode(data);
   // Decode the signature using the robust helper
   const signatureBytes = decodeBase64(signature);
-  
-  // FIX: Create a new ArrayBuffer by copying the Uint8Array's view. This resolves
-  // a TypeScript error where the buffer is inferred as ArrayBufferLike (which could be a
-  // SharedArrayBuffer), which is not compatible with the Web Crypto API.
-  const signatureBuffer = signatureBytes.buffer.slice(signatureBytes.byteOffset, signatureBytes.byteOffset + signatureBytes.byteLength);
 
-  return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBuffer, encodedData);
+  // FIX: By calling .slice() on the Uint8Array, we create a shallow copy with a new,
+  // guaranteed-standard ArrayBuffer. This resolves a TypeScript error where the buffer
+  // was inferred as potentially being a SharedArrayBuffer, which is incompatible
+  // with the Web Crypto API.
+  return crypto.subtle.verify(
+    SIGNING_ALGORITHM,
+    publicKey,
+    signatureBytes.slice(),
+    encodedData
+  );
 };
