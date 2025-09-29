@@ -48,9 +48,31 @@ export const useImportedBills = () => {
 
   const updateMultipleImportedBills = useCallback(async (billsToUpdate: ImportedBill[]) => {
       if (billsToUpdate.length === 0) return;
-      await mergeImportedBillsDB([], billsToUpdate);
+      
+      // When an update is polled from the server, the creator's data is the source of truth.
+      // This logic ensures our local 'myPortionPaid' status is synchronized with what the creator has set.
+      const billsWithSyncedStatus = billsToUpdate.map(incomingBill => {
+        const myParticipantOnServer = incomingBill.sharedData.bill.participants.find(
+            p => p.id === incomingBill.myParticipantId
+        );
+        
+        // The server's truth for my payment status
+        const isPaidOnServer = myParticipantOnServer?.paid ?? false;
+
+        // Create the updated bill object. We take the incoming bill (which has the new sharedData)
+        // and overwrite its localStatus to match the server's truth.
+        return {
+            ...incomingBill,
+            localStatus: {
+                ...incomingBill.localStatus,
+                myPortionPaid: isPaidOnServer,
+            }
+        };
+      });
+
+      await mergeImportedBillsDB([], billsWithSyncedStatus);
       setImportedBills(prev => {
-          const updatedMap = new Map(billsToUpdate.map(b => [b.id, b]));
+          const updatedMap = new Map(billsWithSyncedStatus.map(b => [b.id, b]));
           const finalBills = prev.map(b => updatedMap.get(b.id) || b);
           finalBills.sort((a, b) => new Date(b.sharedData.bill.date).getTime() - new Date(a.sharedData.bill.date).getTime());
           return finalBills;
@@ -82,7 +104,7 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX(line 90, 91): Explicitly cast the iterated item to its correct type inside the loop. This resolves a TypeScript inference issue where the item's type was incorrectly being treated as 'unknown', causing errors when accessing its properties like `lastUpdatedAt` and when using the spread operator.
+      // FIX(line 113, 114): Explicitly cast the iterated item to its correct type inside the loop. This resolves a TypeScript inference issue where the item's type was incorrectly being treated as 'unknown', causing errors when accessing its properties like `lastUpdatedAt` and when using the spread operator.
       for (const incomingBill of billsToMerge) {
           const typedIncomingBill = incomingBill as Omit<ImportedBill, 'status' | 'liveStatus'>;
           const existingBill = existingBillMap.get(typedIncomingBill.id);
