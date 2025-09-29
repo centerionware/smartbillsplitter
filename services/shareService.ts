@@ -387,6 +387,15 @@ export async function encryptAndSignPayload(
     if (constituentShares) {
         payload.constituentShares = constituentShares;
     }
+    
+    // Log a deep copy for debugging before encryption
+    try {
+        const payloadCopy = JSON.parse(JSON.stringify(payload));
+        console.debug('About to encrypt and share payload:', payloadCopy);
+    } catch (e) {
+        console.warn('Could not create a deep copy of the share payload for logging.');
+    }
+
     return cryptoService.encrypt(JSON.stringify(payload), encryptionKey);
 }
 
