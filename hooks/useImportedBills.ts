@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ImportedBill } from '../types';
+import type { ImportedBill } from '../types.ts';
 import { 
     getImportedBills, 
     addImportedBill as addDB, 
@@ -76,16 +76,22 @@ export const useImportedBills = () => {
   const archiveImportedBill = useCallback(async (billId: string) => {
     const billToUpdate = importedBills.find(b => b.id === billId);
     if (billToUpdate) {
-      await updateImportedBill({ ...billToUpdate, status: 'archived' });
+      const updatedBill = { ...billToUpdate, status: 'archived' as const };
+      await updateDB(updatedBill);
+      postMessage({ type: 'imported-bills-updated' });
+      await loadImportedBills(false);
     }
-  }, [importedBills, updateImportedBill]);
+  }, [importedBills, loadImportedBills]);
 
   const unarchiveImportedBill = useCallback(async (billId: string) => {
     const billToUpdate = importedBills.find(b => b.id === billId);
     if (billToUpdate) {
-      await updateImportedBill({ ...billToUpdate, status: 'active' });
+      const updatedBill = { ...billToUpdate, status: 'active' as const };
+      await updateDB(updatedBill);
+      postMessage({ type: 'imported-bills-updated' });
+      await loadImportedBills(false);
     }
-  }, [importedBills, updateImportedBill]);
+  }, [importedBills, loadImportedBills]);
 
   const mergeImportedBills = useCallback(async (billsToMerge: (Omit<ImportedBill, 'status' | 'liveStatus'>)[]) => {
       const existingBillMap = new Map(importedBills.map(b => [b.id, b]));
