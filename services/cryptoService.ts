@@ -94,10 +94,14 @@ export const encrypt = async (data: string | Uint8Array, key: CryptoKey): Promis
   const iv = crypto.getRandomValues(new Uint8Array(12)); // IV for GCM should be 12 bytes
   const encodedData = typeof data === 'string' ? new TextEncoder().encode(data) : data;
 
+  // FIX: By calling .slice() on the Uint8Array, we create a shallow copy with a new,
+  // guaranteed-standard ArrayBuffer. This resolves a TypeScript error where the buffer
+  // was inferred as potentially being a SharedArrayBuffer, which is incompatible
+  // with the Web Crypto API.
   const encryptedContent = await crypto.subtle.encrypt(
     { name: SYMMETRIC_ALGORITHM, iv },
     key,
-    encodedData
+    encodedData.slice()
   );
 
   const encryptedBytes = new Uint8Array(encryptedContent);
@@ -170,7 +174,8 @@ export const importPrivateKey = async (jwk: JsonWebKey): Promise<CryptoKey> => {
  */
 export const sign = async (data: string, privateKey: CryptoKey): Promise<string> => {
   const encodedData = new TextEncoder().encode(data);
-  const signatureBuffer = await crypto.subtle.sign(SIGNING_ALGORITHM, privateKey, encodedData);
+  // FIX: Use .slice() to prevent potential SharedArrayBuffer issues with the Web Crypto API.
+  const signatureBuffer = await crypto.subtle.sign(SIGNING_ALGORITHM, privateKey, encodedData.slice());
   return btoa(uint8ArrayToBinaryString(new Uint8Array(signatureBuffer)));
 };
 
@@ -186,14 +191,14 @@ export const verify = async (data: string, signature: string, publicKey: CryptoK
   // Decode the signature using the robust helper
   const signatureBytes = decodeBase64(signature);
 
-  // FIX: By calling .slice() on the Uint8Array, we create a shallow copy with a new,
-  // guaranteed-standard ArrayBuffer. This resolves a TypeScript error where the buffer
-  // was inferred as potentially being a SharedArrayBuffer, which is incompatible
+  // FIX: By calling .slice() on the Uint8Arrays, we create shallow copies with new,
+  // guaranteed-standard ArrayBuffers. This resolves a TypeScript error where the buffers
+  // were inferred as potentially being SharedArrayBuffers, which are incompatible
   // with the Web Crypto API.
   return crypto.subtle.verify(
     SIGNING_ALGORITHM,
     publicKey,
     signatureBytes.slice(),
-    encodedData
+    encodedData.slice()
   );
 };
