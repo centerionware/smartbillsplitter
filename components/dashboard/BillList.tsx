@@ -5,7 +5,7 @@ import SwipeableBillCard from '../SwipeableBillCard.tsx';
 import SwipeableImportedBillCard from '../SwipeableImportedBillCard.tsx';
 import AdBillCard from '../AdBillCard.tsx';
 
-const AD_INTERVAL = 9; // Show an ad after every 9 bills
+const AD_INTERVAL = 10; // Show an ad after every 10 bills
 
 interface BillListProps {
   filteredBills: Bill[];
@@ -87,7 +87,7 @@ const BillList: React.FC<BillListProps> = ({
       }
     });
     return renderedItems;
-  }, [filteredBills, visibleCount, subscriptionStatus, onArchiveBill, onUnarchiveBill, onDeleteBill, onReshareBill, onSelectBill, archivingBillIds, onConvertToTemplate, onExportOwnedBill]);
+  }, [filteredBills, visibleCount, subscriptionStatus, onArchiveBill, onUnarchiveBill, onDeleteBill, onReshareBill, onSelectBill, archivingBillIds, onConvertToTemplate, onExportOwnedBill, onExportImportedBill]);
 
   return (
     <>
