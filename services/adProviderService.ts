@@ -1,13 +1,14 @@
+// services/adProviderService.ts
+
 // --- Ad Provider Plugin System ---
 
-// Read the ad provider configuration from build-time environment variables.
 // Safely access env to prevent crashes in environments where import.meta.env might not be defined.
 const env = (import.meta as any)?.env;
 
-const AD_PROVIDER = env?.VITE_AD_PROVIDER || 'a-ads';
-const AADS_ID = env?.VITE_AADS_ID;
-const CUSTOM_AD_HTML_BASE64 = env?.VITE_CUSTOM_AD_HTML_BASE64;
-// const ADMOB_ID = env?.VITE_ADMOB_ID; // For future use
+interface AdResult {
+    content: string | null;
+    error: string | null;
+}
 
 /**
  * Generates the iframe content for A-ADS (Anonymous Ads).
@@ -38,43 +39,56 @@ const getAAdsContent = (unitId: string): string => {
 /**
  * Decodes Base64 encoded custom ad HTML.
  * @param encodedHtml The Base64 encoded HTML string.
- * @returns The decoded HTML string, or an error message if decoding fails.
+ * @returns An AdResult object with the decoded HTML or an error message.
  */
-const getCustomAdContent = (encodedHtml: string): string => {
+const getCustomAdContent = (encodedHtml: string): AdResult => {
     try {
         // Using atob is sufficient here as this runs on the client.
-        return atob(encodedHtml);
+        const decodedHtml = atob(encodedHtml);
+        if (!decodedHtml.trim()) {
+            const errorMsg = "Ad provider is 'custom' but VITE_CUSTOM_AD_HTML_BASE64 is an empty string. Ads will not be displayed.";
+            console.warn(errorMsg);
+            return { content: null, error: errorMsg };
+        }
+        return { content: decodedHtml, error: null };
     } catch (e) {
-        console.error("Failed to decode VITE_CUSTOM_AD_HTML_BASE64:", e);
-        return `<p style="color: red; font-family: sans-serif; text-align: center;">Error: Custom ad HTML is not valid Base64.</p>`;
+        const errorMsg = "Ad provider is 'custom' but VITE_CUSTOM_AD_HTML_BASE64 is not valid Base64. Ads will not be displayed.";
+        console.error(errorMsg, e);
+        return { content: null, error: errorMsg };
     }
 };
 
 /**
- * Returns the appropriate ad content based on the configured provider.
+ * Returns the appropriate ad content and any configuration errors.
  * This is the central function for the ad provider system.
- * @returns The HTML string for the ad iframe, or null if ads are disabled.
+ * @returns An AdResult object with the HTML string for the ad iframe, and a potential error message.
  */
-export const getAdContent = (): string | null => {
+export const getAdConfig = (): AdResult => {
+    const AD_PROVIDER = env?.VITE_AD_PROVIDER || 'a-ads';
+    const AADS_ID = env?.VITE_AADS_ID;
+    const CUSTOM_AD_HTML_BASE64 = env?.VITE_CUSTOM_AD_HTML_BASE64;
+
     switch (AD_PROVIDER) {
         case 'a-ads':
             if (!AADS_ID) {
-                console.warn("VITE_AD_PROVIDER is 'a-ads' but VITE_AADS_ID is not set.");
-                return null;
+                const errorMsg = "Ad provider is 'a-ads' but the required VITE_AADS_ID environment variable is missing. Ads will not be displayed.";
+                console.warn(errorMsg);
+                return { content: null, error: errorMsg };
             }
-            return getAAdsContent(AADS_ID);
+            return { content: getAAdsContent(AADS_ID), error: null };
         case 'custom':
              if (!CUSTOM_AD_HTML_BASE64) {
-                console.warn("VITE_AD_PROVIDER is 'custom' but VITE_CUSTOM_AD_HTML_BASE64 is not set.");
-                return null;
+                const errorMsg = "Ad provider is 'custom' but the required VITE_CUSTOM_AD_HTML_BASE64 environment variable is missing. Ads will not be displayed.";
+                console.warn(errorMsg);
+                return { content: null, error: errorMsg };
             }
             return getCustomAdContent(CUSTOM_AD_HTML_BASE64);
         case 'admob':
-            // This is disabled for now, as per the requirements.
-            console.warn("AdMob provider is configured but not yet supported in this version.");
-            return `<div style="display: flex; align-items: center; justify-content: center; height: 100%; font-family: sans-serif; color: #555; background-color: #f0f0f0;">AdMob Ads (Not Implemented)</div>`;
+            const errorMsgAdmob = "Ad provider 'AdMob' is configured but is not yet supported in this version. Ads will not be displayed.";
+            console.warn(errorMsgAdmob);
+            return { content: null, error: errorMsgAdmob };
         case 'none':
         default:
-            return null;
+            return { content: null, error: null }; // No error if ads are intentionally disabled
     }
 };

@@ -14,10 +14,13 @@ import { exportData } from '../../services/exportService';
 import DashboardSummary from './DashboardSummary';
 import DashboardControls from './DashboardControls';
 import BillList from './BillList';
-import ParticipantList, { ParticipantData } from './ParticipantList';
+import ParticipantList, { ParticipantData } from '../ParticipantList';
 import ParticipantDetailView from './ParticipantDetailView';
 import EmptyState from './EmptyState';
 import RecurringBillCard from '../RecurringBillCard';
+
+// Import the ad error message
+import { AD_ERROR_MESSAGE } from '../../services/adService';
 
 
 interface DashboardProps {
@@ -112,14 +115,32 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // --- Half-Screen Ad Logic ---
   useEffect(() => {
-    if (subscriptionStatus === 'free' && !sessionStorage.getItem('halfScreenAdShown')) {
+    if (subscriptionStatus === 'free') {
+      const key = 'dashboardViewCount';
+      // Increment dashboard view count
+      const count = parseInt(sessionStorage.getItem(key) || '0', 10);
+      const newCount = count + 1;
+      sessionStorage.setItem(key, String(newCount));
+
+      // Show modal on every 4th view
+      if (newCount > 0 && newCount % 4 === 0) {
         const timer = setTimeout(() => {
-            setIsHalfScreenAdOpen(true);
-            sessionStorage.setItem('halfScreenAdShown', 'true');
-        }, 500);
+          setIsHalfScreenAdOpen(true);
+        }, 500); // 500ms delay before showing
         return () => clearTimeout(timer);
+      }
     }
   }, [subscriptionStatus]);
+
+  // --- Ad Error Notification Logic ---
+  useEffect(() => {
+    if (subscriptionStatus === 'free' && AD_ERROR_MESSAGE) {
+      if (!sessionStorage.getItem('adConfigErrorShown')) {
+        showNotification(AD_ERROR_MESSAGE, 'error');
+        sessionStorage.setItem('adConfigErrorShown', 'true');
+      }
+    }
+  }, [subscriptionStatus, showNotification]);
 
   const summaryTotals = useMemo(() => {
     const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
@@ -189,8 +210,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     const lowercasedQuery = searchQuery.toLowerCase().trim();
     const allParticipantBills = bills.filter(b => b.participants.some(p => p.name === selectedParticipant));
     const searchedBills = lowercasedQuery ? allParticipantBills.filter(bill => searchMode === 'description' ? bill.description.toLowerCase().includes(lowercasedQuery) : bill.participants.some(p => p.name.toLowerCase().includes(lowercasedQuery))) : allParticipantBills;
-    const active = searchedBills.filter(b => b.status === 'active').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const allArchived = searchedBills.filter(b => b.status === 'archived').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const active = searchedBills.filter(b => b.status === 'active').sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
+    const allArchived = searchedBills.filter(b => b.status === 'archived').sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
     const unpaidArchived = allArchived.filter(b => b.participants.some(p => p.name === selectedParticipant && !p.paid && p.amountOwed > 0.005));
     return { active, allArchived, unpaidArchived };
   }, [bills, selectedParticipant, searchQuery, searchMode]);
@@ -450,7 +471,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 ))}
             </div>
         );
-    } else if (dashboardView === 'bills' && (filteredBills.length > 0 || filteredImportedBills.length > 0)) {
+    } else if (dashboardView === 'bills' && (filteredBills.length > 0 || filteredImportedBills.length > 0 || (subscriptionStatus === 'free' && dashboardStatusFilter === 'active'))) {
         return <BillList 
             filteredBills={filteredBills} 
             filteredImportedBills={filteredImportedBills} 
