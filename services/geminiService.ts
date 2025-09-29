@@ -15,7 +15,7 @@ export const parseReceipt = async (base64Image: string, mimeType: string): Promi
   try {
     // The path to our new self-hosted backend endpoint.
     // The Ingress will route this to the backend service.
-    const response = await fetchWithRetry(getApiUrl('/scan-receipt'), {
+    const response = await fetchWithRetry(await getApiUrl('/scan-receipt'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,7 +60,7 @@ interface MatchAndAssignItemsParams {
 }
 export const matchAndAssignItems = async (params: MatchAndAssignItemsParams): Promise<ReceiptItem[]> => {
   try {
-    const response = await fetchWithRetry(getApiUrl('/match-items'), {
+    const response = await fetchWithRetry(await getApiUrl('/match-items'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -274,7 +274,7 @@ export const parseCsv = async (csvContent: string, myDisplayName: string): Promi
     }
 
     try {
-        const response = await fetchWithRetry(getApiUrl('/parse-csv'), {
+        const response = await fetchWithRetry(await getApiUrl('/parse-csv'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

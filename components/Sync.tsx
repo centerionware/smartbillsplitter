@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 // FIX: Updated import path for RequestConfirmationFn to central types file.
 import type { RequestConfirmationFn } from '../types';
@@ -75,7 +76,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             const { c: code, k: keyJwk } = parsed;
 
             // 1. Fetch encrypted data from server
-            const response = await fetchWithRetry(getApiUrl(`/sync?code=${code}`));
+            const response = await fetchWithRetry(await getApiUrl(`/sync?code=${code}`));
             const resultText = await response.text();
             
             if (!response.ok) {
@@ -146,7 +147,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
             const compressedData = pako.deflate(jsonString);
             const encryptedData = await cryptoService.encrypt(compressedData, key);
 
-            const response = await fetchWithRetry(getApiUrl('/sync'), {
+            const response = await fetchWithRetry(await getApiUrl('/sync'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ encryptedData }),
@@ -207,7 +208,7 @@ const SyncComponent: React.FC<SyncProps> = ({ onBack, requestConfirmation }) => 
     const renderIdle = () => (
         <div className="max-w-2xl mx-auto text-center">
             <button onClick={handleBack} className="flex items-center gap-2 mb-6 text-teal-600 dark:text-teal-400 font-semibold hover:text-teal-800 dark:hover:text-teal-300">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l-4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                 Back to Settings
             </button>
             <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">

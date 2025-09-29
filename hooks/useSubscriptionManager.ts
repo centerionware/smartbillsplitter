@@ -18,7 +18,7 @@ export const useSubscriptionManager = (currentDeviceSubscription: SubscriptionDe
         if (!subsMap.has(currentDeviceSubscription.subscriptionId)) {
           // If the current device's sub isn't stored, fetch its details.
           try {
-            const response = await fetchWithRetry(getApiUrl(`/paypal-subscription-details?id=${currentDeviceSubscription.subscriptionId}`));
+            const response = await fetchWithRetry(await getApiUrl(`/paypal-subscription-details?id=${currentDeviceSubscription.subscriptionId}`));
             if (!response.ok) throw new Error('Could not verify current subscription.');
             const details = await response.json();
             subsMap.set(details.id, details);
@@ -52,7 +52,7 @@ export const useSubscriptionManager = (currentDeviceSubscription: SubscriptionDe
   }, [fetchAndSetSubscriptions]);
 
   const addSubscription = useCallback(async (subscriptionId: string): Promise<PayPalSubscriptionDetails> => {
-    const response = await fetchWithRetry(getApiUrl(`/paypal-subscription-details?id=${subscriptionId}`));
+    const response = await fetchWithRetry(await getApiUrl(`/paypal-subscription-details?id=${subscriptionId}`));
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || 'Could not find or verify this subscription ID.');

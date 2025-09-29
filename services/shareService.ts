@@ -115,7 +115,8 @@ export const generateAggregateBill = async (
             needsLocalUpdate = true;
         } else {
              try {
-                const res = await fetchWithRetry(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { method: 'GET', signal: AbortSignal.timeout(4000) });
+                {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+                const res = await fetchWithRetry(await getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { method: 'GET', signal: AbortSignal.timeout(4000) });
                 if (res.status === 404) { needsServerUpdate = true; needsLocalUpdate = true; }
              } catch (e) { console.warn(`Could not verify share for bill ${bill.id}, proceeding optimistically.`); }
         }
@@ -125,8 +126,9 @@ export const generateAggregateBill = async (
             if (!keyRecord || !updatedBill.shareInfo) throw new Error(`Could not find signing key for bill ${updatedBill.id}`);
             const encryptionKey = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
             const encryptedData = await encryptAndSignPayload(updatedBill, settings, keyRecord.privateKey, updatedBill.shareInfo.signingPublicKey, encryptionKey);
-            const url = updatedBill.shareInfo.shareId ? getApiUrl(`/share/${updatedBill.shareInfo.shareId}`) : getApiUrl('/share');
-            const shareResponse = await fetchWithRetry(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ encryptedData }) });
+            {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+            const urlPath = updatedBill.shareInfo.shareId ? `/share/${updatedBill.shareInfo.shareId}` : '/share';
+            const shareResponse = await fetchWithRetry(await getApiUrl(urlPath), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ encryptedData }) });
             const shareResult = await shareResponse.json();
             if (!shareResponse.ok) throw new Error(shareResult.error || "Failed to create share session for constituent bill.");
             updatedBill.shareInfo.shareId = shareResult.shareId;
@@ -205,7 +207,8 @@ export const generateOneTimeShareLink = async (
     const billEncryptionKey = await cryptoService.generateEncryptionKey();
 
     const encryptedData = await encryptAndSignPayload(summaryBill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey, constituentShares);
-    const shareResponse = await fetchWithRetry(getApiUrl('/share'), {
+    {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+    const shareResponse = await fetchWithRetry(await getApiUrl('/share'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ encryptedData }),
@@ -226,7 +229,8 @@ export const generateOneTimeShareLink = async (
     const compressedBillKey = pako.deflate(JSON.stringify(billEncryptionKeyJwk));
     const encryptedBillKey = await cryptoService.encrypt(compressedBillKey, fragmentKey);
 
-    const keyResponse = await fetchWithRetry(getApiUrl('/onetime-key'), {
+    {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+    const keyResponse = await fetchWithRetry(await getApiUrl('/onetime-key'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ encryptedBillKey }),
@@ -265,7 +269,8 @@ export const generateShareLink = async (
 
     if (updatedBill.shareInfo && updatedBill.shareInfo.shareId) {
         try {
-            const res = await fetchWithRetry(getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { method: 'GET', signal: AbortSignal.timeout(4000) });
+            {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+            const res = await fetchWithRetry(await getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { method: 'GET', signal: AbortSignal.timeout(4000) });
             if (res.status === 404) {
                 console.warn(`Share session for bill ${updatedBill.id} not found on server. Recreating...`);
                 updatedBill = await recreateShareSession(updatedBill, settings, updateBillCallback);
@@ -292,7 +297,8 @@ export const generateShareLink = async (
         const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
 
         const encryptedData = await encryptAndSignPayload(updatedBill, settings, signingKeyPair.privateKey, signingPublicKeyJwk, billEncryptionKey);
-        const shareResponse = await fetchWithRetry(getApiUrl('/share'), {
+        {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+        const shareResponse = await fetchWithRetry(await getApiUrl('/share'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ encryptedData }),
@@ -318,7 +324,8 @@ export const generateShareLink = async (
 
     if (existingShareInfo && now < existingShareInfo.expires) {
         try {
-            const statusResponse = await fetchWithRetry(getApiUrl(`/onetime-key/${existingShareInfo.keyId}/status`));
+            {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+            const statusResponse = await fetchWithRetry(await getApiUrl(`/onetime-key/${existingShareInfo.keyId}/status`));
             if (statusResponse.ok) {
                 const { status } = await statusResponse.json();
                 if (status === 'available') {
@@ -340,7 +347,8 @@ export const generateShareLink = async (
         const compressedBillKey = pako.deflate(JSON.stringify(billEncryptionKeyJwk));
         const encryptedBillKey = await cryptoService.encrypt(compressedBillKey, fragmentKey);
 
-        const keyResponse = await fetchWithRetry(getApiUrl('/onetime-key'), {
+        {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+        const keyResponse = await fetchWithRetry(await getApiUrl('/onetime-key'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ encryptedBillKey }),
@@ -480,7 +488,8 @@ export const recreateShareSession = async (
 
     const encryptedData = await encryptAndSignPayload(updatedBill, settings, privateKey, signingPublicKeyJwk, billEncryptionKey);
 
-    const shareResponse = await fetchWithRetry(getApiUrl(`/share/${shareId}`), {
+    {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+    const shareResponse = await fetchWithRetry(await getApiUrl(`/share/${shareId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ encryptedData }),
@@ -523,7 +532,8 @@ export async function syncSharedBillUpdate(
   
   const updateToken = bill.shareInfo.updateToken;
 
-  const response = await fetchWithRetry(getApiUrl(`/share/${bill.shareInfo.shareId}`), {
+  {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+  const response = await fetchWithRetry(await getApiUrl(`/share/${bill.shareInfo.shareId}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ encryptedData, updateToken }),
@@ -568,7 +578,8 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
     const billsNeedingUpdate: ImportedBill[] = [];
 
     try {
-        const response = await fetchWithRetry(getApiUrl('/share/batch-check'), {
+        {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+        const response = await fetchWithRetry(await getApiUrl('/share/batch-check'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(checkPayload),
@@ -629,7 +640,8 @@ export async function pollOwnedSharedBills(bills: Bill[]): Promise<Bill[]> {
         if (!bill.shareInfo?.shareId) return null;
 
         try {
-            const response = await fetchWithRetry(getApiUrl(`/share/${bill.shareInfo.shareId}`), {
+            {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+            const response = await fetchWithRetry(await getApiUrl(`/share/${bill.shareInfo.shareId}`), {
                 method: 'GET',
                 signal: AbortSignal.timeout(15000)
             });
@@ -684,7 +696,8 @@ export async function reactivateShare(bill: Bill, settings: Settings): Promise<{
   const signingPublicKeyJwk = bill.shareInfo.signingPublicKey;
   const encryptedData = await encryptAndSignPayload(bill, settings, keyRecord.privateKey, signingPublicKeyJwk, billEncryptionKey);
   
-  const response = await fetchWithRetry(getApiUrl(`/share/${bill.shareInfo.shareId}`), {
+  {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+  const response = await fetchWithRetry(await getApiUrl(`/share/${bill.shareInfo.shareId}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ encryptedData }), // No token needed for reactivation

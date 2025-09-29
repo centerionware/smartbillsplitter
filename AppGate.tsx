@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from './hooks/useAuth.ts';
 import App from './App.tsx';
@@ -37,7 +38,7 @@ const AppGate: React.FC = () => {
         setIsVerifying(true);
         setVerificationError(null);
         try {
-          const response = await fetchWithRetry(getApiUrl('/verify-payment'), {
+          const response = await fetchWithRetry(await getApiUrl('/verify-payment'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ provider, sessionId }),

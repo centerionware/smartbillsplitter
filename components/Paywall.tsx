@@ -33,7 +33,7 @@ const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => 
         const origin = window.location.origin;
 
         // This single endpoint starts a checkout with the provider configured on the backend.
-        const response = await fetchWithRetry(getApiUrl('/create-checkout-session'), {
+        const response = await fetchWithRetry(await getApiUrl('/create-checkout-session'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ plan, origin }),

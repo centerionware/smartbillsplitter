@@ -1,5 +1,6 @@
 // services/api.ts
 let API_BASE_URL: string | null = null;
+let apiInitializationPromise: Promise<void> | null = null;
 
 /**
  * A self-contained helper to check if a backend URL is live.
@@ -91,33 +92,55 @@ const discoverApiBaseUrl = async (): Promise<string> => {
 
 
 /**
- * Initializes the API service by discovering the backend URL.
- * This must be called once when the application starts up.
+ * Initializes the API service by discovering the backend URL. This should be called once,
+ * without `await`, at application startup to allow it to run in the background.
+ * @returns A promise that resolves when discovery is complete.
  */
-export const initializeApi = async (): Promise<void> => {
-    if (API_BASE_URL === null) {
-        API_BASE_URL = await discoverApiBaseUrl();
+export const initializeApi = (): Promise<void> => {
+    if (!apiInitializationPromise) {
+        apiInitializationPromise = (async () => {
+            try {
+                API_BASE_URL = await discoverApiBaseUrl();
+            } catch (e) {
+                console.error("API discovery failed:", e);
+                // Fallback to relative paths on any discovery failure.
+                API_BASE_URL = ''; 
+            }
+        })();
     }
+    return apiInitializationPromise;
 };
 
 /**
- * Returns the discovered API base URL after initialization.
- * @returns The base URL string, an empty string for relative paths, or null if not yet initialized.
+ * Asynchronously returns the discovered API base URL after initialization.
+ * @returns A promise resolving to the base URL string, an empty string for relative paths, or null if not yet initialized.
  */
-export const getDiscoveredApiBaseUrl = (): string | null => API_BASE_URL;
+export const getDiscoveredApiBaseUrl = async (): Promise<string | null> => {
+    if (!apiInitializationPromise) {
+        initializeApi();
+    }
+    await apiInitializationPromise;
+    return API_BASE_URL;
+};
 
 /**
- * Constructs a full URL for an API endpoint using the discovered base URL.
- * Throws a warning if called before `initializeApi` has completed.
+ * Asynchronously constructs a full URL for an API endpoint. It waits for the background
+ * API discovery process to complete before resolving.
  * @param path The API endpoint path (e.g., '/scan-receipt').
- * @returns The full or relative URL for the API endpoint.
+ * @returns A promise resolving to the full or relative URL for the API endpoint.
  */
-export const getApiUrl = (path: string): string => {
+export const getApiUrl = async (path: string): Promise<string> => {
+    if (!apiInitializationPromise) {
+        // This is a safeguard. `initializeApi` should be called at app startup.
+        console.warn("initializeApi() was not called at startup. Calling it now.");
+        initializeApi();
+    }
+    
+    await apiInitializationPromise;
+
     if (API_BASE_URL === null) {
-        // This indicates a programming error where `getApiUrl` is used before `initializeApi` has completed.
-        // Fallback to a relative path but warn the developer.
-        console.error("getApiUrl() was called before initializeApi() completed. This is not recommended. Falling back to relative path.");
-        return path;
+        console.error("API base URL is null after initialization. This indicates a discovery failure. Falling back to relative paths.");
+        API_BASE_URL = '';
     }
     
     // If API_BASE_URL is an empty string, this means we should use relative paths.
@@ -127,7 +150,6 @@ export const getApiUrl = (path: string): string => {
     }
 
     // Use the URL constructor for robust joining of the base URL and the path.
-    // This correctly handles cases where the base URL may or may not have a trailing slash.
     return new URL(path, API_BASE_URL).toString();
 };
 

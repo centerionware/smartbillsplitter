@@ -118,7 +118,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         
         // 1. Fetch the encrypted long-term key.
         setStatus('fetching_key');
-        const keyResponse = await fetchWithRetry(getApiUrl(`/onetime-key/${keyId}`));
+        const keyResponse = await fetchWithRetry(await getApiUrl(`/onetime-key/${keyId}`));
         if (keyResponse.status === 404) {
           setStatus('expired');
           setError("This share link has already been used or has expired. Please ask for a new one.");
@@ -150,7 +150,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
 
         // 4. Fetch the main encrypted bill data
         setStatus('fetching_data');
-        const response = await fetchWithRetry(getApiUrl(`/share/${shareId}`));
+        const response = await fetchWithRetry(await getApiUrl(`/share/${shareId}`));
         if (!response.ok) {
            const errData = await response.json().catch(() => ({}));
            throw new Error(errData.error || "Failed to retrieve shared bill data.");

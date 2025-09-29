@@ -80,26 +80,29 @@ const App: React.FC = () => {
 
     // Effect to check for dev environment and show debug console
     useEffect(() => {
-        const apiBaseUrl = getDiscoveredApiBaseUrl();
-        let isDevEnv = false;
+        const checkDevEnv = async () => {
+            const apiBaseUrl = await getDiscoveredApiBaseUrl();
+            let isDevEnv = false;
 
-        if (apiBaseUrl === '') {
-            isDevEnv = true;
-        } else if (apiBaseUrl) {
-            try {
-                const apiUrlOrigin = new URL(apiBaseUrl).origin;
-                if (apiUrlOrigin === window.location.origin) {
-                    isDevEnv = true;
+            if (apiBaseUrl === '') {
+                isDevEnv = true;
+            } else if (apiBaseUrl) {
+                try {
+                    const apiUrlOrigin = new URL(apiBaseUrl).origin;
+                    if (apiUrlOrigin === window.location.origin) {
+                        isDevEnv = true;
+                    }
+                } catch (e) {
+                    console.error("Could not parse discovered API URL for debug check:", apiBaseUrl, e);
                 }
-            } catch (e) {
-                console.error("Could not parse discovered API URL for debug check:", apiBaseUrl, e);
             }
-        }
-        
-        if (isDevEnv) {
-            console.log("Dev environment detected, showing debug console.");
-            setShowDebugConsole(true);
-        }
+            
+            if (isDevEnv) {
+                console.log("Dev environment detected, showing debug console.");
+                setShowDebugConsole(true);
+            }
+        };
+        checkDevEnv();
     }, []);
     
     // Effect for polling imported bills for updates
