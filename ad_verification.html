@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ad Verification</title>
+    <style>
+      /* Simple styling to center the ad frame */
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background-color: #f1f5f9; /* Match app's light theme background */
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 
+      A-ADS Verification Frame.
+      This is the exact frame A-ADS requires for verification. 
+      Vite replaces %VITE_AADS_ID% at build time.
+    -->
+    <div id="frame" style="width: 100%; max-width: 728px; margin: auto; position: relative;">
+      <iframe data-aa='%VITE_AADS_ID%' src='//acceptable.a-ads.com/%VITE_AADS_ID%/?size=Adaptive'
+                        style='border:0; padding:0; width:100%; height:auto; min-height: 90px; overflow:hidden;display: block;margin: auto;'></iframe>
+    </div>
+  </body>
+</html>
