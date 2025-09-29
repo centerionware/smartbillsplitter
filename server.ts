@@ -14,7 +14,8 @@ app.use(express.json({ limit: '10mb' }));
 
 // All routes are passed to the framework-agnostic main handler.
 // The adapter converts the Express request/response objects into a generic format.
-app.all('*', createExpressAdapter(mainHandler));
+// FIX: Changed '*' to '/*' which is the correct syntax for a catch-all route.
+app.all('/*', createExpressAdapter(mainHandler));
 
 app.listen(port, () => {
   console.log(`[server]: Express server is running at http://localhost:${port}`);
