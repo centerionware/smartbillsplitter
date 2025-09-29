@@ -123,8 +123,9 @@ export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<Ui
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
-  // Pass the Uint8Array view directly to the decrypt function.
-  // This is the correct and standard usage of the Web Crypto API.
+  // FIX: Explicitly pass the underlying ArrayBuffer of the Uint8Array view
+  // to resolve type conflicts in environments with multiple Uint8Array definitions (e.g., DOM vs. Node).
+  // The .slice() method creates a new ArrayBuffer, so this is safe and does not expose other data.
   const decryptedContent = await crypto.subtle.decrypt(
     { name: SYMMETRIC_ALGORITHM, iv },
     key,
@@ -184,7 +185,8 @@ export const verify = async (data: string, signature: string, publicKey: CryptoK
   // Decode the signature using the robust helper
   const signatureBytes = decodeBase64(signature);
   
-  // The crypto.subtle.verify method expects a BufferSource, which includes Uint8Array.
-  // We pass the Uint8Array views directly as this is the standard API usage.
+  // FIX: Explicitly pass the underlying ArrayBuffer of the Uint8Array views
+  // to resolve type conflicts in environments with multiple Uint8Array definitions (e.g., DOM vs. Node).
+  // Both decodeBase64 and TextEncoder.encode create new ArrayBuffers, so this is safe.
   return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes, encodedData);
 };
