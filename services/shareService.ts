@@ -388,10 +388,22 @@ export async function encryptAndSignPayload(
         payload.constituentShares = constituentShares;
     }
     
-    // Log a deep copy for debugging before encryption
+    // Log a deep copy and its size for debugging before encryption
     try {
-        const payloadCopy = JSON.parse(JSON.stringify(payload));
-        console.debug('About to encrypt and share payload:', payloadCopy);
+        const payloadString = JSON.stringify(payload);
+        // Use TextEncoder for an accurate byte size measurement
+        const payloadSize = new TextEncoder().encode(payloadString).length;
+        const payloadCopy = JSON.parse(payloadString);
+
+        const formatBytes = (bytes: number): string => {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
+
+        console.debug(`About to encrypt and share payload (Size: ${formatBytes(payloadSize)}):`, payloadCopy);
     } catch (e) {
         console.warn('Could not create a deep copy of the share payload for logging.');
     }
