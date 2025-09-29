@@ -1,7 +1,5 @@
 // services/adProviderService.ts
 
-// --- Ad Provider Plugin System ---
-
 // Safely access env to prevent crashes in environments where import.meta.env might not be defined.
 const env = (import.meta as any)?.env;
 
@@ -16,7 +14,8 @@ interface AdResult {
  * @returns The HTML content for the ad iframe.
  */
 const getAAdsContent = (unitId: string): string => {
-  // A-ADS uses an iframe. This HTML makes it responsive and transparent.
+  // Use a responsive size and the 'acceptable' ad network for better compatibility and performance.
+  // The outer document ensures the ad iframe can fill its container within the app's ad components.
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -25,12 +24,12 @@ const getAAdsContent = (unitId: string): string => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Advertisement</title>
       <style>
-        html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background-color: transparent; display: flex; align-items: center; justify-content: center; }
-        iframe { border: 0; }
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: transparent; }
+        iframe { border: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: transparent; }
       </style>
     </head>
     <body>
-      <iframe data-aa="${unitId}" src="//ad.a-ads.com/${unitId}?size=300x100&background_color=00000000&text_color=333333" style="width:300px; height:100px; border:0px; padding:0;overflow:hidden;background-color: transparent;"></iframe>
+      <iframe data-aa="${unitId}" src="//acceptable.a-ads.com/${unitId}?size=responsive"></iframe>
     </body>
     </html>
   `;
@@ -88,7 +87,10 @@ export const getAdConfig = (): AdResult => {
             console.warn(errorMsgAdmob);
             return { content: null, error: errorMsgAdmob };
         case 'none':
-        default:
             return { content: null, error: null }; // No error if ads are intentionally disabled
+        default:
+            const errorMsg = `Unknown ad provider '${AD_PROVIDER}' is configured in VITE_AD_PROVIDER. Ads will not display. Valid options are 'a-ads', 'custom', or 'none'.`;
+            console.warn(errorMsg);
+            return { content: null, error: errorMsg };
     }
 };
