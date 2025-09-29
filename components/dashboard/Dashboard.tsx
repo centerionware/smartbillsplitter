@@ -2,21 +2,21 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View } from '../../types';
 import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
-import ShareActionSheet from '../ShareActionSheet.tsx';
-import { generateShareText, generateOneTimeShareLink } from '../../services/shareService.ts';
-import { useAppControl } from '../../contexts/AppControlContext.tsx';
-import HalfScreenAdModal from '../HalfScreenAdModal.tsx';
-import { useIntersectionObserver } from '../../hooks/useIntersectionObserver.ts';
-import PaymentMethodsModal from '../PaymentMethodsModal.tsx';
-import { exportData } from '../../services/exportService.ts';
+import ShareActionSheet from '../ShareActionSheet';
+import { generateShareText, generateOneTimeShareLink } from '../../services/shareService';
+import { useAppControl } from '../../contexts/AppControlContext';
+import HalfScreenAdModal from '../HalfScreenAdModal';
+import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
+import PaymentMethodsModal from '../PaymentMethodsModal';
+import { exportData } from '../../services/exportService';
 
 // New Child Components
-import DashboardSummary from './DashboardSummary.tsx';
-import DashboardControls from './DashboardControls.tsx';
-import BillList from './BillList.tsx';
+import DashboardSummary from './DashboardSummary';
+import DashboardControls from './DashboardControls';
+import BillList from './BillList';
 import ParticipantList, { ParticipantData } from './ParticipantList';
-import ParticipantDetailView from './ParticipantDetailView.tsx';
-import EmptyState from './EmptyState.tsx';
+import ParticipantDetailView from './ParticipantDetailView';
+import EmptyState from './EmptyState';
 import RecurringBillCard from '../RecurringBillCard';
 
 
@@ -429,6 +429,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                   searchQuery={searchQuery} 
                   selectedParticipant={selectedParticipant} 
                   onExport={() => handleExportParticipant(selectedParticipant)}
+                  onConvertToTemplate={handleConvertToTemplate}
+                  onExportBill={handleExportOwnedBill}
                 />;
     } else if (dashboardView === 'upcoming' && upcomingRecurringBills.length > 0) {
         return (

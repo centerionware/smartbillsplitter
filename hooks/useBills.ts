@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import type { Bill, Participant } from '../types';
 import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB, addMultipleBillsDB, mergeBillsDB } from '../services/db';
@@ -127,7 +128,7 @@ export const useBills = () => {
       const billsToUpdate: Bill[] = [];
       let skippedCount = 0;
 
-      // FIX: Switched from forEach to a for...of loop to ensure correct type inference for `incomingBill`, resolving errors with accessing its properties.
+      // FIX: Use a for...of loop with explicit typing for the iterated item to prevent type inference issues.
       for (const incomingBill of billsToMerge) {
           const existingBill = existingBillMap.get(incomingBill.id);
 

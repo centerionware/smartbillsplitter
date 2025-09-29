@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import type { ImportedBill } from '../types';
 import { 
@@ -73,7 +74,7 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX: Switched from forEach to a for...of loop to ensure correct type inference for `incomingBill`, resolving errors with accessing its properties.
+      // FIX: Use a for...of loop with explicit typing for the iterated item to prevent type inference issues.
       for (const incomingBill of billsToMerge) {
           const existingBill = existingBillMap.get(incomingBill.id);
           if (existingBill) {
