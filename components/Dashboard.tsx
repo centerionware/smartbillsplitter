@@ -31,6 +31,7 @@ interface DashboardProps {
   onArchiveBill: (billId: string) => void;
   onUnarchiveBill: (billId: string) => void;
   onDeleteBill: (billId: string) => void;
+  onReshareBill: (billId: string) => void;
   onUpdateMultipleBills: (bills: Bill[]) => Promise<void>;
   onUpdateImportedBill: (bill: ImportedBill) => void;
   onArchiveImportedBill: (billId: string) => void;
@@ -56,7 +57,7 @@ const BILLS_PER_PAGE = 15;
 const Dashboard: React.FC<DashboardProps> = ({ 
   bills, importedBills, recurringBills, settings, subscriptionStatus, 
   onSelectBill, onSelectImportedBill, 
-  onArchiveBill, onUnarchiveBill, onDeleteBill, onUpdateMultipleBills, 
+  onArchiveBill, onUnarchiveBill, onDeleteBill, onReshareBill, onUpdateMultipleBills, 
   onUpdateImportedBill, onArchiveImportedBill, onUnarchiveImportedBill, onDeleteImportedBill,
   onShowSummaryDetails, onCreateFromTemplate,
   navigate,
@@ -424,7 +425,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                   onSelectBill={onSelectBill} 
                   onArchiveBill={onArchiveBill} 
                   onUnarchiveBill={onUnarchiveBill} 
-                  onDeleteBill={onDeleteBill} 
+                  onDeleteBill={onDeleteBill}
+                  onReshareBill={onReshareBill}
                   dashboardStatusFilter={dashboardStatusFilter} 
                   searchQuery={searchQuery} 
                   selectedParticipant={selectedParticipant} 
@@ -459,6 +461,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             onArchiveBill={onArchiveBill} 
             onUnarchiveBill={onUnarchiveBill} 
             onDeleteBill={onDeleteBill} 
+            onReshareBill={onReshareBill}
             onSelectImportedBill={onSelectImportedBill} 
             onUpdateImportedBill={onUpdateImportedBill} 
             onArchiveImportedBill={onArchiveImportedBill} 
