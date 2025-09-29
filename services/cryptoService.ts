@@ -123,17 +123,12 @@ export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<Ui
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
-  // The crypto API expects a BufferSource. While Uint8Array is a valid BufferSource,
-  // some strict type checkers might have issues. Passing the underlying ArrayBuffer
-  // of the Uint8Array is more explicit and resolves these type issues.
-  // Because 'ciphertext' is a slice, we must also slice its underlying buffer
-  // to pass only the relevant segment.
-  const ciphertextBuffer = ciphertext.buffer.slice(ciphertext.byteOffset, ciphertext.byteOffset + ciphertext.byteLength);
-  
+  // Pass the Uint8Array view directly to the decrypt function.
+  // This is the correct and standard usage of the Web Crypto API.
   const decryptedContent = await crypto.subtle.decrypt(
     { name: SYMMETRIC_ALGORITHM, iv },
     key,
-    ciphertextBuffer
+    ciphertext
   );
 
   return new Uint8Array(decryptedContent);
@@ -189,9 +184,7 @@ export const verify = async (data: string, signature: string, publicKey: CryptoK
   // Decode the signature using the robust helper
   const signatureBytes = decodeBase64(signature);
   
-  // The crypto API expects a BufferSource. While Uint8Array is a valid BufferSource,
-  // some strict type checkers might have issues. Passing the underlying ArrayBuffer
-  // directly is more explicit. Since these Uint8Arrays are not slices of larger
-  // buffers, we can safely pass their entire underlying buffer.
-  return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes.buffer, encodedData.buffer);
+  // The crypto.subtle.verify method expects a BufferSource, which includes Uint8Array.
+  // We pass the Uint8Array views directly as this is the standard API usage.
+  return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes, encodedData);
 };
