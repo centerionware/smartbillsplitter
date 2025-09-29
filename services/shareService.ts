@@ -296,7 +296,8 @@ export const generateShareLink = async (
         updatedBill.shareInfo = { 
             shareId: shareResult.shareId, 
             encryptionKey: billEncryptionKeyJwk, 
-            signingPublicKey: signingPublicKeyJwk 
+            signingPublicKey: signingPublicKeyJwk,
+            updateToken: shareResult.updateToken,
         };
     }
     
@@ -432,8 +433,13 @@ export const recreateShareSession = async (
  * Pushes an update for an already-shared bill to the server.
  * @param bill The updated bill object.
  * @param settings The current app settings.
+ * @param updateBillCallback Callback to save the bill if the server provides a new update token (migration).
  */
-export async function syncSharedBillUpdate(bill: Bill, settings: Settings): Promise<void> {
+export async function syncSharedBillUpdate(
+    bill: Bill,
+    settings: Settings,
+    updateBillCallback: (bill: Bill) => Promise<any>
+): Promise<void> {
   if (!bill.shareInfo?.shareId) {
     console.warn("Attempted to sync a bill without a shareId.", bill.id);
     return;
@@ -448,15 +454,36 @@ export async function syncSharedBillUpdate(bill: Bill, settings: Settings): Prom
   const signingPublicKeyJwk = bill.shareInfo.signingPublicKey;
   const encryptedData = await encryptAndSignPayload(bill, settings, keyRecord.privateKey, signingPublicKeyJwk, billEncryptionKey);
   
+  const updateToken = bill.shareInfo.updateToken;
+
   const response = await fetchWithRetry(getApiUrl(`/share/${bill.shareInfo.shareId}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ encryptedData }),
+    body: JSON.stringify({ encryptedData, updateToken }),
   });
+  
+  const result = await response.json();
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to sync bill update to the server.');
+    if (response.status === 403) {
+      throw new Error(result.details || 'Update forbidden. This bill may have been updated from another device. Please refresh.');
+    }
+    throw new Error(result.error || 'Failed to sync bill update to the server.');
+  }
+
+  // Handle migration: server sends back a new token for legacy bills
+  if (result.updateToken) {
+    console.log(`Received new update token for bill ${bill.id}. Migrating.`);
+    const migratedBill: Bill = {
+      ...bill,
+      shareInfo: {
+        ...bill.shareInfo,
+        updateToken: result.updateToken,
+      },
+      lastUpdatedAt: result.lastUpdatedAt
+    };
+    // Silently update the bill in the DB with the new token
+    await updateBillCallback(migratedBill);
   }
 
   console.log(`Successfully synced update for bill ${bill.id}`);
@@ -573,8 +600,9 @@ export async function pollOwnedSharedBills(bills: Bill[]): Promise<Bill[]> {
  * Reactivates an expired share on the server by re-uploading the encrypted bill data.
  * @param bill The bill with an expired share.
  * @param settings The user's settings.
+ * @returns An object containing the new `lastUpdatedAt` timestamp and the new `updateToken`.
  */
-export async function reactivateShare(bill: Bill, settings: Settings): Promise<void> {
+export async function reactivateShare(bill: Bill, settings: Settings): Promise<{ lastUpdatedAt: number; updateToken: string; }> {
   if (!bill.shareInfo?.shareId) {
     throw new Error("Cannot reactivate a bill that was never shared.");
   }
@@ -591,13 +619,18 @@ export async function reactivateShare(bill: Bill, settings: Settings): Promise<v
   const response = await fetchWithRetry(getApiUrl(`/share/${bill.shareInfo.shareId}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ encryptedData }),
+    body: JSON.stringify({ encryptedData }), // No token needed for reactivation
   });
-
+  
+  const result = await response.json();
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to reactivate share on the server.');
+    throw new Error(result.error || 'Failed to reactivate share on the server.');
+  }
+  
+  if (!result.updateToken) {
+    throw new Error('Server did not return a new update token on reactivation.');
   }
 
   console.log(`Successfully reactivated share for bill ${bill.id}`);
+  return { lastUpdatedAt: result.lastUpdatedAt, updateToken: result.updateToken };
 }

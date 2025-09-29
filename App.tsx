@@ -68,12 +68,13 @@ const App: React.FC = () => {
     
     // --- Wrapped updateBill to handle server sync ---
     const updateBill = useCallback(async (bill: Bill) => {
-        const updatedBill = await originalUpdateBill(bill); // Update local DB first
-        if (updatedBill.shareInfo?.shareId) {
-            // Fire-and-forget update to the server
-            syncSharedBillUpdate(updatedBill, settings).catch(e => {
+        const updatedBillFromDB = await originalUpdateBill(bill);
+        if (updatedBillFromDB.shareInfo?.shareId) {
+            // Fire-and-forget update, passing the DB update function as a callback
+            // for the server to use if it needs to migrate the bill with a new token.
+            syncSharedBillUpdate(updatedBillFromDB, settings, originalUpdateBill).catch(e => {
                 console.error("Failed to sync shared bill update:", e);
-                showNotification("Failed to sync bill update to server", 'error');
+                showNotification(e.message || "Failed to sync bill update to server", 'error');
             });
         }
     }, [originalUpdateBill, settings, showNotification]);
@@ -235,8 +236,13 @@ const App: React.FC = () => {
             return;
         }
         try {
-            await reactivateShare(billToReshare, settings);
-            await updateBill({ ...billToReshare, shareStatus: 'live' });
+            const { lastUpdatedAt, updateToken } = await reactivateShare(billToReshare, settings);
+            await updateBill({ 
+                ...billToReshare, 
+                shareStatus: 'live',
+                lastUpdatedAt,
+                shareInfo: { ...billToReshare.shareInfo!, updateToken }
+            });
             showNotification("Bill has been reshared successfully!");
         } catch (e: any) {
             showNotification(e.message || "Failed to reshare the bill.", 'error');

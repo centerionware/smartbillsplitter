@@ -12,33 +12,60 @@ const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
  * @param encryptedData The encrypted data payload.
  * @param kv The KeyValueStore instance to use.
  * @param shareId Optional ID for creating/updating a specific share. If not provided, a new UUID is generated.
- * @returns An object with the share ID and last update timestamp.
+ * @param updateToken An optional token required to update an existing share.
+ * @returns An object with the share ID, last update timestamp, and the updateToken (for new or migrated shares).
  */
-async function createOrUpdateShare(encryptedData: string, kv: KeyValueStore, shareId?: string): Promise<{ shareId: string; lastUpdatedAt: number }> {
+async function createOrUpdateShare(
+    encryptedData: string, 
+    kv: KeyValueStore, 
+    shareId?: string,
+    updateToken?: string
+): Promise<{ shareId: string; lastUpdatedAt: number; updateToken?: string }> {
     if (!encryptedData || typeof encryptedData !== 'string') {
         throw new Error("Invalid payload. 'encryptedData' string is required.");
     }
     const now = Date.now();
-    
-    const newSessionPayload = {
-        encryptedData,
-        lastUpdatedAt: now,
-    };
 
-    try {
-        const idToUse = shareId || randomUUID();
-        const key = `share:${idToUse}`;
-        await kv.set(key, JSON.stringify(newSessionPayload), { EX: EXPIRATION_SECONDS });
+    if (shareId) { // This is an UPDATE or RECREATE
+        const key = `share:${shareId}`;
+        const existingSessionJson = await kv.get(key);
 
-        if (shareId) {
-            console.log(`Upserted shared bill ${shareId}.`);
-        } else {
-            console.log(`Created new shared bill ${idToUse}.`);
+        if (existingSessionJson) { // It's a standard UPDATE
+            const storedPayload = JSON.parse(existingSessionJson);
+            
+            if (storedPayload.updateToken) { // Modern record, requires token validation
+                if (!updateToken || storedPayload.updateToken !== updateToken) {
+                    throw new Error("Forbidden: Invalid update token provided.");
+                }
+                const newPayload = { ...storedPayload, encryptedData, lastUpdatedAt: now };
+                await kv.set(key, JSON.stringify(newPayload), { EX: EXPIRATION_SECONDS });
+                return { shareId, lastUpdatedAt: now };
+
+            } else { // Legacy record, perform migration
+                const newUpdateToken = randomUUID();
+                const newPayload = { ...storedPayload, encryptedData, lastUpdatedAt: now, updateToken: newUpdateToken };
+                await kv.set(key, JSON.stringify(newPayload), { EX: EXPIRATION_SECONDS });
+                // Return the NEW token so the client can save it
+                return { shareId, lastUpdatedAt: now, updateToken: newUpdateToken };
+            }
+        } else { // It's a RECREATE (e.g., from an expired link)
+            const newUpdateToken = randomUUID();
+            const payload = { encryptedData, lastUpdatedAt: now, updateToken: newUpdateToken };
+            await kv.set(key, JSON.stringify(payload), { EX: EXPIRATION_SECONDS });
+            // Return the NEW token
+            return { shareId, lastUpdatedAt: now, updateToken: newUpdateToken };
         }
-        return { shareId: idToUse, lastUpdatedAt: now };
-    } catch (e: any) {
-        console.error('KV error during share operation:', e);
-        throw new Error("A database error occurred during the share operation.");
+    } else { // This is a CREATE
+        const newShareId = randomUUID();
+        const newUpdateToken = randomUUID();
+        const key = `share:${newShareId}`;
+        const newSessionPayload = {
+            encryptedData,
+            lastUpdatedAt: now,
+            updateToken: newUpdateToken
+        };
+        await kv.set(key, JSON.stringify(newSessionPayload), { EX: EXPIRATION_SECONDS });
+        return { shareId: newShareId, lastUpdatedAt: now, updateToken: newUpdateToken };
     }
 }
 
@@ -153,8 +180,8 @@ export const shareHandler = async (req: HttpRequest, context: { kv: KeyValueStor
       
     if (req.method === "POST") {
       const { shareId } = req.params;
-      const { encryptedData } = req.body;
-      const result = await createOrUpdateShare(encryptedData, context.kv, shareId);
+      const { encryptedData, updateToken } = req.body;
+      const result = await createOrUpdateShare(encryptedData, context.kv, shareId, updateToken);
       const statusCode = shareId ? 200 : 201; // OK for update, Created for new
       return {
         statusCode: statusCode,
@@ -205,6 +232,8 @@ export const shareHandler = async (req: HttpRequest, context: { kv: KeyValueStor
         statusCode = 404;
     } else if (error.message.includes("Invalid payload") || error.message.includes("Missing 'shareId'")) {
         statusCode = 400;
+    } else if (error.message.includes("Forbidden")) {
+        statusCode = 403;
     }
     
     return {

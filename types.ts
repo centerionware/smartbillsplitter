@@ -1,4 +1,5 @@
 
+
 export interface Participant {
   id: string;
   name: string;
@@ -23,6 +24,7 @@ export interface ShareInfo {
   shareId: string;
   encryptionKey: JsonWebKey;
   signingPublicKey: JsonWebKey;
+  updateToken?: string;
 }
 
 export interface ParticipantShareInfo {
