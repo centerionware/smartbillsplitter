@@ -341,3 +341,42 @@ export const importData = async (data: any): Promise<void> => {
 
     await txPromise;
 };
+
+// --- DB Explorer Function ---
+/**
+ * Retrieves all records from all object stores in the database.
+ * Intended for debugging and inspection purposes.
+ * @returns A promise resolving to an object where keys are store names
+ * and values are arrays of records from that store.
+ */
+export const getAllStoreData = async (): Promise<Record<string, any[]>> => {
+    const db = getDB();
+    const storeNames = Array.from(db.objectStoreNames);
+    const data: Record<string, any[]> = {};
+
+    if (storeNames.length === 0) {
+        return data;
+    }
+
+    const tx = db.transaction(storeNames, 'readonly');
+    const promises = storeNames.map(name => {
+        return new Promise<void>((resolve, reject) => {
+            try {
+                const store = tx.objectStore(name);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    data[name] = request.result;
+                    resolve();
+                };
+                request.onerror = () => {
+                    reject(request.error);
+                };
+            } catch (e) {
+                reject(e);
+            }
+        });
+    });
+
+    await Promise.all(promises);
+    return data;
+};

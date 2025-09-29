@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { getAllStoreData, getCommunicationKeyPair } from '../services/db';
+import { verify } from '../services/cryptoService';
 
 // --- Types ---
 type LogLevel = 'log' | 'warn' | 'error' | 'info' | 'debug';
-type ConsoleMode = 'console' | 'network';
+type ConsoleMode = 'console' | 'network' | 'broadcast' | 'database';
 type DetailView = 'requestHeaders' | 'responseHeaders' | 'requestBody' | 'responseBody';
 
 interface LogEntry {
@@ -24,6 +26,13 @@ interface NetworkLogEntry {
   responseHeaders: Record<string, string>;
   responseBody: any;
 }
+
+interface SignedBroadcastLogEntry {
+  id: number;
+  timestamp: string;
+  data: any; // The raw event.data
+}
+
 
 // --- Utility Functions ---
 const getCircularReplacer = () => {
@@ -104,6 +113,8 @@ const DebugHeader: React.FC<{
         <div className="flex items-center space-x-1 bg-slate-700 p-1 rounded-lg">
             <button onClick={() => setMode('console')} className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors ${mode === 'console' ? 'bg-slate-800 shadow text-teal-400' : 'text-slate-300'}`}>Console</button>
             <button onClick={() => setMode('network')} className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors ${mode === 'network' ? 'bg-slate-800 shadow text-teal-400' : 'text-slate-300'}`}>Network</button>
+            <button onClick={() => setMode('broadcast')} className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors ${mode === 'broadcast' ? 'bg-slate-800 shadow text-teal-400' : 'text-slate-300'}`}>Broadcast</button>
+            <button onClick={() => setMode('database')} className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors ${mode === 'database' ? 'bg-slate-800 shadow text-teal-400' : 'text-slate-300'}`}>Database</button>
         </div>
         <div className="flex items-center gap-4">
             <button onClick={onClear} title="Clear" className="hover:text-teal-400 p-1">
@@ -158,7 +169,7 @@ const ObjectNode: React.FC<{ data: any; name: string; path: string }> = memo(({ 
     const renderValue = () => {
         if (isExpandable) return null; // Value is shown by expanding
         if (typeof data === 'string' && data.length > 200) return `"${data.substring(0, 200)}..."`;
-        return JSON.stringify(data);
+        return JSON.stringify(data, getCircularReplacer(), 2);
     };
 
     return (
@@ -174,7 +185,7 @@ const ObjectNode: React.FC<{ data: any; name: string; path: string }> = memo(({ 
                 {!isExpandable && <button onClick={() => setIsValueVisible(!isValueVisible)} className="text-cyan-400 text-xs">[view]</button>}
             </div>
             {isValueVisible && !isExpandable && (
-                <pre className="text-amber-300 ml-6 bg-slate-800 p-1 rounded-md text-xs">{renderValue()}</pre>
+                <pre className="text-amber-300 ml-6 bg-slate-800 p-1 rounded-md text-xs whitespace-pre-wrap break-all">{renderValue()}</pre>
             )}
             {isExpanded && isExpandable && (
                 <div>
@@ -202,10 +213,188 @@ const ObjectExplorer: React.FC<{ data: any; onClose: () => void }> = ({ data, on
     </div>
 );
 
+const NetworkDetailView: React.FC<{ 
+    log: NetworkLogEntry, 
+    onBack: () => void,
+    onExploreObject: (obj: any) => void
+}> = ({ log, onBack, onExploreObject }) => {
+    const [detailView, setDetailView] = useState<DetailView>('responseBody');
+
+    const renderBody = (body: any) => {
+        if (body === null || body === undefined) return <span className="text-slate-500">Empty</span>;
+        if (typeof body === 'string' && body.startsWith('[')) {
+             try {
+                const parsed = JSON.parse(body);
+                return <ObjectNode data={parsed} name="(root)" path="root" />;
+            } catch (e) {
+                return <pre className="whitespace-pre-wrap break-all">{body}</pre>;
+            }
+        }
+        if (typeof body === 'object') {
+            return <ObjectNode data={body} name="(root)" path="root" />;
+        }
+        return <pre className="whitespace-pre-wrap break-all">{String(body)}</pre>;
+    };
+    
+    const renderHeaders = (headers: Record<string, string>) => {
+        if (Object.keys(headers).length === 0) return <span className="text-slate-500">No Headers</span>;
+        return (
+            <div className="space-y-1">
+                {Object.entries(headers).map(([key, value]) => (
+                    <div key={key} className="flex">
+                        <span className="text-purple-400 w-48 flex-shrink-0">{key}:</span>
+                        <span className="text-slate-300 break-all">{value}</span>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const tabClasses = (tab: DetailView) => 
+        `px-3 py-1 text-xs font-semibold rounded-md transition-colors ${detailView === tab ? 'bg-slate-800 shadow text-teal-400' : 'text-slate-300'}`;
+
+    return (
+        <div className="p-2">
+            <button onClick={onBack} className="flex items-center gap-2 mb-4 text-teal-400 font-semibold">
+                &larr; Back to Network List
+            </button>
+            <div className="p-2 bg-slate-800 rounded-lg">
+                <p className="font-bold break-all">{log.method} {log.url}</p>
+                <p className={`font-bold ${log.ok ? 'text-emerald-400' : 'text-red-400'}`}>Status: {log.status}</p>
+            </div>
+
+            <div className="my-4 flex items-center space-x-1 bg-slate-700 p-1 rounded-lg self-start">
+                <button onClick={() => setDetailView('responseBody')} className={tabClasses('responseBody')}>Response Body</button>
+                <button onClick={() => setDetailView('requestBody')} className={tabClasses('requestBody')}>Request Body</button>
+                <button onClick={() => setDetailView('responseHeaders')} className={tabClasses('responseHeaders')}>Response Headers</button>
+                <button onClick={() => setDetailView('requestHeaders')} className={tabClasses('requestHeaders')}>Request Headers</button>
+            </div>
+            
+            <div className="p-2 bg-slate-800/50 rounded-lg overflow-x-auto">
+                {detailView === 'responseBody' && renderBody(log.responseBody)}
+                {detailView === 'requestBody' && renderBody(log.requestBody)}
+                {detailView === 'responseHeaders' && renderHeaders(log.responseHeaders)}
+                {detailView === 'requestHeaders' && renderHeaders(log.requestHeaders)}
+            </div>
+        </div>
+    );
+};
+
+const BroadcastLogEntry: React.FC<{ log: SignedBroadcastLogEntry }> = ({ log }) => {
+    const [verificationResult, setVerificationResult] = useState<any>('Verifying...');
+
+    useEffect(() => {
+        const verifyLog = async () => {
+            const signedMessage = log.data;
+            if (!signedMessage || typeof signedMessage.payload !== 'object' || typeof signedMessage.signature !== 'string') {
+                setVerificationResult({ error: "Malformed or unsigned message." });
+                return;
+            }
+            try {
+                const keyPair = await getCommunicationKeyPair();
+                if (!keyPair?.publicKey) {
+                    setVerificationResult({ error: "Public key not found." });
+                    return;
+                }
+                const payloadString = JSON.stringify(signedMessage.payload);
+                const isVerified = await verify(payloadString, signedMessage.signature, keyPair.publicKey);
+                if (isVerified) {
+                    setVerificationResult(signedMessage.payload);
+                } else {
+                    setVerificationResult({ error: "INVALID SIGNATURE" });
+                }
+            } catch (e: any) {
+                setVerificationResult({ error: e.message });
+            }
+        };
+        verifyLog();
+    }, [log]);
+
+    return (
+        <div className="grid md:grid-cols-2 gap-4 border-t border-slate-700 py-2">
+            <div>
+                <h4 className="font-bold text-slate-400 mb-2">Raw Signed Message</h4>
+                <div className="bg-slate-800 p-2 rounded-md"><ObjectNode data={log.data} name="(root)" path={`raw-${log.id}`} /></div>
+            </div>
+            <div>
+                <h4 className="font-bold text-slate-400 mb-2">Verification Result</h4>
+                <div className="bg-slate-800 p-2 rounded-md"><ObjectNode data={verificationResult} name="(root)" path={`verified-${log.id}`} /></div>
+            </div>
+        </div>
+    );
+};
+
+const BroadcastView: React.FC<{ logs: SignedBroadcastLogEntry[] }> = ({ logs }) => (
+    <div className="space-y-2">
+        {logs.map(log => (
+             <div key={log.id} className="flex gap-3 items-start">
+                <span className="text-slate-500 flex-shrink-0">{log.timestamp}</span>
+                <div className="flex-grow"><BroadcastLogEntry log={log} /></div>
+            </div>
+        ))}
+    </div>
+);
+
+const DatabaseView: React.FC<{ onExploreObject: (obj: any) => void }> = ({ onExploreObject }) => {
+    const [dbData, setDbData] = useState<Record<string, any[]> | null>(null);
+    const [selectedStore, setSelectedStore] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadDb = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const data = await getAllStoreData();
+            setDbData(data);
+            if (!selectedStore && data && Object.keys(data).length > 0) {
+                setSelectedStore(Object.keys(data)[0]);
+            } else if (selectedStore && !data[selectedStore]) {
+                 setSelectedStore(Object.keys(data)[0] || null);
+            }
+        } catch (e: any) {
+            setError(e.message || 'Failed to load database.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [selectedStore]);
+
+    useEffect(() => {
+        loadDb();
+    }, []); // Load once on mount
+
+    return (
+        <div className="flex h-full">
+            <div className="w-1/3 border-r border-slate-700 p-2 overflow-y-auto">
+                <button onClick={loadDb} disabled={isLoading} className="w-full mb-2 p-2 bg-slate-700 hover:bg-slate-600 rounded-md">
+                    {isLoading ? 'Refreshing...' : 'Refresh DB'}
+                </button>
+                {error && <p className="text-red-400 text-xs">{error}</p>}
+                {dbData && Object.keys(dbData).map(storeName => (
+                    <button 
+                        key={storeName} 
+                        onClick={() => setSelectedStore(storeName)}
+                        className={`w-full text-left p-2 rounded-md ${selectedStore === storeName ? 'bg-teal-800/50' : 'hover:bg-slate-700'}`}
+                    >
+                        {storeName} ({dbData[storeName].length})
+                    </button>
+                ))}
+            </div>
+            <div className="w-2/3 p-2 overflow-y-auto">
+                {selectedStore && dbData && dbData[selectedStore] ? (
+                     <ObjectNode data={dbData[selectedStore]} name={selectedStore} path={selectedStore} />
+                ) : (
+                    <p className="text-slate-500">Select a store to view its contents.</p>
+                )}
+            </div>
+        </div>
+    );
+};
 
 const DebugConsole: React.FC = () => {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [networkLogs, setNetworkLogs] = useState<NetworkLogEntry[]>([]);
+    const [broadcastLogs, setBroadcastLogs] = useState<SignedBroadcastLogEntry[]>([]);
     const [mode, setMode] = useState<ConsoleMode>('console');
     const [isExpanded, setIsExpanded] = useState(false);
     const [selectedLog, setSelectedLog] = useState<NetworkLogEntry | null>(null);
@@ -219,23 +408,23 @@ const DebugConsole: React.FC = () => {
         const captureLog = (level: LogLevel) => (...args: any[]) => {
             originalConsole[level](...args);
             const now = new Date();
-            setLogs(prev => [...prev, { id: Date.now() + Math.random(), level, timestamp: now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }), args }]);
+            setLogs(prev => [...prev, { id: Date.now() + Math.random(), level, timestamp: now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }), args: [...args] }]);
         };
         
-        window.fetch = async (...args: [RequestInfo | URL, RequestInit?]) => {
-            // FIX: Correctly construct the Request object. The original code used a spread operator on `args[0]`, which is not iterable.
-            const request = new Request(args[0], args[1]);
+       window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+            const request = new Request(input, init);
             const now = new Date();
             let requestBody: any = null;
-            try {
-                if (request.method !== 'GET' && request.method !== 'HEAD') {
-                    requestBody = await request.clone().json();
-                }
-            } catch {
+            if (request.method !== 'GET' && request.method !== 'HEAD') {
                 try {
-                    requestBody = await request.clone().text();
+                    const clonedRequest = request.clone();
+                    try {
+                        requestBody = await clonedRequest.json();
+                    } catch {
+                        requestBody = await clonedRequest.text();
+                    }
                 } catch {
-                    requestBody = '[Could not read body]';
+                    requestBody = '[Body already read or could not be cloned]';
                 }
             }
             const requestHeaders: Record<string, string> = {};
@@ -256,22 +445,41 @@ const DebugConsole: React.FC = () => {
                 let responseBody: any = null;
                 const responseHeaders: Record<string, string> = {};
                 response.headers.forEach((value, key) => { responseHeaders[key] = value; });
+                
                 try {
-                    responseBody = await response.clone().json();
-                } catch {
-                    try {
-                        responseBody = await response.clone().text();
-                    } catch {
-                        responseBody = '[Could not read response body]';
+                    const clonedResponse = response.clone();
+                    const text = await clonedResponse.text();
+                    if (text) {
+                        try {
+                            responseBody = JSON.parse(text);
+                        } catch {
+                            responseBody = text;
+                        }
+                    } else {
+                        responseBody = '[Empty Response Body]';
                     }
+                } catch (e: any) {
+                    responseBody = `[Could not read response body: ${e.message}]`;
                 }
+
                 setNetworkLogs(prev => prev.map(log => log.id === logEntry.id ? { ...log, status: response.status, ok: response.ok, responseHeaders, responseBody } : log));
                 return response;
             } catch (error) {
-                setNetworkLogs(prev => prev.map(log => log.id === logEntry.id ? { ...log, status: 0, ok: false } : log));
+                setNetworkLogs(prev => prev.map(log => log.id === logEntry.id ? { ...log, status: 0, ok: false, responseBody: String(error) } : log));
                 throw error;
             }
         };
+
+        const captureChannel = new BroadcastChannel('smart-bill-splitter-sync');
+        const handleRawMessage = (event: MessageEvent<any>) => {
+            const now = new Date();
+            setBroadcastLogs(prev => [...prev, {
+                id: Date.now() + Math.random(),
+                timestamp: now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                data: event.data
+            }]);
+        };
+        captureChannel.addEventListener('message', handleRawMessage);
 
         console.log = captureLog('log');
         console.warn = captureLog('warn');
@@ -282,32 +490,60 @@ const DebugConsole: React.FC = () => {
         return () => {
             Object.assign(console, originalConsole);
             window.fetch = originalFetch;
+            captureChannel.removeEventListener('message', handleRawMessage);
+            captureChannel.close();
         };
     }, []);
     
     useEffect(() => {
         if (logContainerRef.current) logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }, [logs, networkLogs, mode]);
+    }, [logs, networkLogs, broadcastLogs, mode, selectedLog]);
     
+    const handleClear = () => {
+        switch (mode) {
+            case 'console': setLogs([]); break;
+            case 'network': setNetworkLogs([]); setSelectedLog(null); break;
+            case 'broadcast': setBroadcastLogs([]); break;
+            case 'database': /* DB view has its own refresh */ break;
+        }
+    };
+
+    const renderCurrentView = () => {
+        switch (mode) {
+            case 'console': return <ConsoleView logs={logs} onExploreObject={setExploringObject} />;
+            case 'network': return selectedLog ? (
+                 <NetworkDetailView 
+                    log={selectedLog} 
+                    onBack={() => setSelectedLog(null)}
+                    onExploreObject={setExploringObject} 
+                />
+            ) : (
+                <NetworkView networkLogs={networkLogs} onSelectLog={setSelectedLog} />
+            );
+            case 'broadcast': return <BroadcastView logs={broadcastLogs} />;
+            case 'database': return <DatabaseView onExploreObject={setExploringObject} />;
+            default: return null;
+        }
+    };
+
     return (
         <div 
             className={`fixed bottom-0 left-0 right-0 bg-slate-900/90 dark:bg-black/90 backdrop-blur-sm text-white font-mono text-sm z-[100] transition-all duration-300 ease-in-out`}
-            style={{ height: isExpanded ? '50vh' : '10vh' }}
+            style={{ height: isExpanded ? '80vh' : '10vh' }}
         >
             <div className="flex flex-col h-full">
                 <DebugHeader
                     mode={mode}
-                    setMode={setMode}
-                    onClear={() => mode === 'console' ? setLogs([]) : setNetworkLogs([])}
+                    setMode={(newMode) => {
+                        setMode(newMode);
+                        setSelectedLog(null);
+                    }}
+                    onClear={handleClear}
                     isExpanded={isExpanded}
                     onToggleExpand={() => setIsExpanded(!isExpanded)}
                 />
-                <div ref={logContainerRef} className="flex-grow p-2 overflow-y-auto">
-                    {mode === 'console' ? (
-                        <ConsoleView logs={logs} onExploreObject={setExploringObject} />
-                    ) : (
-                        <NetworkView networkLogs={networkLogs} onSelectLog={setSelectedLog} />
-                    )}
+                <div ref={logContainerRef} className="flex-grow p-2 overflow-auto">
+                   {renderCurrentView()}
                 </div>
             </div>
             {exploringObject && <ObjectExplorer data={exploringObject} onClose={() => setExploringObject(null)} />}
