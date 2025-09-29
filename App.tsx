@@ -11,6 +11,7 @@ import { useTheme } from './hooks/useTheme';
 import { useAuth } from './hooks/useAuth';
 import { useAppControl } from './contexts/AppControlContext';
 import { syncSharedBillUpdate, pollImportedBills, pollOwnedSharedBills, reactivateShare } from './services/shareService';
+import { getDiscoveredApiBaseUrl } from './services/api.ts';
 
 // Components
 import Header from './components/Header.tsx';
@@ -30,6 +31,7 @@ import SettingsModal from './components/SettingsModal.tsx';
 import CsvImporterModal from './components/CsvImporterModal.tsx';
 import QrImporterModal from './components/QrImporterModal.tsx';
 import ManageSubscriptionPage from './components/ManageSubscriptionPage.tsx';
+import DebugConsole from './components/DebugConsole.tsx';
 
 const App: React.FC = () => {
     // --- State Management ---
@@ -47,6 +49,7 @@ const App: React.FC = () => {
     const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
     const [isCsvImporterOpen, setIsCsvImporterOpen] = useState(false);
     const [isQrImporterOpen, setIsQrImporterOpen] = useState(false);
+    const [showDebugConsole, setShowDebugConsole] = useState(false);
 
     // --- Dashboard Specific State ---
     const [dashboardView, setDashboardView] = useState<DashboardView>('bills');
@@ -74,6 +77,30 @@ const App: React.FC = () => {
             });
         }
     }, [originalUpdateBill, settings, showNotification]);
+
+    // Effect to check for dev environment and show debug console
+    useEffect(() => {
+        const apiBaseUrl = getDiscoveredApiBaseUrl();
+        let isDevEnv = false;
+
+        if (apiBaseUrl === '') {
+            isDevEnv = true;
+        } else if (apiBaseUrl) {
+            try {
+                const apiUrlOrigin = new URL(apiBaseUrl).origin;
+                if (apiUrlOrigin === window.location.origin) {
+                    isDevEnv = true;
+                }
+            } catch (e) {
+                console.error("Could not parse discovered API URL for debug check:", apiBaseUrl, e);
+            }
+        }
+        
+        if (isDevEnv) {
+            console.log("Dev environment detected, showing debug console.");
+            setShowDebugConsole(true);
+        }
+    }, []);
     
     // Effect for polling imported bills for updates
     useEffect(() => {
@@ -321,6 +348,7 @@ const App: React.FC = () => {
             {settingsSection && <SettingsModal activeSection={settingsSection} onClose={() => setSettingsSection(null)} settings={settings} updateSettings={updateSettings} requestConfirmation={requestConfirmation} onNavigate={navigate} theme={theme} setTheme={setTheme} onOpenCsvImporter={() => { setSettingsSection(null); setIsCsvImporterOpen(true); }} onOpenQrImporter={() => { setSettingsSection(null); setIsQrImporterOpen(true); }} bills={bills} importedBills={importedBills} />}
             {isCsvImporterOpen && <CsvImporterModal onClose={() => setIsCsvImporterOpen(false)} onMergeBills={mergeBills} onMergeImportedBills={mergeImportedBills} settings={settings} />}
             {isQrImporterOpen && <QrImporterModal onClose={() => setIsQrImporterOpen(false)} onScanSuccess={(url) => { window.location.href = url; setIsQrImporterOpen(false); }} />}
+            {showDebugConsole && <DebugConsole />}
         </div>
     );
 };

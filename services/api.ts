@@ -101,6 +101,12 @@ export const initializeApi = async (): Promise<void> => {
 };
 
 /**
+ * Returns the discovered API base URL after initialization.
+ * @returns The base URL string, an empty string for relative paths, or null if not yet initialized.
+ */
+export const getDiscoveredApiBaseUrl = (): string | null => API_BASE_URL;
+
+/**
  * Constructs a full URL for an API endpoint using the discovered base URL.
  * Throws a warning if called before `initializeApi` has completed.
  * @param path The API endpoint path (e.g., '/scan-receipt').
