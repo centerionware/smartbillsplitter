@@ -123,6 +123,7 @@ export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<Ui
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
+  // FIX: The Uint8Array view is a valid BufferSource. Passing it directly resolves the type error.
   const decryptedContent = await crypto.subtle.decrypt(
     { name: SYMMETRIC_ALGORITHM, iv },
     key,
@@ -181,7 +182,7 @@ export const verify = async (data: string, signature: string, publicKey: CryptoK
   const encodedData = new TextEncoder().encode(data);
   // Decode the signature using the robust helper
   const signatureBytes = decodeBase64(signature);
-  // FIX: Pass the underlying ArrayBuffer to satisfy the BufferSource type requirement.
-  // This resolves a TypeScript error where the inferred type of the Uint8Array was not assignable.
-  return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes.buffer, encodedData.buffer);
+  // FIX: Pass the Uint8Array views directly. They are valid BufferSource types and this avoids potential issues with
+  // incorrect buffer slicing or confusing TypeScript type inference on the `.buffer` property.
+  return crypto.subtle.verify(SIGNING_ALGORITHM, publicKey, signatureBytes, encodedData);
 };
