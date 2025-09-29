@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -22,6 +23,14 @@ export default defineConfig(({ mode }) => {
       'process.env.VITE_PAYMENT_PROVIDER': JSON.stringify(env.VITE_PAYMENT_PROVIDER),
     },
     build: {
+      // Configure multi-page app inputs
+      rollupOptions: {
+        input: {
+          // FIX: Replaced `__dirname` which is not available in ESM Vite configs.
+          main: resolve('.', 'index.html'),
+          ad_verification: resolve('.', 'ad_verification.html'),
+        },
+      },
       // Generate source maps for easier debugging in production.
       sourcemap: true,
     }

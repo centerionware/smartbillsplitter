@@ -26,7 +26,6 @@ import { ViewSharedBill } from './components/ViewSharedBill.tsx';
 import RecurringBillsList from './components/RecurringBillsList.tsx';
 import ConfirmationDialog from './components/ConfirmationDialog.tsx';
 import PwaInstallBanner from './components/PwaInstallBanner.tsx';
-import FloatingAd from './components/FloatingAd.tsx';
 import SettingsModal from './components/SettingsModal.tsx';
 import CsvImporterModal from './components/CsvImporterModal.tsx';
 import QrImporterModal from './components/QrImporterModal.tsx';
@@ -349,7 +348,6 @@ const App: React.FC = () => {
             <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
                 {renderView()}
             </main>
-            {subscriptionStatus === 'free' && view === View.Dashboard && <FloatingAd />}
             {confirmation && <ConfirmationDialog isOpen={true} title={confirmation.title} message={confirmation.message} onConfirm={() => { confirmation.onConfirm(); setConfirmation(null); }} onCancel={() => { if(confirmation.options?.onCancel) confirmation.options.onCancel(); setConfirmation(null); }} {...confirmation.options} />}
             {settingsSection && <SettingsModal activeSection={settingsSection} onClose={() => setSettingsSection(null)} settings={settings} updateSettings={updateSettings} requestConfirmation={requestConfirmation} onNavigate={navigate} theme={theme} setTheme={setTheme} onOpenCsvImporter={() => { setSettingsSection(null); setIsCsvImporterOpen(true); }} onOpenQrImporter={() => { setSettingsSection(null); setIsQrImporterOpen(true); }} bills={bills} importedBills={importedBills} />}
             {isCsvImporterOpen && <CsvImporterModal onClose={() => setIsCsvImporterOpen(false)} onMergeBills={mergeBills} onMergeImportedBills={mergeImportedBills} settings={settings} />}
