@@ -1,5 +1,8 @@
 
 
+
+
+
 import React, { ErrorInfo, ReactNode } from 'react';
 
 interface Props {
@@ -14,7 +17,7 @@ interface State {
 // FIX: Changed to a named export to resolve module resolution issues.
 export class ErrorBoundary extends React.Component<Props, State> {
   // FIX: Refactored state initialization to use a constructor to be more explicit and robust, resolving potential `this` context issues.
-  constructor(props: Props) {
+  public constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
   }

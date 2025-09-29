@@ -1,4 +1,4 @@
-import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload, ConstituentShareInfo } from '../types.ts';
+import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload, ConstituentShareInfo, ImportedBill } from '../types.ts';
 import type { SubscriptionStatus } from '../hooks/useAuth.ts';
 import * as cryptoService from './cryptoService.ts';
 import { getBillSigningKey, saveBillSigningKey, deleteBillSigningKeyDB } from './db.ts';
@@ -427,3 +427,173 @@ export const recreateShareSession = async (
     
     return updatedBill;
 };
+
+/**
+ * Pushes an update for an already-shared bill to the server.
+ * @param bill The updated bill object.
+ * @param settings The current app settings.
+ */
+export async function syncSharedBillUpdate(bill: Bill, settings: Settings): Promise<void> {
+  if (!bill.shareInfo?.shareId) {
+    console.warn("Attempted to sync a bill without a shareId.", bill.id);
+    return;
+  }
+
+  const keyRecord = await getBillSigningKey(bill.id);
+  if (!keyRecord || !keyRecord.privateKey) {
+    throw new Error(`Could not find signing key for shared bill ${bill.id}. Cannot sync update.`);
+  }
+
+  const billEncryptionKey = await cryptoService.importEncryptionKey(bill.shareInfo.encryptionKey);
+  const signingPublicKeyJwk = bill.shareInfo.signingPublicKey;
+  const encryptedData = await encryptAndSignPayload(bill, settings, keyRecord.privateKey, signingPublicKeyJwk, billEncryptionKey);
+  
+  const response = await fetchWithRetry(getApiUrl(`/share/${bill.shareInfo.shareId}`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ encryptedData }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to sync bill update to the server.');
+  }
+
+  console.log(`Successfully synced update for bill ${bill.id}`);
+}
+
+/**
+ * Polls the server for updates on a list of imported bills.
+ * @param bills An array of imported bills to check.
+ * @returns A promise that resolves to an array of bill objects that need to be updated locally.
+ */
+export async function pollImportedBills(bills: ImportedBill[]): Promise<ImportedBill[]> {
+    const billsNeedingUpdate: ImportedBill[] = [];
+
+    const pollPromises = bills.map(async (bill) => {
+        let newLiveStatus: ImportedBill['liveStatus'] = bill.liveStatus || 'live';
+        let billToUpdate: ImportedBill | null = null;
+
+        try {
+            const response = await fetchWithRetry(getApiUrl(`/share/${bill.shareId}?lastUpdatedAt=${bill.lastUpdatedAt}`), { signal: AbortSignal.timeout(15000) });
+
+            if (response.status === 200) {
+                const sharePayload = await response.json();
+                const { encryptedData, lastUpdatedAt: serverTimestamp } = sharePayload;
+                const symmetricKey = await cryptoService.importEncryptionKey(bill.shareEncryptionKey);
+                const decryptedJson = await cryptoService.decrypt(encryptedData, symmetricKey);
+                const data: SharedBillPayload = JSON.parse(decryptedJson);
+
+                const publicKey = await cryptoService.importPublicKey(data.publicKey);
+                const isVerified = await cryptoService.verify(JSON.stringify(data.bill), data.signature, publicKey);
+
+                if (!isVerified) throw new Error("Signature verification failed.");
+
+                billToUpdate = {
+                    ...bill,
+                    sharedData: { ...bill.sharedData, bill: data.bill },
+                    lastUpdatedAt: serverTimestamp,
+                    liveStatus: 'live',
+                };
+            } else if (response.status === 304) {
+                newLiveStatus = 'live';
+            } else if (response.status === 404) {
+                newLiveStatus = 'error';
+            } else {
+                newLiveStatus = 'stale';
+            }
+        } catch (error) {
+            console.error(`Polling failed for bill ${bill.id}:`, error);
+            newLiveStatus = 'stale';
+        }
+
+        if (billToUpdate) {
+            billsNeedingUpdate.push(billToUpdate);
+        } else if (bill.liveStatus !== newLiveStatus) {
+            billsNeedingUpdate.push({ ...bill, liveStatus: newLiveStatus });
+        }
+    });
+
+    await Promise.all(pollPromises);
+    return billsNeedingUpdate;
+}
+
+/**
+ * Polls the server to check the status of bills the user has shared.
+ * @param bills An array of the user's bills that have shareInfo.
+ * @returns A promise that resolves to an array of bill objects that need their status updated locally.
+ */
+export async function pollOwnedSharedBills(bills: Bill[]): Promise<Bill[]> {
+    const billsToUpdate: Bill[] = [];
+
+    const results = await Promise.allSettled(bills.map(async (bill) => {
+        if (!bill.shareInfo?.shareId) return null;
+
+        try {
+            const response = await fetchWithRetry(getApiUrl(`/share/${bill.shareInfo.shareId}`), {
+                method: 'GET',
+                signal: AbortSignal.timeout(15000)
+            });
+
+            if (response.status === 200 || response.status === 304) {
+                if (bill.shareStatus !== 'live') {
+                    return { ...bill, shareStatus: 'live' as const };
+                }
+            } else if (response.status === 404) {
+                if (bill.shareStatus !== 'expired') {
+                    return { ...bill, shareStatus: 'expired' as const };
+                }
+            } else {
+                if (bill.shareStatus !== 'error') {
+                     return { ...bill, shareStatus: 'error' as const };
+                }
+            }
+        } catch (error) {
+            console.error(`Polling failed for owned bill ${bill.id}:`, error);
+            if (bill.shareStatus !== 'error') {
+                 return { ...bill, shareStatus: 'error' as const };
+            }
+        }
+        return null;
+    }));
+
+    for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+            billsToUpdate.push(result.value);
+        }
+    }
+    return billsToUpdate;
+}
+
+/**
+ * Reactivates an expired share on the server by re-uploading the encrypted bill data.
+ * @param bill The bill with an expired share.
+ * @param settings The user's settings.
+ */
+export async function reactivateShare(bill: Bill, settings: Settings): Promise<void> {
+  if (!bill.shareInfo?.shareId) {
+    throw new Error("Cannot reactivate a bill that was never shared.");
+  }
+
+  const keyRecord = await getBillSigningKey(bill.id);
+  if (!keyRecord || !keyRecord.privateKey) {
+    throw new Error(`Could not find signing key for shared bill ${bill.id}. Cannot reactivate.`);
+  }
+
+  const billEncryptionKey = await cryptoService.importEncryptionKey(bill.shareInfo.encryptionKey);
+  const signingPublicKeyJwk = bill.shareInfo.signingPublicKey;
+  const encryptedData = await encryptAndSignPayload(bill, settings, keyRecord.privateKey, signingPublicKeyJwk, billEncryptionKey);
+  
+  const response = await fetchWithRetry(getApiUrl(`/share/${bill.shareInfo.shareId}`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ encryptedData }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to reactivate share on the server.');
+  }
+
+  console.log(`Successfully reactivated share for bill ${bill.id}`);
+}

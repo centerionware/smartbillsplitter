@@ -10,9 +10,39 @@ interface BillDetailsProps {
     onBack: () => void;
     settings: Settings;
     navigate: (view: View, params?: any) => void;
+    onReshareBill: () => void;
 }
 
-const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, settings, navigate }) => {
+const LiveIndicator: React.FC<{ status: Bill['shareStatus'], onClick?: (e: React.MouseEvent) => void }> = ({ status, onClick }) => {
+    if (!status || !['live', 'expired', 'error'].includes(status)) return null;
+
+    const config = {
+        live: { color: 'bg-emerald-500', title: 'Live: This bill is actively shared.' },
+        expired: { color: 'bg-red-500', title: 'Expired: Click to reactivate sharing.' },
+        error: { color: 'bg-amber-500', title: 'Error: Connection issue with share server.' },
+    }[status];
+    
+    if (!config) return null;
+
+    const indicator = (
+        <div className="flex-shrink-0" title={config.title}>
+            <span className={`block h-3 w-3 rounded-full ${config.color}`}></span>
+        </div>
+    );
+
+    if (status === 'expired' && onClick) {
+        return (
+            <button onClick={onClick} aria-label={config.title} className="p-1">
+                {indicator}
+            </button>
+        );
+    }
+
+    return indicator;
+};
+
+
+const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, settings, navigate, onReshareBill }) => {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -59,7 +89,10 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, s
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
                     <div className="flex justify-between items-start gap-4">
                         <div className="flex-grow">
-                            <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100 break-words">{bill.description}</h2>
+                            <div className="flex items-center gap-3">
+                                <LiveIndicator status={bill.shareStatus} onClick={onReshareBill} />
+                                <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100 break-words">{bill.description}</h2>
+                            </div>
                             <p className="text-slate-500 dark:text-slate-400 mt-1">{new Date(bill.date).toLocaleDateString()}</p>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-2">

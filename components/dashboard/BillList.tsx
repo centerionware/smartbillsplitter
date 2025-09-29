@@ -17,6 +17,7 @@ interface BillListProps {
   onArchiveBill: (billId: string) => void;
   onUnarchiveBill: (billId: string) => void;
   onDeleteBill: (billId: string) => void;
+  onReshareBill: (billId: string) => void;
   onSelectImportedBill: (bill: ImportedBill) => void;
   onUpdateImportedBill: (bill: ImportedBill) => void;
   onArchiveImportedBill: (billId: string) => void;
@@ -41,6 +42,7 @@ const BillList: React.FC<BillListProps> = ({
   onArchiveBill,
   onUnarchiveBill,
   onDeleteBill,
+  onReshareBill,
   onSelectImportedBill,
   onUpdateImportedBill,
   onArchiveImportedBill,
@@ -72,6 +74,7 @@ const BillList: React.FC<BillListProps> = ({
             onArchive={() => onArchiveBill(bill.id)}
             onUnarchive={() => onUnarchiveBill(bill.id)}
             onDelete={() => onDeleteBill(bill.id)}
+            onReshare={() => onReshareBill(bill.id)}
             onClick={() => onSelectBill(bill)}
             onConvertToTemplate={() => onConvertToTemplate(bill)}
             onExport={() => onExportOwnedBill(bill)}
@@ -84,7 +87,7 @@ const BillList: React.FC<BillListProps> = ({
       }
     });
     return renderedItems;
-  }, [filteredBills, visibleCount, subscriptionStatus, onArchiveBill, onUnarchiveBill, onDeleteBill, onSelectBill, archivingBillIds, onConvertToTemplate, onExportOwnedBill]);
+  }, [filteredBills, visibleCount, subscriptionStatus, onArchiveBill, onUnarchiveBill, onDeleteBill, onReshareBill, onSelectBill, archivingBillIds, onConvertToTemplate, onExportOwnedBill]);
 
   return (
     <>

@@ -10,6 +10,7 @@ import { useSettings } from './hooks/useSettings';
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './hooks/useAuth';
 import { useAppControl } from './contexts/AppControlContext';
+import { syncSharedBillUpdate, pollImportedBills, pollOwnedSharedBills, reactivateShare } from './services/shareService';
 
 // Components
 import Header from './components/Header.tsx';
@@ -55,13 +56,65 @@ const App: React.FC = () => {
 
     // --- Hooks ---
     const { settings, updateSettings, isLoading: isSettingsLoading } = useSettings();
-    const { bills, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills, isLoading: isBillsLoading } = useBills();
+    const { bills, addBill, updateBill: originalUpdateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills, isLoading: isBillsLoading } = useBills();
     const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, isLoading: isImportedLoading } = useImportedBills();
     const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: isRecurringLoading } = useRecurringBills();
     const { theme, setTheme } = useTheme();
     const { subscriptionStatus } = useAuth();
     const { showNotification } = useAppControl();
     
+    // --- Wrapped updateBill to handle server sync ---
+    const updateBill = useCallback(async (bill: Bill) => {
+        await originalUpdateBill(bill); // Update local DB first
+        if (bill.shareInfo?.shareId) {
+            // Fire-and-forget update to the server
+            syncSharedBillUpdate(bill, settings).catch(e => {
+                console.error("Failed to sync shared bill update:", e);
+                showNotification("Failed to sync bill update to server", 'error');
+            });
+        }
+    }, [originalUpdateBill, settings, showNotification]);
+    
+    // Effect for polling imported bills for updates
+    useEffect(() => {
+        const poll = async () => {
+            const activeImported = importedBills.filter(b => b.status === 'active');
+            if (activeImported.length === 0) return;
+
+            const billsToUpdate = await pollImportedBills(activeImported);
+
+            if (billsToUpdate.length > 0) {
+                for (const updatedBill of billsToUpdate) {
+                    await updateImportedBill(updatedBill);
+                }
+            }
+        };
+
+        const intervalId = setInterval(poll, 30 * 1000); // Poll every 30 seconds
+        poll(); // Also poll immediately on mount/dependency change
+
+        return () => clearInterval(intervalId);
+    }, [importedBills, updateImportedBill]);
+
+    // Effect for polling OWNED shared bills to check for expiration
+    useEffect(() => {
+        const poll = async () => {
+            const ownedShared = bills.filter(b => b.shareInfo?.shareId);
+            if (ownedShared.length === 0) return;
+            
+            const billsToUpdate = await pollOwnedSharedBills(ownedShared);
+            if (billsToUpdate.length > 0) {
+                console.log(`Polling found ${billsToUpdate.length} status changes for owned shared bills.`);
+                await updateMultipleBills(billsToUpdate);
+            }
+        };
+
+        const intervalId = setInterval(poll, 5 * 60 * 1000); // Poll every 5 minutes
+        poll(); // Poll on mount
+
+        return () => clearInterval(intervalId);
+    }, [bills, updateMultipleBills]);
+
     // --- Routing ---
     const navigate = (targetView: View, params: any = {}) => {
         setView(targetView);
@@ -147,6 +200,21 @@ const App: React.FC = () => {
             showNotification('Template deleted.');
         }, { confirmText: 'Delete', confirmVariant: 'danger' });
     };
+
+    const handleReshareBill = async (billId: string) => {
+        const billToReshare = bills.find(b => b.id === billId);
+        if (!billToReshare) {
+            showNotification("Could not find the bill to reshare.", 'error');
+            return;
+        }
+        try {
+            await reactivateShare(billToReshare, settings);
+            await updateBill({ ...billToReshare, shareStatus: 'live' });
+            showNotification("Bill has been reshared successfully!");
+        } catch (e: any) {
+            showNotification(e.message || "Failed to reshare the bill.", 'error');
+        }
+    };
     
     const createFromTemplate = (template: RecurringBill) => {
         const { id, status, nextDueDate, ...billData } = template;
@@ -190,7 +258,7 @@ const App: React.FC = () => {
             case View.CreateBill:
                 return <CreateBill onSaveBill={handleSaveBill} onSaveRecurringBill={handleSaveRecurringBill} onUpdateRecurringBill={handleUpdateRecurringBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} recurringBillToEdit={recurringBillToEdit} fromTemplate={fromTemplate} billConversionSource={billConversionSource} />;
             case View.BillDetails:
-                return currentBill ? <BillDetails bill={currentBill} onUpdateBill={updateBill} onBack={() => navigate(View.Dashboard)} settings={settings} navigate={navigate}/> : <div>Bill not found.</div>;
+                return currentBill ? <BillDetails bill={currentBill} onUpdateBill={updateBill} onBack={() => navigate(View.Dashboard)} settings={settings} navigate={navigate} onReshareBill={() => handleReshareBill(currentBill.id)}/> : <div>Bill not found.</div>;
             case View.ImportedBillDetails:
                 return currentImportedBill ? <ImportedBillDetails bill={currentImportedBill} onUpdateBill={updateImportedBill} onBack={() => navigate(View.Dashboard)} /> : <div>Bill not found.</div>;
             case View.RecurringBills:
@@ -218,6 +286,7 @@ const App: React.FC = () => {
                             onArchiveBill={archiveBill}
                             onUnarchiveBill={unarchiveBill}
                             onDeleteBill={handleDeleteBill}
+                            onReshareBill={handleReshareBill}
                             onUpdateMultipleBills={updateMultipleBills}
                             onUpdateImportedBill={updateImportedBill}
                             onArchiveImportedBill={archiveImportedBill}

@@ -44,6 +44,7 @@ export interface Bill {
   lastUpdatedAt?: number;
   shareInfo?: ShareInfo;
   participantShareInfo?: Record<string, ParticipantShareInfo>;
+  shareStatus?: 'live' | 'expired' | 'error';
 }
 
 export interface RecurrenceRule {

@@ -8,13 +8,14 @@ interface SwipeableBillCardProps {
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
+  onReshare: () => void;
   onConvertToTemplate: () => void;
   onExport: () => void;
 }
 
 const ACTION_BUTTON_WIDTH = 70; // Width for each action button
 
-const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onConvertToTemplate, onExport }) => {
+const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onReshare, onConvertToTemplate, onExport }) => {
   const [translateX, setTranslateX] = useState(0);
   const dragStartX = useRef(0);
   const dragStartY = useRef(0);
@@ -129,7 +130,7 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
         onMouseUp={e => handleDragEnd(e)} 
         onMouseLeave={() => isDragging.current && handleDragEnd()}
       >
-        <BillCard {...{bill, onClick, onArchive, onUnarchive, onDelete, onConvertToTemplate, onExport}} />
+        <BillCard {...{bill, onClick, onArchive, onUnarchive, onDelete, onReshare, onConvertToTemplate, onExport}} />
       </div>
     </div>
   );

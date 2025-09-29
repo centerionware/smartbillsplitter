@@ -12,6 +12,25 @@ interface ImportedBillCardProps {
   onExport: () => void;
 }
 
+const LiveIndicator: React.FC<{ status: ImportedBill['liveStatus'] }> = ({ status }) => {
+    if (!status || status === 'error') {
+        return null;
+    }
+
+    const config = {
+        live: { color: 'bg-emerald-500', title: 'Live: Connected and up-to-date' },
+        stale: { color: 'bg-amber-500', title: 'Stale: Connection issue, may be out of date' },
+    }[status];
+
+    if (!config) return null;
+
+    return (
+        <div className="flex-shrink-0" title={config.title}>
+            <span className={`block h-2.5 w-2.5 rounded-full ${config.color}`}></span>
+        </div>
+    );
+};
+
 const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onSettleUp, onShowSummaryDetails, onExport }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -53,9 +72,9 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onAr
     >
       <div className="p-5 flex-grow">
         <div className="flex justify-between items-start gap-2">
-            <div className="flex-grow">
+            <div className="flex-grow flex items-center gap-2">
+                <LiveIndicator status={bill.liveStatus} />
                 <p className="text-lg font-bold text-slate-800 dark:text-slate-100 break-words">{bill.sharedData.bill.description}</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">From {bill.creatorName}</p>
             </div>
             <div className="flex-shrink-0 flex items-center gap-2">
                  <span className={`px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${isPaid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
@@ -81,6 +100,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onAr
                  </div>
             </div>
         </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">From {bill.creatorName}</p>
         <div className="mt-4 flex justify-between items-end">
           <div>
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Your Portion</p>

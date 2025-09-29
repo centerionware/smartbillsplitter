@@ -7,11 +7,40 @@ interface BillCardProps {
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
+  onReshare: () => void;
   onConvertToTemplate: () => void;
   onExport: () => void;
 }
 
-const BillCard: React.FC<BillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onConvertToTemplate, onExport }) => {
+const LiveIndicator: React.FC<{ status: Bill['shareStatus'], onClick?: (e: React.MouseEvent) => void }> = ({ status, onClick }) => {
+    if (!status || !['live', 'expired', 'error'].includes(status)) return null;
+
+    const config = {
+        live: { color: 'bg-emerald-500', title: 'Live: This bill is actively shared.' },
+        expired: { color: 'bg-red-500', title: 'Expired: Click to reactivate sharing.' },
+        error: { color: 'bg-amber-500', title: 'Error: Connection issue with share server.' },
+    }[status];
+    
+    if (!config) return null;
+
+    const indicator = (
+        <div className="flex-shrink-0" title={config.title}>
+            <span className={`block h-2.5 w-2.5 rounded-full ${config.color}`}></span>
+        </div>
+    );
+
+    if (status === 'expired' && onClick) {
+        return (
+            <button onClick={onClick} aria-label={config.title} className="p-1 -ml-1">
+                {indicator}
+            </button>
+        );
+    }
+
+    return indicator;
+};
+
+const BillCard: React.FC<BillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onReshare, onConvertToTemplate, onExport }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +75,11 @@ const BillCard: React.FC<BillCardProps> = ({ bill, onClick, onArchive, onUnarchi
     setIsMenuOpen(false);
   };
 
+  const handleIndicatorClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onReshare();
+  }
+
   return (
     <div
       onClick={onClick}
@@ -54,7 +88,10 @@ const BillCard: React.FC<BillCardProps> = ({ bill, onClick, onArchive, onUnarchi
       <div className="p-5 flex-grow">
         <div className="flex justify-between items-start gap-2">
             <div className="flex-grow">
-                <p className="text-lg font-bold text-slate-800 dark:text-slate-100 break-words">{bill.description}</p>
+                 <div className="flex items-center gap-2">
+                    <LiveIndicator status={bill.shareStatus} onClick={handleIndicatorClick} />
+                    <p className="text-lg font-bold text-slate-800 dark:text-slate-100 break-words">{bill.description}</p>
+                </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{new Date(bill.date).toLocaleDateString()}</p>
             </div>
             <div className="flex-shrink-0 flex items-center gap-2">
