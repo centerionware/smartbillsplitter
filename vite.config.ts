@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
         input: {
           // FIX: Replaced `__dirname` which is not available in ESM Vite configs.
           main: resolve('.', 'index.html'),
+          app: resolve('.', 'app.html'),
           ad_verification: resolve('.', 'ad_verification.html'),
         },
       },

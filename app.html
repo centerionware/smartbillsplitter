@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SharedBills</title>
+    
+    <script>
+      // --- Ultimate Error Safety Net ---
+      // This script runs before the main application to catch any catastrophic startup errors.
+      (() => {
+        let errorHasOccurred = false;
+        const DB_NAME = 'SmartBillSplitterDB';
+
+        function showCatastrophicError(error) {
+          if (errorHasOccurred) return;
+          errorHasOccurred = true;
+          
+          console.error("Catastrophic startup error caught by safety net:", error);
+
+          const root = document.getElementById('root');
+          if (!root) {
+            document.body.innerHTML = '<h1>A critical error occurred and the application root element is missing.</h1>';
+            return;
+          }
+
+          const errorName = error?.name || 'Error';
+          const errorMessage = error?.message || 'An unknown error occurred.';
+          const errorStack = error?.stack || 'No stack trace available.';
+          
+          let userFriendlyMessage = 'The application failed to start. This might be due to corrupted data.';
+          if (typeof errorMessage === 'string' && errorMessage.includes('Failed to resolve module specifier')) {
+            userFriendlyMessage = 'The application failed to load a critical code file. This is often an issue with an incorrect file path in the application\'s code. Please check the error details below for the name of the missing module.';
+          }
+
+          root.innerHTML = `
+            <div class="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-4 font-sans">
+              <div class="w-full max-w-lg mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-4">Oops! Something went wrong.</h1>
+                <p class="text-slate-500 dark:text-slate-400 mt-2 mb-6">
+                  ${userFriendlyMessage}
+                </p>
+                <div id="net-message-container" class="mb-4 text-left"></div>
+                <div class="space-y-4">
+                  <button id="net-reload-btn" class="w-full px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">
+                    Reload App
+                  </button>
+                  <button id="net-reset-btn" class="w-full px-6 py-3 bg-red-100 text-red-800 font-bold rounded-lg hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60">
+                    Hard Reset & Reload
+                  </button>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">
+                    <span class="font-semibold">Warning:</span> Hard reset will permanently delete all app data from this device.
+                  </p>
+                </div>
+                <details class="mt-4 text-left text-xs text-slate-400 dark:text-slate-500">
+                  <summary class="cursor-pointer">Error Details</summary>
+                  <pre class="mt-2 p-2 bg-slate-100 dark:bg-slate-700 rounded overflow-auto whitespace-pre-wrap">
+                    <code>${errorName}: ${errorMessage}\n\n${errorStack}</code>
+                  </pre>
+                </details>
+              </div>
+            </div>
+          `;
+
+          document.getElementById('net-reload-btn')?.addEventListener('click', () => window.location.reload());
+          document.getElementById('net-reset-btn')?.addEventListener('click', () => {
+            const messageContainer = document.getElementById('net-message-container');
+            if (messageContainer) {
+              messageContainer.innerHTML = '';
+            }
+            const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
+            deleteRequest.onsuccess = () => {
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.reload();
+            };
+            deleteRequest.onerror = () => {
+                if (messageContainer) {
+                    messageContainer.innerHTML = `
+                        <div class="p-4 bg-red-100 dark:bg-red-900/40 border-l-4 border-red-500 rounded-r-lg">
+                            <h4 class="font-bold text-red-800 dark:text-red-200">Reset Failed</h4>
+                            <p class="text-sm text-red-700 dark:text-red-300 mt-1">
+                                Could not delete data. Please clear site data in your browser settings.
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    alert("Could not delete data. Please clear site data in your browser settings.");
+                }
+            };
+            deleteRequest.onblocked = () => {
+                if (messageContainer) {
+                    messageContainer.innerHTML = `
+                        <div class="p-4 bg-yellow-100 dark:bg-yellow-900/40 border-l-4 border-yellow-500 rounded-r-lg">
+                            <h4 class="font-bold text-yellow-800 dark:text-yellow-200">Action Required</h4>
+                            <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                                Database is locked by another open tab. To reset the app, please close all other tabs for this site and then click "Hard Reset" again.
+                            </p>
+                        </div>
+                    `;
+                } else {
+                    alert("Database is locked, likely by another open tab. To reset the app, please close all other tabs for this site and then reload this page to try again.");
+                }
+            };
+          });
+        }
+
+        window.addEventListener('error', (event) => showCatastrophicError(event.error));
+        window.addEventListener('unhandledrejection', (event) => showCatastrophicError(event.reason));
+      })();
+    </script>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Theme Color for browsers -->
+    <meta name="theme-color" content="#14b8a6" />
+
+    <!-- PWA & Mobile Web App settings -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Configure Tailwind CSS to use the 'class' strategy for dark mode.
+      // This MUST run AFTER the main Tailwind script is loaded.
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            animation: {
+              'slide-up': 'slide-up 0.3s ease-out forwards',
+              'fade-in': 'fade-in 0.5s ease-out forwards',
+              'bounce-custom': 'bounce-custom 1.5s infinite',
+              'pulse-glow': 'pulse-glow 2.5s ease-in-out infinite',
+            },
+            keyframes: {
+              'slide-up': {
+                '0%': { transform: 'translateY(100%)' },
+                '100%': { transform: 'translateY(0)' },
+              },
+              'fade-in': {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              'bounce-custom': {
+                '0%, 100%': {
+                  transform: 'translateY(-15%)',
+                  animationTimingFunction: 'cubic-bezier(0.8,0,1,1)',
+                },
+                '50%': {
+                  transform: 'translateY(0)',
+                  animationTimingFunction: 'cubic-bezier(0,0,0.2,1)',
+                },
+              },
+              'pulse-glow': {
+                '0%, 100%': {
+                  boxShadow: '0 0 0 4px rgba(255, 255, 255, 0.7)',
+                  transform: 'scale(1)',
+                },
+                '50%': {
+                  boxShadow: '0 0 20px 10px rgba(255, 255, 255, 0)',
+                  transform: 'scale(1.2)',
+                },
+              },
+            },
+          },
+        },
+      }
+    </script>
+
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+    "@netlify/edge-functions": "https://aistudiocdn.com/@netlify/edge-functions@^2.18.0",
+    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^4.2.5",
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "stripe": "https://aistudiocdn.com/stripe@^18.5.0",
+    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
+    "ioredis": "https://aistudiocdn.com/ioredis@^5.8.0",
+    "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.3.24",
+    "@aws-sdk/client-dynamodb": "https://aistudiocdn.com/@aws-sdk/client-dynamodb@^3.633.0",
+    "aws-lambda": "https://aistudiocdn.com/aws-lambda@^1.0.7",
+    "http": "https://aistudiocdn.com/http@^0.0.1-security",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
+    "vite": "https://aistudiocdn.com/vite@^7.1.7",
+    "path": "https://aistudiocdn.com/path@^0.12.7"
+  }
+}
+</script>
+</head>
+  <body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+    
+    <div id="root"></div>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script type="module" src="/index.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          }, err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

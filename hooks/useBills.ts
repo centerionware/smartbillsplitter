@@ -129,19 +129,19 @@ export const useBills = () => {
       const billsToUpdate: Bill[] = [];
       let skippedCount = 0;
 
-      // FIX: Explicitly cast `incomingBill` to its correct type. This resolves a TypeScript inference issue where `incomingBill` was incorrectly typed as 'unknown', causing errors when accessing its properties.
+      // FIX: Cast `incomingBill` to its correct type. TypeScript was inferring it as 'unknown' inside the loop, causing property access errors on `lastUpdatedAt` and when using the spread operator.
       for (const incomingBill of billsToMerge) {
-          const typedIncomingBill = incomingBill as Omit<Bill, 'status'>;
-          const existingBill = existingBillMap.get(typedIncomingBill.id);
+          const bill = incomingBill as Omit<Bill, 'status'>;
+          const existingBill = existingBillMap.get(bill.id);
 
           if (existingBill) {
-              if ((typedIncomingBill.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
-                  billsToUpdate.push({ ...existingBill, ...typedIncomingBill, status: existingBill.status });
+              if ((bill.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
+                  billsToUpdate.push({ ...existingBill, ...bill, status: existingBill.status });
               } else {
                   skippedCount++;
               }
           } else {
-              billsToAdd.push({ ...typedIncomingBill, status: 'active' });
+              billsToAdd.push({ ...bill, status: 'active' });
           }
       }
 

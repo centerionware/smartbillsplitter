@@ -12,7 +12,7 @@ const PwaInstallBanner: React.FC = () => {
         // We attempt to construct a valid root URL. `window.location.href` is used
         // as the base. In some sandboxed environments, this `href` might be
         // something like 'about:blank', which would cause the URL constructor to fail.
-        const url = new URL('/', window.location.href).href;
+        const url = new URL('/app.html', window.location.href).href;
         setAppUrl(url);
         setCanOpen(true); // If construction succeeds, we can show the button.
       } catch (e) {

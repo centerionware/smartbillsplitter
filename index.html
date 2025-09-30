@@ -1,221 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SharedBills</title>
-    
-    <script>
-      // --- Ultimate Error Safety Net ---
-      // This script runs before the main application to catch any catastrophic startup errors.
-      (() => {
-        let errorHasOccurred = false;
-        const DB_NAME = 'SmartBillSplitterDB';
-
-        function showCatastrophicError(error) {
-          if (errorHasOccurred) return;
-          errorHasOccurred = true;
-          
-          console.error("Catastrophic startup error caught by safety net:", error);
-
-          const root = document.getElementById('root');
-          if (!root) {
-            document.body.innerHTML = '<h1>A critical error occurred and the application root element is missing.</h1>';
-            return;
-          }
-
-          const errorName = error?.name || 'Error';
-          const errorMessage = error?.message || 'An unknown error occurred.';
-          const errorStack = error?.stack || 'No stack trace available.';
-          
-          let userFriendlyMessage = 'The application failed to start. This might be due to corrupted data.';
-          if (typeof errorMessage === 'string' && errorMessage.includes('Failed to resolve module specifier')) {
-            userFriendlyMessage = 'The application failed to load a critical code file. This is often an issue with an incorrect file path in the application\'s code. Please check the error details below for the name of the missing module.';
-          }
-
-          root.innerHTML = `
-            <div class="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-4 font-sans">
-              <div class="w-full max-w-lg mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                </svg>
-                <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-4">Oops! Something went wrong.</h1>
-                <p class="text-slate-500 dark:text-slate-400 mt-2 mb-6">
-                  ${userFriendlyMessage}
-                </p>
-                <div id="net-message-container" class="mb-4 text-left"></div>
-                <div class="space-y-4">
-                  <button id="net-reload-btn" class="w-full px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">
-                    Reload App
-                  </button>
-                  <button id="net-reset-btn" class="w-full px-6 py-3 bg-red-100 text-red-800 font-bold rounded-lg hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60">
-                    Hard Reset & Reload
-                  </button>
-                  <p class="text-xs text-slate-500 dark:text-slate-400">
-                    <span class="font-semibold">Warning:</span> Hard reset will permanently delete all app data from this device.
-                  </p>
-                </div>
-                <details class="mt-4 text-left text-xs text-slate-400 dark:text-slate-500">
-                  <summary class="cursor-pointer">Error Details</summary>
-                  <pre class="mt-2 p-2 bg-slate-100 dark:bg-slate-700 rounded overflow-auto whitespace-pre-wrap">
-                    <code>${errorName}: ${errorMessage}\n\n${errorStack}</code>
-                  </pre>
-                </details>
-              </div>
-            </div>
-          `;
-
-          document.getElementById('net-reload-btn')?.addEventListener('click', () => window.location.reload());
-          document.getElementById('net-reset-btn')?.addEventListener('click', () => {
-            const messageContainer = document.getElementById('net-message-container');
-            if (messageContainer) {
-              messageContainer.innerHTML = '';
-            }
-            const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
-            deleteRequest.onsuccess = () => {
-              localStorage.clear();
-              sessionStorage.clear();
-              window.location.reload();
-            };
-            deleteRequest.onerror = () => {
-                if (messageContainer) {
-                    messageContainer.innerHTML = `
-                        <div class="p-4 bg-red-100 dark:bg-red-900/40 border-l-4 border-red-500 rounded-r-lg">
-                            <h4 class="font-bold text-red-800 dark:text-red-200">Reset Failed</h4>
-                            <p class="text-sm text-red-700 dark:text-red-300 mt-1">
-                                Could not delete data. Please clear site data in your browser settings.
-                            </p>
-                        </div>
-                    `;
-                } else {
-                    alert("Could not delete data. Please clear site data in your browser settings.");
-                }
-            };
-            deleteRequest.onblocked = () => {
-                if (messageContainer) {
-                    messageContainer.innerHTML = `
-                        <div class="p-4 bg-yellow-100 dark:bg-yellow-900/40 border-l-4 border-yellow-500 rounded-r-lg">
-                            <h4 class="font-bold text-yellow-800 dark:text-yellow-200">Action Required</h4>
-                            <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                                Database is locked by another open tab. To reset the app, please close all other tabs for this site and then click "Hard Reset" again.
-                            </p>
-                        </div>
-                    `;
-                } else {
-                    alert("Database is locked, likely by another open tab. To reset the app, please close all other tabs for this site and then reload this page to try again.");
-                }
-            };
-          });
-        }
-
-        window.addEventListener('error', (event) => showCatastrophicError(event.error));
-        window.addEventListener('unhandledrejection', (event) => showCatastrophicError(event.reason));
-      })();
-    </script>
-
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-
-    <!-- Theme Color for browsers -->
-    <meta name="theme-color" content="#14b8a6" />
-
-    <!-- PWA & Mobile Web App settings -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
-    
+    <title>SharedBills - Effortless Bill Splitting</title>
+    <meta name="description" content="Effortlessly split bills and track shared expenses with friends. Scan receipts with AI, manage recurring bills, and settle up easily.">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* A little custom touch for the hero background */
+        .hero-bg {
+            background-color: #f8fafc;
+            background-image: radial-gradient(#d1fae5 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .dark .hero-bg {
+            background-color: #0f172a;
+            background-image: radial-gradient(#042f2e 1px, transparent 1px);
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
     <script>
-      // Configure Tailwind CSS to use the 'class' strategy for dark mode.
-      // This MUST run AFTER the main Tailwind script is loaded.
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            animation: {
-              'slide-up': 'slide-up 0.3s ease-out forwards',
-              'fade-in': 'fade-in 0.5s ease-out forwards',
-              'bounce-custom': 'bounce-custom 1.5s infinite',
-              'pulse-glow': 'pulse-glow 2.5s ease-in-out infinite',
-            },
-            keyframes: {
-              'slide-up': {
-                '0%': { transform: 'translateY(100%)' },
-                '100%': { transform: 'translateY(0)' },
-              },
-              'fade-in': {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              'bounce-custom': {
-                '0%, 100%': {
-                  transform: 'translateY(-15%)',
-                  animationTimingFunction: 'cubic-bezier(0.8,0,1,1)',
-                },
-                '50%': {
-                  transform: 'translateY(0)',
-                  animationTimingFunction: 'cubic-bezier(0,0,0.2,1)',
-                },
-              },
-              'pulse-glow': {
-                '0%, 100%': {
-                  boxShadow: '0 0 0 4px rgba(255, 255, 255, 0.7)',
-                  transform: 'scale(1)',
-                },
-                '50%': {
-                  boxShadow: '0 0 20px 10px rgba(255, 255, 255, 0)',
-                  transform: 'scale(1.2)',
-                },
-              },
-            },
-          },
-        },
+      // Simple dark mode toggle based on system preference
+      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
       }
     </script>
-
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
-    "@netlify/edge-functions": "https://aistudiocdn.com/@netlify/edge-functions@^2.18.0",
-    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^4.2.5",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
     "express": "https://aistudiocdn.com/express@^5.1.0",
-    "stripe": "https://aistudiocdn.com/stripe@^18.5.0",
     "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
-    "ioredis": "https://aistudiocdn.com/ioredis@^5.8.0",
     "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.3.24",
-    "@aws-sdk/client-dynamodb": "https://aistudiocdn.com/@aws-sdk/client-dynamodb@^3.633.0",
-    "aws-lambda": "https://aistudiocdn.com/aws-lambda@^1.0.7",
-    "http": "https://aistudiocdn.com/http@^0.0.1-security",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
     "vite": "https://aistudiocdn.com/vite@^7.1.7",
-    "path": "https://aistudiocdn.com/path@^0.12.7"
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "stripe": "https://aistudiocdn.com/stripe@^18.5.0",
+    "aws-lambda": "https://aistudiocdn.com/aws-lambda@^1.0.7",
+    "ioredis": "https://aistudiocdn.com/ioredis@^5.8.0",
+    "@aws-sdk/client-dynamodb": "https://aistudiocdn.com/@aws-sdk/client-dynamodb@^3.899.0"
   }
 }
 </script>
 </head>
-  <body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
-    
-    <div id="root"></div>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-    <script type="module" src="/index.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-          }, err => {
-            console.log('ServiceWorker registration failed: ', err);
-          });
-        });
-      }
-    </script>
-  </body>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans antialiased">
+
+    <!-- Header -->
+    <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-700">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-2">
+                    <svg class="h-8 w-8 text-teal-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 9V7C17 5.89543 16.1046 5 15 5H5C3.89543 5 3 5.89543 3 7V13C3 14.1046 3.89543 15 5 15H7M9 19H19C20.1046 19 21 18.1046 21 17V11C21 9.89543 20.1046 9 19 9H9C7.89543 9 7 9.89543 7 11V17C7 18.1046 7.89543 19 9 19ZM16 14C16 15.1046 15.1046 16 14 16C12.8954 16 12 15.1046 12 14C12 12.8954 12.8954 12 14 12C15.1046 12 16 12.8954 16 14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">SharedBills</h1>
+                </div>
+                <a href="/app.html" class="px-5 py-2.5 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">
+                    Launch App
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-bg">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32 text-center">
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    Effortless Bill Splitting, <span class="text-teal-500">Powered by AI.</span>
+                </h1>
+                <p class="mt-6 max-w-3xl mx-auto text-lg text-slate-600 dark:text-slate-300">
+                    Scan receipts, manage recurring expenses, and settle up with friends—all securely on your device. Your data stays with you.
+                </p>
+                <div class="mt-8 flex justify-center">
+                    <a href="/app.html" class="px-8 py-4 bg-teal-500 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-transform transform hover:scale-105 shadow-lg">
+                        Launch App & Start Splitting
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="py-20 sm:py-24">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">Features You'll Love</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-500 dark:text-slate-400">Everything you need to manage shared expenses without the hassle.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <!-- Feature 1 -->
+                    <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        </div>
+                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Scan & Go</h3>
+                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Snap a photo of any receipt. Our AI intelligently extracts every item and price, saving you from manual entry.</p>
+                    </div>
+                    <!-- Feature 2 -->
+                    <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
+                         <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        </div>
+                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Privacy First</h3>
+                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Your financial data is yours. Bills are stored locally on your device, and only encrypted copies are sent when sharing.</p>
+                    </div>
+                    <!-- Feature 3 -->
+                    <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.171-1.952 3.07-1.952 4.242 0 1.172 1.953 1.172 5.119 0 7.072z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 12l9 3-9-3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 12l-9 3 9-3z" /></svg>
+                        </div>
+                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Split Your Way</h3>
+                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Divide bills equally, by specific amounts, percentages, or assign individual items. Perfect for any situation.</p>
+                    </div>
+                     <!-- Feature 4 -->
+                    <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        </div>
+                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Smart Templates</h3>
+                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Set up templates for monthly expenses like rent or subscriptions. Create new bills from your templates in a single tap.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Privacy Section -->
+        <section class="hero-bg py-20 sm:py-24">
+             <div class="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h2 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">Your Data is Yours. By Design.</h2>
+                 <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600 dark:text-slate-300">
+                    We built SharedBills on a "privacy first" principle. Your data lives on your device, giving you full control. The app is fast, secure, and works completely offline.
+                </p>
+                 <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600 dark:text-slate-300">
+                    When you choose to share a bill, a temporary, end-to-end encrypted copy passes through our server. We cannot read this data. Only the person you send the unique, secure link to can decrypt and view the bill's details. Your privacy is never compromised.
+                </p>
+             </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="text-center">
+                 <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Ready to simplify your shared expenses?</h2>
+                 <div class="mt-6">
+                    <a href="/app.html" class="px-8 py-4 bg-teal-500 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-transform transform hover:scale-105 shadow-lg">
+                        Get Started for Free
+                    </a>
+                </div>
+            </div>
+            <div class="mt-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                <p>&copy; 2024 SharedBills. All rights reserved.</p>
+                <div class="mt-2 space-x-4">
+                    <a href="/app.html#/disclaimer" class="hover:text-teal-500">Privacy Policy</a>
+                    <span>&bull;</span>
+                    <a href="https://github.com/centerionware/smartbillsplitter" target="_blank" rel="noopener noreferrer" class="hover:text-teal-500">GitHub</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</body>
 </html>

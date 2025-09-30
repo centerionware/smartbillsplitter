@@ -1,7 +1,7 @@
-const CACHE_NAME = 'smart-bill-splitter-cache-v10';
+const CACHE_NAME = 'smart-bill-splitter-cache-v11';
 const ASSETS_TO_CACHE = [
   '/',
-  '/index.html',
+  '/app.html',
   '/icon.svg',
 ];
 
