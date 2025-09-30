@@ -68,6 +68,10 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
     return onetimeKeyHandler(req, context);
   }
   
+  match = path.match(/^\/share\/batch-status\/?$/);
+  if (match && method === 'POST') {
+    return shareHandler(req, context);
+  }
   match = path.match(/^\/share\/batch-check\/?$/);
   if (match && method === 'POST') {
     return shareHandler(req, context);

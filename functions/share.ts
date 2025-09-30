@@ -8,6 +8,32 @@ const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 // These functions contain the core logic for share sessions and are independent of the server framework.
 
 /**
+ * Checks the existence of multiple share sessions.
+ * @param shareIds An array of share IDs to check.
+ * @param kv The KeyValueStore instance to use.
+ * @returns A promise resolving to an array of objects with their status.
+ */
+async function checkBatchShareStatus(
+  shareIds: string[],
+  kv: KeyValueStore
+): Promise<{ shareId: string; status: 'live' | 'expired' }[]> {
+  if (!Array.isArray(shareIds) || shareIds.length === 0) {
+    return [];
+  }
+  
+  const results: { shareId: string; status: 'live' | 'expired' }[] = [];
+
+  // This can be slow without a multi-get, but it's one network call from client.
+  for (const shareId of shareIds) {
+    const key = `share:${shareId}`;
+    const exists = await kv.exists(key);
+    results.push({ shareId, status: exists ? 'live' : 'expired' });
+  }
+
+  return results;
+}
+
+/**
  * Creates a new share session or updates an existing one (upsert).
  * @param encryptedData The encrypted data payload.
  * @param kv The KeyValueStore instance to use.
@@ -167,6 +193,17 @@ export const shareHandler = async (req: HttpRequest, context: { kv: KeyValueStor
   };
 
   try {
+    // Handle batch status endpoint: POST /share/batch-status
+    if (req.method === "POST" && req.path.endsWith('/batch-status')) {
+        const { shareIds } = req.body;
+        const result = await checkBatchShareStatus(shareIds, context.kv);
+        return {
+            statusCode: 200,
+            headers: responseHeaders,
+            body: JSON.stringify(result)
+        };
+    }
+    
     // Handle the new batch check endpoint: POST /share/batch-check
     if (req.method === "POST" && req.path.endsWith('/batch-check')) {
         const batchPayload = req.body;

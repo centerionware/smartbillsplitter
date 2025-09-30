@@ -635,44 +635,46 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
  */
 export async function pollOwnedSharedBills(bills: Bill[]): Promise<Bill[]> {
     const billsToUpdate: Bill[] = [];
+    const billsToCheck = bills.filter(b => b.shareInfo?.shareId);
+    if (billsToCheck.length === 0) return [];
 
-    const results = await Promise.allSettled(bills.map(async (bill) => {
-        if (!bill.shareInfo?.shareId) return null;
+    const shareIds = billsToCheck.map(b => b.shareInfo!.shareId);
 
-        try {
-            {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
-            const response = await fetchWithRetry(await getApiUrl(`/share/${bill.shareInfo.shareId}`), {
-                method: 'GET',
-                signal: AbortSignal.timeout(15000)
-            });
+    try {
+        const response = await fetchWithRetry(await getApiUrl('/share/batch-status'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ shareIds }),
+            signal: AbortSignal.timeout(15000)
+        });
 
-            if (response.status === 200 || response.status === 304) {
-                if (bill.shareStatus !== 'live') {
-                    return { ...bill, shareStatus: 'live' as const };
-                }
-            } else if (response.status === 404) {
-                if (bill.shareStatus !== 'expired') {
-                    return { ...bill, shareStatus: 'expired' as const };
-                }
-            } else {
-                if (bill.shareStatus !== 'error') {
-                     return { ...bill, shareStatus: 'error' as const };
+        if (response.ok) {
+            const statuses: { shareId: string, status: 'live' | 'expired' }[] = await response.json();
+            const statusMap = new Map(statuses.map(s => [s.shareId, s.status]));
+
+            for (const bill of billsToCheck) {
+                const newStatus = statusMap.get(bill.shareInfo!.shareId);
+                // If a status was returned and it's different from the current one, mark for update.
+                if (newStatus && bill.shareStatus !== newStatus) {
+                    billsToUpdate.push({ ...bill, shareStatus: newStatus });
+                } else if (!newStatus && bill.shareStatus !== 'error') {
+                    // If the server didn't return a status for a known shareId, it's an anomaly/error.
+                    billsToUpdate.push({ ...bill, shareStatus: 'error' as const });
                 }
             }
-        } catch (error) {
-            console.error(`Polling failed for owned bill ${bill.id}:`, error);
-            if (bill.shareStatus !== 'error') {
-                 return { ...bill, shareStatus: 'error' as const };
-            }
+        } else {
+             throw new Error(`Batch status check failed with status ${response.status}`);
         }
-        return null;
-    }));
-
-    for (const result of results) {
-        if (result.status === 'fulfilled' && result.value) {
-            billsToUpdate.push(result.value);
+    } catch (error) {
+        console.error(`Polling failed for owned bills:`, error);
+        // If the entire request fails, mark all polled bills as having an error status if they aren't already.
+        for (const bill of billsToCheck) {
+            if (bill.shareStatus !== 'error') {
+                 billsToUpdate.push({ ...bill, shareStatus: 'error' as const });
+            }
         }
     }
+    
     return billsToUpdate;
 }
 
