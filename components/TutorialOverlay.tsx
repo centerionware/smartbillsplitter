@@ -124,7 +124,7 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({
       {/* Popover with Tooltip */}
       <div
         ref={popoverRef}
-        className="absolute w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 text-center"
+        className="absolute max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 text-center"
         style={styles.popover}
         onClick={e => e.stopPropagation()}
       >
