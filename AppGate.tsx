@@ -8,7 +8,7 @@ import PrivacyConsent from './components/PrivacyConsent.tsx';
 import { getApiUrl, fetchWithRetry } from './services/api.ts';
 
 const AppGate: React.FC = () => {
-  const { subscriptionStatus, login, selectFreeTier, isLoading: isAuthLoading } = useAuth();
+  const { subscriptionStatus, login, selectFreeTier, isLoading: isAuthLoading, startTrial } = useAuth();
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   
@@ -83,6 +83,7 @@ const AppGate: React.FC = () => {
   const handleAcceptPrivacy = () => {
     localStorage.setItem('privacyConsentAccepted', 'true');
     setHasAcceptedPrivacy(true);
+    startTrial();
   };
   
   const LoadingSpinner = () => (
