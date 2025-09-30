@@ -28,6 +28,11 @@
           const errorName = error?.name || 'Error';
           const errorMessage = error?.message || 'An unknown error occurred.';
           const errorStack = error?.stack || 'No stack trace available.';
+          
+          let userFriendlyMessage = 'The application failed to start. This might be due to corrupted data.';
+          if (typeof errorMessage === 'string' && errorMessage.includes('Failed to resolve module specifier')) {
+            userFriendlyMessage = 'The application failed to load a critical code file. This is often an issue with an incorrect file path in the application\'s code. Please check the error details below for the name of the missing module.';
+          }
 
           root.innerHTML = `
             <div class="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-4 font-sans">
@@ -37,7 +42,7 @@
                 </svg>
                 <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-4">Oops! Something went wrong.</h1>
                 <p class="text-slate-500 dark:text-slate-400 mt-2 mb-6">
-                  The application failed to start. This might be due to corrupted data.
+                  ${userFriendlyMessage}
                 </p>
                 <div id="net-message-container" class="mb-4 text-left"></div>
                 <div class="space-y-4">
