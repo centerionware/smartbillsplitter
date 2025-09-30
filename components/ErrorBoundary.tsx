@@ -11,7 +11,7 @@ interface State {
 
 // FIX: Changed to a named export to resolve module resolution issues.
 export class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: Initialize state in the constructor. This makes `this.state` available throughout the component and resolves errors where properties like `hasError` were accessed on an uninitialized state. It also ensures `this.props` is correctly set up.
+  // FIX: Added a constructor to initialize state and call super(props). This resolves errors where `this.state` and `this.props` were being accessed before they were defined.
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // FIX: Changed import statement to correctly import `View` as a value (for enums)
 // and other symbols as types, resolving 'cannot be used as a value' error.
-import { View, type Settings, type Theme, type RequestConfirmationFn, type SettingsSection, type Bill, type ImportedBill } from '../../types';
+import { View, type Settings, type Theme, type RequestConfirmationFn, type SettingsSection, type Bill, type ImportedBill } from '../types';
 import Personalization from './settings/Personalization';
 import PaymentIntegrations from './settings/PaymentIntegrations';
 import BillReminders from './settings/BillReminders';

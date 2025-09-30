@@ -99,6 +99,7 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
+      // FIX: Explicitly cast `incomingBill` to its correct type. This resolves a TypeScript inference issue where `incomingBill` was incorrectly typed as 'unknown', preventing access to its properties.
       for (const incomingBill of billsToMerge) {
           const typedIncomingBill = incomingBill as Omit<ImportedBill, 'status' | 'liveStatus'>;
           const existingBill = existingBillMap.get(typedIncomingBill.id);
