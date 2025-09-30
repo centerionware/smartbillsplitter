@@ -86,7 +86,7 @@ const SettingsModal: React.FC<SettingsModalProps> = (props) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 backdrop-blur-sm" onClick={handleCancel} role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
           <h2 id="settings-modal-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">{currentSection.title}</h2>
         </div>

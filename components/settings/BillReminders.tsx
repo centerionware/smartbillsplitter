@@ -25,8 +25,24 @@ const BillReminders: React.FC<BillRemindersProps> = ({ settings, onSettingsChang
     }
   };
 
-  const handleToggle = () => {
-    onSettingsChange({ notificationsEnabled: !settings.notificationsEnabled });
+  const handleToggle = async () => {
+    // If we are trying to turn notifications ON
+    if (!settings.notificationsEnabled) {
+      if (permission === 'granted') {
+        onSettingsChange({ notificationsEnabled: true });
+      } else if (permission === 'default') {
+        const newPermission = await notificationService.requestPermission();
+        setPermission(newPermission);
+        // Only enable if permission was actually granted
+        if (newPermission === 'granted') {
+          onSettingsChange({ notificationsEnabled: true });
+        }
+      }
+      // If permission is 'denied', do nothing. The UI shows a message explaining why.
+    } else {
+      // If we are turning notifications OFF
+      onSettingsChange({ notificationsEnabled: false });
+    }
   };
   
   const handleDaysChange = (e: React.ChangeEvent<HTMLInputElement>) => {

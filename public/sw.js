@@ -71,3 +71,26 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Notification click event handler
+self.addEventListener('notificationclick', (event) => {
+  console.log('On notification click: ', event.notification.tag);
+  event.notification.close();
+
+  // This looks for an existing window and focuses it.
+  // If no window is found, it opens a new one.
+  event.waitUntil(clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true
+  }).then((clientList) => {
+    for (const client of clientList) {
+      // Check if the client is the app itself.
+      if (client.url.endsWith('/app.html') && 'focus' in client) {
+        return client.focus();
+      }
+    }
+    if (clients.openWindow) {
+      return clients.openWindow('/app.html');
+    }
+  }));
+});

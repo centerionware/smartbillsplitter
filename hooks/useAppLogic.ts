@@ -11,6 +11,7 @@ import { useTheme } from './useTheme';
 import { useAuth } from './useAuth';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import { syncSharedBillUpdate, pollImportedBills, pollOwnedSharedBills, reactivateShare } from '../services/shareService';
+import * as notificationService from '../services/notificationService';
 import { getDiscoveredApiBaseUrl } from '../services/api';
 import { usePwaInstall } from './usePwaInstall.ts';
 
@@ -175,6 +176,50 @@ export const useAppLogic = () => {
         poll();
         return () => clearInterval(intervalId);
     }, [bills, updateMultipleBills]);
+
+    // Effect to synchronize all notifications when settings or recurring bills change.
+    useEffect(() => {
+        if (!notificationService.isSupported()) {
+            return;
+        }
+
+        const syncNotifications = async () => {
+            if (Notification.permission !== 'granted') {
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.ready;
+            const scheduledNotifications = await registration.getNotifications();
+            const ourNotifications = scheduledNotifications.filter(n => n.tag.startsWith('bill-reminder-'));
+            const scheduledBillIds = new Set(ourNotifications.map(n => n.tag.replace('bill-reminder-', '')));
+
+            if (settings.notificationsEnabled) {
+                const activeRecurringBills = recurringBills.filter(b => b.status === 'active');
+                const activeBillIds = new Set(activeRecurringBills.map(b => b.id));
+
+                // Schedule new/updated notifications
+                for (const bill of activeRecurringBills) {
+                    await notificationService.scheduleNotification(bill, settings.notificationDays);
+                }
+
+                // Cancel notifications for bills that are no longer active or have been deleted
+                for (const scheduledId of scheduledBillIds) {
+                    if (!activeBillIds.has(scheduledId)) {
+                        await notificationService.cancelNotification(scheduledId);
+                    }
+                }
+            } else {
+                // If notifications are disabled, cancel all of our existing ones
+                for (const notification of ourNotifications) {
+                    notification.close();
+                }
+            }
+        };
+
+        syncNotifications().catch(err => console.error("Failed to sync notifications:", err));
+
+    }, [settings.notificationsEnabled, settings.notificationDays, recurringBills]);
+
 
     // --- Callbacks ---
     const requestConfirmation: RequestConfirmationFn = (title, message, onConfirm, options) => {
