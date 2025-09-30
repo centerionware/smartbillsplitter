@@ -107,7 +107,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         case View.Disclaimer:
             return <Disclaimer onBack={() => navigate(View.Settings)} />;
         case View.ViewShared:
-            return <ViewSharedBill onImportComplete={() => { window.location.hash = ''; navigate(View.Dashboard); }} settings={settings} addImportedBill={addImportedBill} importedBills={importedBills}/>;
+            return <ViewSharedBill onImportComplete={() => { window.location.hash = ''; navigate(View.Dashboard); }} settings={settings} addImportedBill={addImportedBill} importedBills={importedBills} requestConfirmation={requestConfirmation}/>;
         case View.ManageSubscription:
             return <ManageSubscriptionPage onBack={() => navigate(View.Settings)} requestConfirmation={requestConfirmation} />;
         case View.Dashboard:

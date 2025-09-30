@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import type { SharedBillPayload, ImportedBill, Settings, PaymentDetails, Bill } from '../types.ts';
+import React, { useState, useEffect, useRef } from 'react';
+import type { SharedBillPayload, ImportedBill, Settings, PaymentDetails, Bill, RequestConfirmationFn } from '../types.ts';
 import * as cryptoService from '../services/cryptoService.ts';
 import PrivacyConsent from './PrivacyConsent.tsx';
 import { getApiUrl, fetchWithRetry } from '../services/api.ts';
@@ -14,6 +14,7 @@ interface ViewSharedBillProps {
   settings: Settings;
   addImportedBill: (bill: ImportedBill) => Promise<void>;
   importedBills: ImportedBill[];
+  requestConfirmation: RequestConfirmationFn;
 }
 
 type Status = 'loading' | 'fetching_key' | 'fetching_data' | 'verifying' | 'verified' | 'imported' | 'error' | 'expired';
@@ -72,7 +73,7 @@ function base64UrlDecode(base64Url: string): string {
 }
 
 // FIX: Changed to a named export to resolve module resolution issues.
-export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills }) => {
+export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills, requestConfirmation }) => {
   const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(
     () => typeof window !== 'undefined' && localStorage.getItem('privacyConsentAccepted') === 'true'
   );
@@ -86,8 +87,60 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const navigationCancelled = useRef(false);
 
   const isAlreadyImported = sharedData ? importedBills.some(b => b.id === sharedData.bill.id) : false;
+
+  useEffect(() => {
+    // Only attach listeners when the bill is loaded and verified, but not yet imported.
+    const shouldWarn = status === 'verified' && !isAlreadyImported;
+    if (!shouldWarn) {
+        return; // No-op if we don't need to warn
+    }
+
+    const warningMessage = "If you leave now, this one-time share link will be used and you will not be able to view this bill again without a new link. Are you sure you want to continue?";
+    const originalHash = window.location.hash;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+        event.preventDefault();
+        event.returnValue = warningMessage;
+        return warningMessage;
+    };
+
+    const handleHashChange = () => {
+        // If we are programmatically navigating back, do nothing.
+        if (navigationCancelled.current) {
+            navigationCancelled.current = false; // Reset for next time
+            return;
+        }
+
+        requestConfirmation(
+            'Leave without Importing?',
+            warningMessage,
+            () => {
+                // User confirmed they want to leave. Do nothing to allow the navigation.
+            },
+            {
+                confirmText: 'Leave',
+                cancelText: 'Stay',
+                confirmVariant: 'danger',
+                onCancel: () => {
+                    // User wants to stay. Revert the hash change.
+                    navigationCancelled.current = true;
+                    window.location.hash = originalHash;
+                }
+            }
+        );
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('hashchange', handleHashChange);
+
+    return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('hashchange', handleHashChange);
+    };
+}, [status, isAlreadyImported, requestConfirmation]);
 
   useEffect(() => {
     if (!hasAcceptedPrivacy) return;
