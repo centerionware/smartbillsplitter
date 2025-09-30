@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // FIX: Changed import statement to correctly import `View` as a value (for enums)
 // and other symbols as types, resolving 'cannot be used as a value' error.
-import { View, type Settings, type Theme, type RequestConfirmationFn, type SettingsSection, type Bill, type ImportedBill } from '../types';
+import { View, type Settings, type Theme, type RequestConfirmationFn, type SettingsSection, type Bill, type ImportedBill } from '../../types';
 import Personalization from './settings/Personalization';
 import PaymentIntegrations from './settings/PaymentIntegrations';
 import BillReminders from './settings/BillReminders';
@@ -25,6 +25,8 @@ interface SettingsModalProps {
   onOpenQrImporter: () => void;
   bills: Bill[];
   importedBills: ImportedBill[];
+  showDebugConsole: boolean;
+  toggleDebugConsole: (enabled: boolean) => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = (props) => {
@@ -75,7 +77,7 @@ const SettingsModal: React.FC<SettingsModalProps> = (props) => {
     sync: { title: 'Sync Devices', component: <DataSync onNavigate={() => { onClose(); props.onNavigate(View.Sync); }} /> },
     subscription: { title: 'Subscription', component: <SubscriptionManagement onNavigate={props.onNavigate} onGoToManageSubscriptionPage={() => props.onNavigate(View.ManageSubscription)} /> },
     danger: { title: 'Danger Zone', component: <DangerZone requestConfirmation={props.requestConfirmation} /> },
-    about: { title: 'About & Support', component: <AboutSupport /> },
+    about: { title: 'About & Support', component: <AboutSupport showDebugConsole={props.showDebugConsole} onToggleDebugConsole={props.toggleDebugConsole} /> },
   };
 
   const currentSection = sectionConfig[activeSection];

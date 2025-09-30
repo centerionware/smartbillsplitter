@@ -26,6 +26,8 @@ type AppModalsProps = {
     importedBills: ImportedBill[];
     mergeBills: (bills: any[]) => Promise<any>;
     mergeImportedBills: (bills: any[]) => Promise<any>;
+    showDebugConsole: boolean;
+    toggleDebugConsole: (enabled: boolean) => void;
 };
 
 export const AppModals: React.FC<AppModalsProps> = ({
@@ -61,6 +63,8 @@ export const AppModals: React.FC<AppModalsProps> = ({
                     onOpenQrImporter={() => { setSettingsSection(null); setIsQrImporterOpen(true); }} 
                     bills={props.bills} 
                     importedBills={props.importedBills} 
+                    showDebugConsole={props.showDebugConsole}
+                    toggleDebugConsole={props.toggleDebugConsole}
                 />
             )}
             {isCsvImporterOpen && (

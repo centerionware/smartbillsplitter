@@ -9,7 +9,7 @@ import { useRecurringBills } from './useRecurringBills';
 import { useSettings } from './useSettings';
 import { useTheme } from './useTheme';
 import { useAuth } from './useAuth';
-import { useAppControl } from '../contexts/AppControlContext';
+import { useAppControl } from '../contexts/AppControlContext.tsx';
 import { syncSharedBillUpdate, pollImportedBills, pollOwnedSharedBills, reactivateShare } from '../services/shareService';
 import { getDiscoveredApiBaseUrl } from '../services/api';
 
@@ -29,7 +29,7 @@ export const useAppLogic = () => {
     const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
     const [isCsvImporterOpen, setIsCsvImporterOpen] = useState(false);
     const [isQrImporterOpen, setIsQrImporterOpen] = useState(false);
-    const [showDebugConsole, setShowDebugConsole] = useState(false);
+    const [showDebugConsole, setShowDebugConsole] = useState(() => sessionStorage.getItem('debugConsoleEnabled') === 'true');
 
     // --- Dashboard Specific State ---
     const [dashboardView, setDashboardView] = useState<DashboardView>('bills');
@@ -57,40 +57,15 @@ export const useAppLogic = () => {
         }
     }, [originalUpdateBill, settings, showNotification]);
 
-    // Effect to check for dev environment and show debug console
-    useEffect(() => {
-        const checkDevEnv = async () => {
-            const apiBaseUrl = await getDiscoveredApiBaseUrl();
-            let isDevEnv = false;
-
-            if (apiBaseUrl === '') {
-                // Case 1: API is using relative paths. This is a dev/sandbox environment.
-                isDevEnv = true;
-            } else if (apiBaseUrl) {
-                try {
-                    const apiUrlOrigin = new URL(apiBaseUrl).origin;
-                    // Case 2: API and Frontend are served from the same origin.
-                    // This is also considered a dev/sandbox environment.
-                    if (apiUrlOrigin === window.location.origin) isDevEnv = true;
-                } catch (e) {
-                    console.error("Could not parse discovered API URL for debug check:", apiBaseUrl, e);
-                    // On error, assume production and hide the console.
-                    isDevEnv = false;
-                }
-            }
-            // Case 3: API and Frontend have different origins. This is a production environment.
-            // In this case, isDevEnv remains false.
-            
-            if (isDevEnv) {
-                console.log("Dev/Sandbox environment detected, showing debug console.");
-                setShowDebugConsole(true);
-            } else {
-                console.log("Production environment detected, debug console is hidden.");
-                setShowDebugConsole(false);
-            }
-        };
-        checkDevEnv();
-    }, []);
+    const toggleDebugConsole = (enabled: boolean) => {
+        sessionStorage.setItem('debugConsoleEnabled', String(enabled));
+        setShowDebugConsole(enabled);
+        if (enabled) {
+            showNotification('Debug console enabled for this session.');
+        } else {
+            showNotification('Debug console disabled.');
+        }
+    };
     
     // Effect for polling imported bills for updates
     useEffect(() => {
@@ -251,7 +226,7 @@ export const useAppLogic = () => {
         // State
         view, currentBillId, currentImportedBillId, recurringBillToEdit, fromTemplate, billConversionSource,
         confirmation, setConfirmation, settingsSection, setSettingsSection, isCsvImporterOpen, setIsCsvImporterOpen,
-        isQrImporterOpen, setIsQrImporterOpen, showDebugConsole,
+        isQrImporterOpen, setIsQrImporterOpen, showDebugConsole, toggleDebugConsole,
         dashboardView,
         selectedParticipant, setSelectedParticipant,
         dashboardStatusFilter,
