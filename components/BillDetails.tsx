@@ -46,6 +46,8 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, s
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+    const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -121,14 +123,26 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, s
                         </div>
                     </div>
 
-                    {bill.receiptImage && (
-                        <div className="mt-4">
+                    <div className="my-4 flex flex-wrap gap-x-4 gap-y-2 border-b border-slate-200 dark:border-slate-700 pb-4">
+                        {bill.receiptImage && (
                             <button onClick={() => setIsReceiptModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
                                 View Receipt Image
                             </button>
-                        </div>
-                    )}
+                        )}
+                        {bill.additionalInfo && Object.keys(bill.additionalInfo).length > 0 && (
+                            <button onClick={() => setIsInfoModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                                View Additional Info
+                            </button>
+                        )}
+                        {bill.items && bill.items.length > 0 && (
+                            <button onClick={() => setIsItemsModalOpen(true)} className="inline-flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400 font-semibold hover:underline">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 11a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                                View Itemization
+                            </button>
+                        )}
+                    </div>
 
 
                     <div className="mt-6">
@@ -161,6 +175,49 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, s
                         <button onClick={() => setIsReceiptModalOpen(false)} className="absolute -top-3 -right-3 bg-white text-slate-800 rounded-full p-2 shadow-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-white" aria-label="Close receipt view">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
+                    </div>
+                </div>
+            )}
+            {isInfoModalOpen && bill.additionalInfo && (
+                <div className="fixed inset-0 bg-black bg-opacity-80 z-[51] flex justify-center items-center p-4" onClick={() => setIsInfoModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="info-dialog-title">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-700"><h3 id="info-dialog-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">Additional Information</h3></div>
+                        <div className="p-6 flex-grow overflow-y-auto"><dl className="space-y-4">{Object.entries(bill.additionalInfo).map(([key, value]) => (<div key={key} className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-md"><dt className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate">{key}</dt><dd className="mt-1 text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{String(value)}</dd></div>))}</dl></div>
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end"><button onClick={() => setIsInfoModalOpen(false)} className="px-5 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Close</button></div>
+                    </div>
+                </div>
+            )}
+
+            {isItemsModalOpen && bill.items && (
+                <div className="fixed inset-0 bg-black bg-opacity-80 z-[51] flex justify-center items-center p-4" onClick={() => setIsItemsModalOpen(false)} role="dialog" aria-modal="true" aria-labelledby="items-dialog-title">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-700"><h3 id="items-dialog-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">Itemization</h3></div>
+                        <div className="p-6 flex-grow overflow-y-auto">
+                            <ul className="space-y-3">
+                                {bill.items.map(item => {
+                                    const assignedParticipants = item.assignedTo
+                                        .map(pId => bill.participants.find(p => p.id === pId)?.name)
+                                        .filter(Boolean);
+
+                                    return (
+                                        <li key={item.id} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                                            <div className="flex justify-between items-start">
+                                                <p className="font-semibold text-slate-800 dark:text-slate-100 break-words pr-2">{item.name}</p>
+                                                <p className="font-bold text-lg text-slate-800 dark:text-slate-100">${item.price.toFixed(2)}</p>
+                                            </div>
+                                            {assignedParticipants.length > 0 && (
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                    Assigned to: {assignedParticipants.join(', ')}
+                                                </p>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                            <button onClick={() => setIsItemsModalOpen(false)} className="px-5 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Close</button>
+                        </div>
                     </div>
                 </div>
             )}

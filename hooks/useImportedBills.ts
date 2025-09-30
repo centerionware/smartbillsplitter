@@ -99,9 +99,8 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX: Cast `incomingBill` to its correct type. TypeScript was inferring it as 'unknown' inside the loop, causing property access errors on `lastUpdatedAt` and when using the spread operator.
-      for (const incomingBill of billsToMerge) {
-          const bill = incomingBill as Omit<ImportedBill, 'status' | 'liveStatus'>;
+      // FIX: Renamed loop variable to `bill` for direct type inference and removed the redundant type assertion. This resolves errors where `incomingBill` was being inferred as 'unknown'.
+      for (const bill of billsToMerge) {
           const existingBill = existingBillMap.get(bill.id);
 
           if (existingBill) {
