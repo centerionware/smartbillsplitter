@@ -19,7 +19,9 @@ const App: React.FC = () => {
             <Header 
                 navigate={appLogic.navigate} 
                 onOpenSettings={appLogic.setSettingsSection} 
-                currentView={appLogic.view} 
+                currentView={appLogic.view}
+                canInstall={appLogic.canInstall}
+                promptInstall={appLogic.promptInstall}
             />
             <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
                 <AppRouter {...appLogic} />

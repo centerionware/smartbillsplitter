@@ -12,6 +12,7 @@ import { useAuth } from './useAuth';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import { syncSharedBillUpdate, pollImportedBills, pollOwnedSharedBills, reactivateShare } from '../services/shareService';
 import { getDiscoveredApiBaseUrl } from '../services/api';
+import { usePwaInstall } from './usePwaInstall.ts';
 
 export const useAppLogic = () => {
     // --- Hooks ---
@@ -22,6 +23,7 @@ export const useAppLogic = () => {
     const { theme, setTheme } = useTheme();
     const { subscriptionStatus } = useAuth();
     const { showNotification } = useAppControl();
+    const { canInstall, promptInstall } = usePwaInstall();
 
     // --- Core State ---
     const [confirmation, setConfirmation] = useState<{ title: string; message: string; onConfirm: () => void; options?: any } | null>(null);
@@ -278,6 +280,7 @@ export const useAppLogic = () => {
         settings, updateSettings, theme, setTheme, subscriptionStatus,
         bills, importedBills, recurringBills, currentBill, currentImportedBill,
         isLoading,
+        canInstall, promptInstall,
         // Callbacks & Handlers
         navigate, requestConfirmation, updateBill, addImportedBill, updateImportedBill, updateMultipleImportedBills,
         handleSaveBill, handleSaveRecurringBill, handleUpdateRecurringBill, handleDeleteBill, handleDeleteImportedBill,

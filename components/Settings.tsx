@@ -4,9 +4,11 @@ import type { SettingsSection } from '../types';
 interface SettingsProps {
   onNavigateToSection: (section: SettingsSection) => void;
   onBack: () => void;
+  canInstall: boolean;
+  promptInstall: () => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ onNavigateToSection, onBack }) => {
+const Settings: React.FC<SettingsProps> = ({ onNavigateToSection, onBack, canInstall, promptInstall }) => {
 
   const sections: { id: SettingsSection; title: string; description: string; icon: string; }[] = [
     { id: 'personalization', title: 'Personalization', description: 'Name, theme, and share message', icon: '🎨' },
@@ -16,6 +18,7 @@ const Settings: React.FC<SettingsProps> = ({ onNavigateToSection, onBack }) => {
     { id: 'data', title: 'Data & Tools', description: 'Import, export, or scan QR', icon: '🛠️' },
     { id: 'sync', title: 'Sync Devices', description: 'Transfer data to another device', icon: '🔄' },
     { id: 'about', title: 'About & Support', description: 'Project source, issues, and changelog', icon: 'ℹ️' },
+    { id: 'disclaimer', title: 'Disclaimer & Privacy', description: 'How your data is handled', icon: '⚖️' },
     { id: 'danger', title: 'Danger Zone', description: 'Reset all application data', icon: '🔥' },
   ];
 
@@ -40,6 +43,16 @@ const Settings: React.FC<SettingsProps> = ({ onNavigateToSection, onBack }) => {
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{section.description}</p>
           </button>
         ))}
+        {canInstall && (
+          <button
+            onClick={promptInstall}
+            className="relative p-6 bg-white dark:bg-slate-800 rounded-lg shadow-md hover:shadow-xl dark:hover:shadow-teal-900/40 text-left transition-all duration-300 transform hover:-translate-y-1"
+          >
+            <div className="text-4xl mb-4">📥</div>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Install App</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Install to your device for an offline, native app experience.</p>
+          </button>
+        )}
       </div>
     </div>
   );

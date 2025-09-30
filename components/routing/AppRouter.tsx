@@ -68,6 +68,8 @@ type AppLogicProps = {
     updateMultipleBills: (bills: Bill[]) => Promise<void>;
     archiveImportedBill: (billId: string) => Promise<void>;
     unarchiveImportedBill: (billId: string) => Promise<void>;
+    canInstall: boolean;
+    promptInstall: () => void;
 };
 
 export const AppRouter: React.FC<AppLogicProps> = (props) => {
@@ -77,7 +79,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         settings, updateSettings, recurringBillToEdit, fromTemplate, billConversionSource,
         updateBill, setSettingsSection, requestConfirmation,
         recurringBills, createFromTemplate, archiveRecurringBill, unarchiveRecurringBill, handleDeleteRecurringBill,
-        addImportedBill, importedBills
+        addImportedBill, importedBills, canInstall, promptInstall
     } = props;
 
     if (isLoading) {
@@ -101,7 +103,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         case View.RecurringBills:
             return <RecurringBillsList recurringBills={recurringBills} onCreateFromTemplate={createFromTemplate} onEditTemplate={(template) => navigate(View.CreateBill, { recurringBillToEdit: template })} onArchive={archiveRecurringBill} onUnarchive={unarchiveRecurringBill} onDelete={handleDeleteRecurringBill} onBack={() => navigate(View.Dashboard)} />;
         case View.Settings:
-            return <SettingsComponent onNavigateToSection={setSettingsSection} onBack={() => navigate(View.Dashboard)} />;
+            return <SettingsComponent onNavigateToSection={setSettingsSection} onBack={() => navigate(View.Dashboard)} canInstall={canInstall} promptInstall={promptInstall} />;
         case View.Sync:
             return <SyncComponent onBack={() => navigate(View.Settings)} requestConfirmation={requestConfirmation} />;
         case View.Disclaimer:

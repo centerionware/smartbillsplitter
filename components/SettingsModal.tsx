@@ -11,6 +11,7 @@ import DangerZone from './settings/DangerZone';
 import SubscriptionManagement from './settings/SubscriptionManagement';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import AboutSupport from './settings/AboutSupport';
+import { DisclaimerContent } from './DisclaimerContent.tsx';
 
 interface SettingsModalProps {
   activeSection: SettingsSection;
@@ -78,6 +79,7 @@ const SettingsModal: React.FC<SettingsModalProps> = (props) => {
     subscription: { title: 'Subscription', component: <SubscriptionManagement onNavigate={props.onNavigate} onGoToManageSubscriptionPage={() => props.onNavigate(View.ManageSubscription)} /> },
     danger: { title: 'Danger Zone', component: <DangerZone requestConfirmation={props.requestConfirmation} /> },
     about: { title: 'About & Support', component: <AboutSupport showDebugConsole={props.showDebugConsole} onToggleDebugConsole={props.toggleDebugConsole} /> },
+    disclaimer: { title: 'Disclaimer & Privacy', component: <DisclaimerContent /> },
   };
 
   const currentSection = sectionConfig[activeSection];

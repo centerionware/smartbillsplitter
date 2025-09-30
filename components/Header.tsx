@@ -5,9 +5,11 @@ interface HeaderProps {
   navigate: (view: View, params?: any) => void;
   onOpenSettings: (section: SettingsSection) => void;
   currentView: View;
+  canInstall: boolean;
+  promptInstall: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ navigate, onOpenSettings, currentView }) => {
+const Header: React.FC<HeaderProps> = ({ navigate, onOpenSettings, currentView, canInstall, promptInstall }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -19,6 +21,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onOpenSettings, currentView }
     { id: 'about', title: 'About & Support', icon: 'ℹ️' },
     { id: 'data', title: 'Data & Tools', icon: '🛠️' },
     { id: 'sync', title: 'Sync Devices', icon: '🔄' },
+    { id: 'disclaimer', title: 'Disclaimer & Privacy', icon: '⚖️' },
   ];
 
   useEffect(() => {
@@ -74,7 +77,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onOpenSettings, currentView }
                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" /></svg>
             </button>
             {isMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 py-1 z-20">
+              <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-slate-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 py-1 z-20">
                 {sections.map(section => (
                   <button
                     key={section.id}
@@ -87,6 +90,18 @@ const Header: React.FC<HeaderProps> = ({ navigate, onOpenSettings, currentView }
                     </div>
                   </button>
                 ))}
+                {canInstall && (
+                    <>
+                        <div className="my-1 h-px bg-slate-100 dark:bg-slate-700"></div>
+                        <button
+                          onClick={() => handleMenuAction(promptInstall)}
+                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        >
+                            <span className="text-base">📥</span>
+                            <span>Install App</span>
+                        </button>
+                    </>
+                )}
                 <div className="my-1 h-px bg-slate-100 dark:bg-slate-700"></div>
                 <button
                   onClick={() => handleMenuAction(() => navigate(View.Settings))}
