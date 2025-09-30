@@ -21,6 +21,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Define logout first to break potential dependency cycle with loadStatus
+  const logout = useCallback(async () => {
+    // On logout, clear both the simple status and the detailed subscription info.
+    await deleteSubscriptionDetails();
+    setSubscriptionDetails(null);
+    setSubscriptionStatus(null);
+  }, []);
+
   const loadStatus = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -30,43 +38,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSubscriptionStatus(storedStatus);
         if (storedStatus === 'subscribed') {
           const details = await getSubscriptionDetails();
-          setSubscriptionDetails(details || null);
-        }
-        localStorage.removeItem('trialStartTime'); // Clean up trial if a real status is set
-      } else { // No subscription status set, check for trial.
-        const trialStartTimeStr = localStorage.getItem('trialStartTime');
-        if (trialStartTimeStr) {
-          const trialStartTime = parseInt(trialStartTimeStr, 10);
-          const trialDuration = 24 * 60 * 60 * 1000; // 24 hours
-          const now = Date.now();
+          
+          if (details && details.customerId === 'trial-user') {
+            // This is a trial subscription, check for expiry
+            const trialStartTime = new Date(details.startDate).getTime();
+            const trialDuration = 24 * 60 * 60 * 1000; // 24 hours
+            const now = Date.now();
 
-          if (now < trialStartTime + trialDuration) {
-            // Trial is active
-            setSubscriptionStatus('subscribed'); // Treat as pro user
-            // Set mock details for pro features to work
-            setSubscriptionDetails({
-                provider: 'paypal', // placeholder, can be anything
-                customerId: 'trial-user',
-                subscriptionId: 'trial-active',
-                startDate: new Date(trialStartTime).toISOString(),
-                duration: 'yearly', // placeholder
-            });
-            // Re-check status when the trial is supposed to expire
-            const timeRemaining = (trialStartTime + trialDuration) - now;
-            setTimeout(() => {
-              loadStatus();
-            }, timeRemaining + 500); // add 500ms buffer
+            if (now < trialStartTime + trialDuration) {
+              // Trial is active
+              setSubscriptionDetails(details);
+              // Re-check status when the trial is supposed to expire
+              const timeRemaining = (trialStartTime + trialDuration) - now;
+              setTimeout(() => {
+                loadStatus();
+              }, timeRemaining + 500); // add 500ms buffer
+            } else {
+              // Trial expired, log the user out
+              await logout();
+              return; // Stop further execution
+            }
+          } else if (details) {
+            setSubscriptionDetails(details);
           } else {
-            // Trial expired
-            localStorage.removeItem('trialStartTime');
-            setSubscriptionStatus(null);
-            setSubscriptionDetails(null);
+            // Subscribed status without details? Anomaly. Log out.
+            await logout();
+            return;
           }
-        } else {
-          // No subscription, no trial
-          setSubscriptionStatus(null);
-          setSubscriptionDetails(null);
         }
+      } else {
+        // No subscription status set
+        setSubscriptionStatus(null);
+        setSubscriptionDetails(null);
       }
     } catch (error) {
       console.error("Failed to load subscription status from DB:", error);
@@ -74,7 +77,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
     loadStatus();
@@ -89,7 +92,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await saveSubscriptionStatus('subscribed');
     setSubscriptionDetails(fullDetails);
     setSubscriptionStatus('subscribed');
-    localStorage.removeItem('trialStartTime'); // Clear trial on login
   }, []);
 
   const selectFreeTier = useCallback(async () => {
@@ -98,23 +100,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await saveSubscriptionStatus('free');
     setSubscriptionDetails(null);
     setSubscriptionStatus('free');
-    localStorage.removeItem('trialStartTime'); // Clear trial on selecting free tier
   }, []);
-
-  const logout = useCallback(async () => {
-    // On logout, clear both the simple status and the detailed subscription info.
-    await deleteSubscriptionDetails();
-    await saveSubscriptionStatus(null);
-    setSubscriptionDetails(null);
-    setSubscriptionStatus(null);
-  }, []);
-
+  
   const startTrial = useCallback(async () => {
     const storedStatus = await getSubscriptionStatus();
-    const trialStarted = localStorage.getItem('trialStartTime');
-    if (!storedStatus && !trialStarted) {
-        localStorage.setItem('trialStartTime', Date.now().toString());
-        await loadStatus();
+    const storedDetails = await getSubscriptionDetails();
+    if (!storedStatus && !storedDetails) {
+        const trialDetails: SubscriptionDetails = {
+            provider: 'paypal', // placeholder
+            customerId: 'trial-user',
+            subscriptionId: 'trial-active',
+            startDate: new Date().toISOString(),
+            duration: 'yearly', // placeholder
+        };
+        await saveSubscriptionDetails(trialDetails);
+        await saveSubscriptionStatus('subscribed');
+        await loadStatus(); // This will set state and schedule expiry check
     }
   }, [loadStatus]);
 

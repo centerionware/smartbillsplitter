@@ -9,6 +9,7 @@ import HalfScreenAdModal from './HalfScreenAdModal';
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import PaymentMethodsModal from './PaymentMethodsModal';
 import { exportData } from '../services/exportService';
+import TutorialOverlay from './TutorialOverlay.tsx';
 
 // New Child Components
 import DashboardSummary from './dashboard/DashboardSummary';
@@ -71,6 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [archivingBillIds, setArchivingBillIds] = useState<string[]>([]);
   const [isHalfScreenAdOpen, setIsHalfScreenAdOpen] = useState(false);
   const [settleUpBill, setSettleUpBill] = useState<ImportedBill | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
   const { showNotification } = useAppControl();
 
   const hasRecurringBills = recurringBills.length > 0;
@@ -81,6 +83,19 @@ const Dashboard: React.FC<DashboardProps> = ({
         onSetDashboardView('bills');
     }
   }, [hasRecurringBills, dashboardView, onSetDashboardView]);
+  
+  // Show tutorial on first load
+  useEffect(() => {
+    // Only show tutorial on the main 'bills' view and if it hasn't been completed.
+    if (dashboardView === 'bills' && !selectedParticipant) {
+        const tutorialCompleted = localStorage.getItem('sharedbills.tutorialCompleted');
+        if (!tutorialCompleted) {
+            // Use a timeout to prevent it from flashing instantly
+            const timer = setTimeout(() => setShowTutorial(true), 500);
+            return () => clearTimeout(timer);
+        }
+    }
+  }, [dashboardView, selectedParticipant]);
 
 
   // Reset search mode when switching to a view that doesn't support participant search
@@ -413,6 +428,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       exportData({ imported: [bill] }, `${bill.sharedData.bill.description.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`);
       showNotification(`Exported "${bill.sharedData.bill.description}"`);
   };
+  
+  const handleCloseTutorial = useCallback(() => {
+    localStorage.setItem('sharedbills.tutorialCompleted', 'true');
+    setShowTutorial(false);
+  }, []);
 
   const renderContent = () => {
     if (dashboardView === 'participants' && !selectedParticipant) {
@@ -483,6 +503,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div>
+      {showTutorial && <TutorialOverlay onClose={handleCloseTutorial} />}
       {!['upcoming', 'templates'].includes(dashboardView) &&
         <DashboardSummary summaryTotals={summaryTotals} dashboardStatusFilter={dashboardStatusFilter} dashboardSummaryFilter={dashboardSummaryFilter} onSetDashboardSummaryFilter={onSetDashboardSummaryFilter} />
       }

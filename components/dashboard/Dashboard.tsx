@@ -210,8 +210,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     const lowercasedQuery = searchQuery.toLowerCase().trim();
     const allParticipantBills = bills.filter(b => b.participants.some(p => p.name === selectedParticipant));
     const searchedBills = lowercasedQuery ? allParticipantBills.filter(bill => searchMode === 'description' ? bill.description.toLowerCase().includes(lowercasedQuery) : bill.participants.some(p => p.name.toLowerCase().includes(lowercasedQuery))) : allParticipantBills;
-    const active = searchedBills.filter(b => b.status === 'active').sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
-    const allArchived = searchedBills.filter(b => b.status === 'archived').sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
+    const active = searchedBills.filter(b => b.status === 'active').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const allArchived = searchedBills.filter(b => b.status === 'archived').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const unpaidArchived = allArchived.filter(b => b.participants.some(p => p.name === selectedParticipant && !p.paid && p.amountOwed > 0.005));
     return { active, allArchived, unpaidArchived };
   }, [bills, selectedParticipant, searchQuery, searchMode]);

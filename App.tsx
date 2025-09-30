@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAppLogic } from './hooks/useAppLogic.ts';
+import { View } from './types.ts';
 
 // Components
 import Header from './components/Header.tsx';
@@ -7,6 +8,7 @@ import { AppRouter } from './components/routing/AppRouter.tsx';
 import { AppModals } from './components/modals/AppModals.tsx';
 import PwaInstallBanner from './components/PwaInstallBanner.tsx';
 import DebugConsole from './components/DebugConsole.tsx';
+import TutorialManager from './components/TutorialManager.tsx';
 
 const App: React.FC = () => {
     const appLogic = useAppLogic();
@@ -26,6 +28,13 @@ const App: React.FC = () => {
             <AppModals {...appLogic} />
 
             {appLogic.showDebugConsole && <DebugConsole />}
+
+            {appLogic.view === View.Dashboard && (
+              <TutorialManager 
+                dashboardView={appLogic.dashboardView} 
+                selectedParticipant={appLogic.selectedParticipant} 
+              />
+            )}
         </div>
     );
 };

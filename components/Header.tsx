@@ -58,6 +58,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onOpenSettings, currentView }
           <div className="flex-grow flex justify-center">
             {currentView === View.Dashboard && (
               <button
+                id="create-new-bill-button"
                 onClick={() => navigate(View.CreateBill)}
                 className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full"
                 aria-label="Create new bill"
