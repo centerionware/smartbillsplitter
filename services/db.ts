@@ -3,7 +3,7 @@ import type { SubscriptionStatus } from '../hooks/useAuth';
 import { postMessage } from './broadcastService';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 11; // Incremented to force migration for all users
+const DB_VERSION = 12; // Incremented to force migration for all users
 
 // Object Store Names
 const STORES = {
@@ -269,8 +269,32 @@ export const deleteBillSigningKeyDB = (billId: string) => del(STORES.BILL_SIGNIN
 
 // --- Communication Key Operations ---
 const COMM_KEY_ID = 'user_comm_key';
-export const getCommunicationKeyPair = () => get<CryptoKeyPair>(STORES.COMMUNICATION_KEYS, COMM_KEY_ID);
-export const saveCommunicationKeyPair = (keyPair: CryptoKeyPair) => set(STORES.COMMUNICATION_KEYS, keyPair, COMM_KEY_ID);
+
+export const getCommunicationKeyPair = async (): Promise<CryptoKeyPair | null> => {
+    // Retrieve the CryptoKeyPair object directly.
+    // Modern browsers support storing CryptoKey objects via the structured clone algorithm.
+    const keyPair = await get<CryptoKeyPair>(STORES.COMMUNICATION_KEYS, COMM_KEY_ID);
+
+    // Validate that what we retrieved is a valid CryptoKeyPair.
+    // This handles cases of corrupted data or old JWK-formatted data.
+    if (keyPair && keyPair.publicKey instanceof CryptoKey && keyPair.privateKey instanceof CryptoKey) {
+        return keyPair;
+    }
+
+    // If the data is present but invalid, clear it to force regeneration.
+    if (keyPair) {
+        console.warn("Found invalid or old format for communication keys in DB. A new key pair will be generated on next load.");
+        await del(STORES.COMMUNICATION_KEYS, COMM_KEY_ID);
+    }
+    
+    return null;
+};
+
+export const saveCommunicationKeyPair = async (keyPair: CryptoKeyPair): Promise<void> => {
+    // Store the CryptoKeyPair object directly without converting to JWK.
+    await set(STORES.COMMUNICATION_KEYS, keyPair, COMM_KEY_ID);
+};
+
 
 // --- PayPal Subscription Management ---
 export const getManagedPayPalSubscriptions = () => get<PayPalSubscriptionDetails[]>(STORES.MANAGED_PAYPAL_SUBSCRIPTIONS, SINGLE_KEY).then(res => res || []);
