@@ -4,8 +4,27 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SharedBills - Effortless Bill Splitting</title>
-    <meta name="description" content="Effortlessly split bills and track shared expenses with friends. Scan receipts with AI, manage recurring bills, and settle up easily.">
+    
+    <!-- SEO Meta Tags -->
+    <title>SharedBills | AI Receipt Scanner & Bill Splitting App</title>
+    <meta name="description" content="Split bills effortlessly with SharedBills, the AI-powered expense tracker. Scan receipts, manage group expenses with friends and roommates, handle recurring bills, and settle up with ease. Your financial data stays private and secure on your device.">
+    <meta name="keywords" content="split bills, expense tracker, receipt scanner, shared expenses, group payments, roommate bills, ai finance, budget app, expense management">
+    <link rel="canonical" href="https://sharedbills.app/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sharedbills.app/">
+    <meta property="og:title" content="SharedBills | AI Receipt Scanner & Bill Splitting App">
+    <meta property="og:description" content="Effortlessly split bills, scan receipts with AI, and track shared expenses with friends. Your data stays private, on your device.">
+    <meta property="og:image" content="https://sharedbills.app/icon.svg">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:url" content="https://sharedbills.app/">
+    <meta property="twitter:title" content="SharedBills | AI Receipt Scanner & Bill Splitting App">
+    <meta property="twitter:description" content="Effortlessly split bills, scan receipts with AI, and track shared expenses with friends. Your data stays private, on your device.">
+    <meta property="twitter:image" content="https://sharedbills.app/icon.svg">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* A little custom touch for the hero background */
@@ -29,6 +48,30 @@
       } else {
         document.documentElement.classList.remove('dark')
       }
+    </script>
+    
+    <!-- JSON-LD Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "SharedBills",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web",
+      "description": "An AI-powered application to effortlessly split bills, scan receipts, and track shared expenses. All data is stored securely on the user's device for maximum privacy.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "AI Receipt Scanning",
+        "On-Device Data Storage",
+        "Customizable Bill Splitting",
+        "Recurring Bill Templates",
+        "Secure Bill Sharing"
+      ]
+    }
     </script>
 <script type="importmap">
 {
@@ -63,7 +106,7 @@
                     </svg>
                     <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">SharedBills</h1>
                 </div>
-                <a href="/app.html" class="px-5 py-2.5 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">
+                <a href="/app.html" class="px-5 py-2.5 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors" aria-label="Launch SharedBills App">
                     Launch App
                 </a>
             </div>
@@ -78,10 +121,10 @@
                     Effortless Bill Splitting, <span class="text-teal-500">Powered by AI.</span>
                 </h1>
                 <p class="mt-6 max-w-3xl mx-auto text-lg text-slate-600 dark:text-slate-300">
-                    Scan receipts, manage recurring expenses, and settle up with friends—all securely on your device. Your data stays with you.
+                    Scan receipts, manage recurring expenses with friends or roommates, and settle up your shared finances—all securely on your device.
                 </p>
                 <div class="mt-8 flex justify-center">
-                    <a href="/app.html" class="px-8 py-4 bg-teal-500 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-transform transform hover:scale-105 shadow-lg">
+                    <a href="/app.html" class="px-8 py-4 bg-teal-500 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-transform transform hover:scale-105 shadow-lg" aria-label="Launch App and Start Splitting Bills">
                         Launch App & Start Splitting
                     </a>
                 </div>
@@ -92,8 +135,8 @@
         <section id="features" class="py-20 sm:py-24">
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-16">
-                    <h2 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">Features You'll Love</h2>
-                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-500 dark:text-slate-400">Everything you need to manage shared expenses without the hassle.</p>
+                    <h2 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">An Expense Tracker You'll Love</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-500 dark:text-slate-400">Everything you need to manage group expenses without the hassle.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     <!-- Feature 1 -->
@@ -101,16 +144,16 @@
                         <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         </div>
-                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Scan & Go</h3>
-                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Snap a photo of any receipt. Our AI intelligently extracts every item and price, saving you from manual entry.</p>
+                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">AI Receipt Scanner</h3>
+                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Snap a photo of any receipt. Our AI intelligently extracts every item and price, saving you from manual entry for faster expense management.</p>
                     </div>
                     <!-- Feature 2 -->
                     <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
                          <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                         </div>
-                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Privacy First</h3>
-                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Your financial data is yours. Bills are stored locally on your device, and only encrypted copies are sent when sharing.</p>
+                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Privacy First Design</h3>
+                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Your financial data is yours. All bills are stored locally on your device, not on our servers. Shared bills are end-to-end encrypted.</p>
                     </div>
                     <!-- Feature 3 -->
                     <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
@@ -118,15 +161,15 @@
                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.171-1.952 3.07-1.952 4.242 0 1.172 1.953 1.172 5.119 0 7.072z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 12l9 3-9-3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 12l-9 3 9-3z" /></svg>
                         </div>
                         <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Split Your Way</h3>
-                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Divide bills equally, by specific amounts, percentages, or assign individual items. Perfect for any situation.</p>
+                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Divide group payments equally, by specific amounts, percentages, or assign individual items. Perfect for dinners, trips, and roommate bills.</p>
                     </div>
                      <!-- Feature 4 -->
                     <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
                         <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                         </div>
-                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Smart Templates</h3>
-                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Set up templates for monthly expenses like rent or subscriptions. Create new bills from your templates in a single tap.</p>
+                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Recurring Bills</h3>
+                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Set up templates for monthly expenses like rent or subscriptions. Create new bills from your templates in a single tap to streamline your budgeting.</p>
                     </div>
                 </div>
             </div>
@@ -153,7 +196,7 @@
             <div class="text-center">
                  <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Ready to simplify your shared expenses?</h2>
                  <div class="mt-6">
-                    <a href="/app.html" class="px-8 py-4 bg-teal-500 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-transform transform hover:scale-105 shadow-lg">
+                    <a href="/app.html" class="px-8 py-4 bg-teal-500 text-white text-lg font-bold rounded-lg hover:bg-teal-600 transition-transform transform hover:scale-105 shadow-lg" aria-label="Get Started for Free">
                         Get Started for Free
                     </a>
                 </div>
