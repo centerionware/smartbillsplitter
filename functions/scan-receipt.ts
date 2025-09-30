@@ -82,7 +82,22 @@ export const scanReceiptHandler = async (req: HttpRequest): Promise<HttpResponse
     };
     
     const textPart = {
-      text: 'Extract the information from this receipt into the provided JSON schema. Focus on accurately identifying all individual line items, including any tax or tip, the final printed total, and any other relevant details like store address or phone number for the \'additionalInfo\' field.'
+      text: `
+        You are an expert receipt data extractor. Analyze the provided receipt image and extract the information into the provided JSON schema.
+
+        **Extraction Rules:**
+        1.  **description**: Extract the merchant's name as a short, clear title.
+        2.  **date**: Find the transaction date and format it as YYYY-MM-DD. If no date is found, this can be null.
+        3.  **total**: Find the FINAL total amount paid. This is usually labeled "Total", "Amount Paid", or similar. Extract this value directly. DO NOT calculate it from line items. If no final total is explicitly printed, this can be null.
+        4.  **items**: List EVERY single line item from the receipt.
+            - Include items, taxes, tips, fees, and discounts as separate entries in this list.
+            - DO NOT include the "Subtotal" as an item.
+        5.  **additionalInfo**: Extract any other potentially useful information as key-value pairs. This is very important.
+            - Examples: Store address, phone number, website, "Order Number", "Transaction ID", loyalty program details.
+            - DO NOT include tax, tip, or total in this section; they belong in 'items' or 'total'.
+
+        Strictly adhere to the JSON schema.
+      `
     };
 
     const response = await ai.models.generateContent({

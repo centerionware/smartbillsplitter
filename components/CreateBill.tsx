@@ -22,6 +22,13 @@ const getTodayDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+const getStepFromHash = () => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const stepParam = params.get('step');
+    if (stepParam === '1.5') return 1.5;
+    return parseInt(stepParam || '1', 10);
+};
+
 interface CreateBillProps {
   onSaveBill: (bill: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => void;
   onSaveRecurringBill: (bill: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => void;
@@ -51,9 +58,39 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const isConverting = !!billConversionSource;
   const isRecurring = isEditingTemplate || isConverting;
 
-  const [step, setStep] = useState(1);
+  const [step, setStepState] = useState(getStepFromHash());
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const { showNotification } = useAppControl();
+
+  const setStep = (newStep: number) => {
+    setStepState(newStep);
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const baseHash = window.location.hash.split('?')[0];
+
+    if (newStep === 1) {
+        params.delete('step');
+    } else {
+        params.set('step', String(newStep));
+    }
+
+    const newQuery = params.toString();
+    // Use replaceState to avoid polluting history for simple step changes
+    window.history.replaceState(null, '', newQuery ? `${baseHash}?${newQuery}` : baseHash);
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+        const stepFromHash = getStepFromHash();
+        if (step !== stepFromHash) {
+            setStepState(stepFromHash);
+        }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+        window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, [step]);
+
 
   const [description, setDescription] = useState(initialState?.description || '');
   const [totalAmount, setTotalAmount] = useState<number | undefined>(initialState?.totalAmount);
@@ -231,6 +268,15 @@ const CreateBill: React.FC<CreateBillProps> = ({
         setDate(data.date);
     }
 
+    if (data.additionalInfo && Array.isArray(data.additionalInfo)) {
+        const newAdditionalInfo = data.additionalInfo.map((info: {key: string; value: string}, index: number) => ({
+            id: `info-scanned-${Date.now()}-${index}`,
+            key: info.key,
+            value: info.value,
+        }));
+        setAdditionalInfo(newAdditionalInfo);
+    }
+
     const scannedItems: { name: string; price: number }[] = data.items.map((item: any) => ({
       name: item.name,
       price: item.price,
@@ -366,7 +412,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
         <BillSplitMethod splitMode={splitMode} setSplitMode={setSplitMode} />
         <BillParticipants participants={participants} setParticipants={setParticipants} splitMode={splitMode} participantsError={errors.participants} />
         <div className="mt-8 flex justify-between space-x-4">
-            <button type="button" onClick={() => setStep(2)} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Back</button>
+            <button type="button" onClick={() => window.history.back()} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Back</button>
             <button type="button" onClick={() => handleNext(4)} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Next</button>
         </div>
     </div>
@@ -385,7 +431,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
             onReceiptImageChange={setReceiptImage}
         />
          <div className="mt-8 flex justify-between space-x-4">
-            <button type="button" onClick={() => setStep(3)} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Back</button>
+            <button type="button" onClick={() => window.history.back()} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Back</button>
             <button type="button" onClick={validateAndSave} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">{isEditingTemplate ? 'Update Template' : 'Save Bill'}</button>
         </div>
     </div>
