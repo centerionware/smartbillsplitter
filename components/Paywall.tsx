@@ -70,7 +70,7 @@ const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => 
     const providerName = PAYMENT_PROVIDER === 'stripe' ? 'Stripe' : 'PayPal';
     return (
         <>
-            <div className="space-y-4 mb-8">
+            <div className="space-y-4">
                 {/* Monthly Plan */}
                 <div
                 onClick={() => !isLoading && handleCheckout('monthly')}
@@ -118,7 +118,7 @@ const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => 
                 </div>
             </div>
             
-            <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
                 Payment processing is handled securely by {providerName}.
             </p>
         </>
@@ -151,10 +151,16 @@ const Paywall: React.FC<PaywallProps> = ({ onSelectFreeTier, initialError }) => 
             
             {renderPaymentOptions()}
 
-            <div className="mt-8 text-center">
+            <div className="relative flex py-4 items-center">
+                <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                <span className="flex-shrink mx-4 text-slate-400 dark:text-slate-500 text-xs uppercase font-semibold">Or</span>
+                <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+            </div>
+
+            <div className="text-center">
                 <button
                     onClick={onSelectFreeTier}
-                    className="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400"
+                    className="w-full px-6 py-3 bg-slate-100 text-slate-800 font-bold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors"
                 >
                     Continue with the free, ad-supported version
                 </button>
