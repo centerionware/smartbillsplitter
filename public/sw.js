@@ -42,13 +42,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy: Network-first for navigation requests (the HTML page itself).
-  // This ensures users always get the latest version of the app shell if they are online.
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          // If the fetch is successful, cache the new version for offline use.
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseToCache);
@@ -56,15 +53,12 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // If the network fails (offline), serve the page from the cache.
           return caches.match(event.request);
         })
     );
     return;
   }
 
-  // Strategy: Cache-first for all other assets (JS, CSS, images, etc.).
-  // These assets are less likely to change frequently, so serving from cache is faster.
   event.respondWith(
     caches.match(event.request).then(response => {
       return response || fetch(event.request);
@@ -77,14 +71,11 @@ self.addEventListener('notificationclick', (event) => {
   console.log('On notification click: ', event.notification.tag);
   event.notification.close();
 
-  // This looks for an existing window and focuses it.
-  // If no window is found, it opens a new one.
   event.waitUntil(clients.matchAll({
     type: 'window',
     includeUncontrolled: true
   }).then((clientList) => {
     for (const client of clientList) {
-      // Check if the client is the app itself.
       if (client.url.endsWith('/app.html') && 'focus' in client) {
         return client.focus();
       }
@@ -93,4 +84,48 @@ self.addEventListener('notificationclick', (event) => {
       return clients.openWindow('/app.html');
     }
   }));
+});
+
+// --- Fallback Notification Scheduling ---
+const timeoutIds = new Map();
+
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+
+  const { type, tag } = event.data;
+
+  if (type === 'schedule-notification') {
+    const { title, options, triggerTimestamp } = event.data;
+    const delay = triggerTimestamp - Date.now();
+
+    if (delay > 0) {
+      console.log(`[SW] Scheduling notification "${tag}" via setTimeout in ${delay}ms.`);
+      // If a timeout already exists for this tag, clear it first.
+      if (timeoutIds.has(tag)) {
+        clearTimeout(timeoutIds.get(tag));
+      }
+
+      const timeoutId = setTimeout(() => {
+        self.registration.showNotification(title, options)
+          .then(() => {
+            console.log(`[SW] Notification "${tag}" shown via setTimeout.`);
+            timeoutIds.delete(tag);
+          })
+          .catch(err => {
+            console.error(`[SW] Error showing notification for tag "${tag}":`, err);
+            timeoutIds.delete(tag);
+          });
+      }, delay);
+
+      timeoutIds.set(tag, timeoutId);
+    } else {
+      console.log(`[SW] Skipped scheduling notification "${tag}" via setTimeout as it's in the past.`);
+    }
+  } else if (type === 'cancel-notification') {
+    if (timeoutIds.has(tag)) {
+      console.log(`[SW] Cancelling scheduled setTimeout for notification "${tag}".`);
+      clearTimeout(timeoutIds.get(tag));
+      timeoutIds.delete(tag);
+    }
+  }
 });

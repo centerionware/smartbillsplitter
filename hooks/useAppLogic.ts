@@ -177,23 +177,16 @@ export const useAppLogic = () => {
         return () => clearInterval(intervalId);
     }, [bills, updateMultipleBills]);
 
-    // Effect to synchronize all notifications when settings or recurring bills change.
+    // --- Notification Synchronization Effect ---
     useEffect(() => {
         if (!notificationService.isSupported()) {
             return;
         }
 
         const syncNotifications = async () => {
-            if (Notification.permission !== 'granted') {
-                return;
-            }
+            const hasPermission = Notification.permission === 'granted';
 
-            const registration = await navigator.serviceWorker.ready;
-            const scheduledNotifications = await registration.getNotifications();
-            const ourNotifications = scheduledNotifications.filter(n => n.tag.startsWith('bill-reminder-'));
-            const scheduledBillIds = new Set(ourNotifications.map(n => n.tag.replace('bill-reminder-', '')));
-
-            if (settings.notificationsEnabled) {
+            if (settings.notificationsEnabled && hasPermission) {
                 const activeRecurringBills = recurringBills.filter(b => b.status === 'active');
                 const activeBillIds = new Set(activeRecurringBills.map(b => b.id));
 
@@ -201,6 +194,15 @@ export const useAppLogic = () => {
                 for (const bill of activeRecurringBills) {
                     await notificationService.scheduleNotification(bill, settings.notificationDays);
                 }
+                
+                // Get all scheduled notifications (both native and fallback) to find ones that need to be cancelled.
+                const registration = await navigator.serviceWorker.ready;
+                const scheduledNotifications = await registration.getNotifications();
+                const scheduledBillIds = new Set(
+                    scheduledNotifications
+                        .filter(n => n.tag.startsWith('bill-reminder-'))
+                        .map(n => n.tag.replace('bill-reminder-', ''))
+                );
 
                 // Cancel notifications for bills that are no longer active or have been deleted
                 for (const scheduledId of scheduledBillIds) {
@@ -209,9 +211,10 @@ export const useAppLogic = () => {
                     }
                 }
             } else {
-                // If notifications are disabled, cancel all of our existing ones
-                for (const notification of ourNotifications) {
-                    notification.close();
+                // If notifications are disabled or permission is lost, cancel all existing ones
+                const allRecurringBillIds = recurringBills.map(b => b.id);
+                for (const billId of allRecurringBillIds) {
+                    await notificationService.cancelNotification(billId);
                 }
             }
         };

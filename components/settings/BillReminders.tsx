@@ -31,14 +31,15 @@ const BillReminders: React.FC<BillRemindersProps> = ({ settings, onSettingsChang
       if (permission === 'granted') {
         onSettingsChange({ notificationsEnabled: true });
       } else if (permission === 'default') {
+        // If permission hasn't been asked, request it.
         const newPermission = await notificationService.requestPermission();
         setPermission(newPermission);
-        // Only enable if permission was actually granted
+        // Only enable the setting if permission was actually granted by the user.
         if (newPermission === 'granted') {
           onSettingsChange({ notificationsEnabled: true });
         }
       }
-      // If permission is 'denied', do nothing. The UI shows a message explaining why.
+      // If permission is 'denied', do nothing. The UI shows a separate message explaining why.
     } else {
       // If we are turning notifications OFF
       onSettingsChange({ notificationsEnabled: false });
