@@ -82,7 +82,7 @@ export const scanReceiptHandler = async (req: HttpRequest): Promise<HttpResponse
     };
     
     const textPart = {
-      text: 'Extract the information from this receipt into the provided JSON schema. Focus on accurately identifying all individual line items, including any tax or tip, and the final printed total.'
+      text: 'Extract the information from this receipt into the provided JSON schema. Focus on accurately identifying all individual line items, including any tax or tip, the final printed total, and any other relevant details like store address or phone number for the \'additionalInfo\' field.'
     };
 
     const response = await ai.models.generateContent({
