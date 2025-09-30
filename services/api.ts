@@ -47,8 +47,7 @@ const checkUrlWithRetries = async (url: string, retries = 3, delay = 500): Promi
 
 const discoverApiBaseUrl = async (): Promise<string> => {
     // --- Phase 1: Check build-time environment variables first ---
-    const env = (import.meta as any)?.env;
-    const envApiUrls = env?.VITE_API_BASE_URLS;
+    const envApiUrls = process.env.VITE_API_BASE_URLS;
     if (typeof envApiUrls === 'string' && envApiUrls.length > 0) {
         const candidates = envApiUrls.split(',').map(url => url.trim()).filter(Boolean);
         console.log("Checking for backend API from build-time candidates:", candidates);

@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
     // robust way to handle environment variables than relying on import.meta.env,
     // which seems to be the source of the user's issue.
     define: {
+      'process.env.VITE_API_BASE_URLS': JSON.stringify(env.VITE_API_BASE_URLS),
       'process.env.VITE_AD_PROVIDER': JSON.stringify(env.VITE_AD_PROVIDER),
       'process.env.VITE_AADS_ID': JSON.stringify(env.VITE_AADS_ID),
       'process.env.VITE_CUSTOM_AD_HTML_BASE64': JSON.stringify(env.VITE_CUSTOM_AD_HTML_BASE64),
