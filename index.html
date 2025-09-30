@@ -159,7 +159,7 @@
                 </div>
             </div>
             <div class="mt-12 text-center text-sm text-slate-500 dark:text-slate-400">
-                <p>&copy; 2024 SharedBills. All rights reserved.</p>
+                <p>&copy; <span id="current-year">2024</span> SharedBills. All rights reserved.</p>
                 <div class="mt-2 space-x-4">
                     <a href="/app.html#/disclaimer" class="hover:text-teal-500">Privacy Policy</a>
                     <span>&bull;</span>
@@ -168,6 +168,9 @@
             </div>
         </div>
     </footer>
-
+    <script>
+      // Update copyright year dynamically
+      document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
 </body>
 </html>
