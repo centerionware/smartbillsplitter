@@ -14,29 +14,6 @@ import { syncSharedBillUpdate, pollImportedBills, pollOwnedSharedBills, reactiva
 import { getDiscoveredApiBaseUrl } from '../services/api';
 
 export const useAppLogic = () => {
-    // --- State Management ---
-    const [view, setView] = useState<View>(View.Dashboard);
-    const [currentBillId, setCurrentBillId] = useState<string | null>(null);
-    const [currentImportedBillId, setCurrentImportedBillId] = useState<string | null>(null);
-    const [recurringBillToEdit, setRecurringBillToEdit] = useState<RecurringBill | undefined>(undefined);
-    const [fromTemplate, setFromTemplate] = useState<RecurringBill | undefined>(undefined);
-    const [billConversionSource, setBillConversionSource] = useState<Bill | undefined>(undefined);
-    
-    // --- Confirmation Dialog State ---
-    const [confirmation, setConfirmation] = useState<{ title: string; message: string; onConfirm: () => void; options?: any } | null>(null);
-    
-    // --- Modal State ---
-    const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
-    const [isCsvImporterOpen, setIsCsvImporterOpen] = useState(false);
-    const [isQrImporterOpen, setIsQrImporterOpen] = useState(false);
-    const [showDebugConsole, setShowDebugConsole] = useState(() => sessionStorage.getItem('debugConsoleEnabled') === 'true');
-
-    // --- Dashboard Specific State ---
-    const [dashboardView, setDashboardView] = useState<DashboardView>('bills');
-    const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
-    const [dashboardStatusFilter, setDashboardStatusFilter] = useState<'active' | 'archived'>('active');
-    const [dashboardSummaryFilter, setDashboardSummaryFilter] = useState<SummaryFilter>('total');
-
     // --- Hooks ---
     const { settings, updateSettings, isLoading: isSettingsLoading } = useSettings();
     const { bills, addBill, updateBill: originalUpdateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills, isLoading: isBillsLoading } = useBills();
@@ -45,7 +22,103 @@ export const useAppLogic = () => {
     const { theme, setTheme } = useTheme();
     const { subscriptionStatus } = useAuth();
     const { showNotification } = useAppControl();
+
+    // --- Core State ---
+    const [confirmation, setConfirmation] = useState<{ title: string; message: string; onConfirm: () => void; options?: any } | null>(null);
+    const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
+    const [isCsvImporterOpen, setIsCsvImporterOpen] = useState(false);
+    const [isQrImporterOpen, setIsQrImporterOpen] = useState(false);
+    const [showDebugConsole, setShowDebugConsole] = useState(() => sessionStorage.getItem('debugConsoleEnabled') === 'true');
     
+    // --- Dashboard State ---
+    const [dashboardView, setDashboardView] = useState<DashboardView>('bills');
+    const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
+    const [dashboardStatusFilter, setDashboardStatusFilter] = useState<'active' | 'archived'>('active');
+    const [dashboardSummaryFilter, setDashboardSummaryFilter] = useState<SummaryFilter>('total');
+
+    // --- NEW ROUTING LOGIC ---
+    const [routerState, setRouterState] = useState({
+        view: View.Dashboard,
+        params: {} as Record<string, any>,
+        billConversionSource: undefined as Bill | undefined,
+        recurringBillToEdit: undefined as RecurringBill | undefined,
+        fromTemplate: undefined as RecurringBill | undefined,
+    });
+    const { view, params, billConversionSource, recurringBillToEdit, fromTemplate } = routerState;
+
+    const navigate = useCallback((view: View, params: Record<string, any> = {}) => {
+        let hash = `#/${view}`;
+        const urlParams = new URLSearchParams();
+        const newParams = {...params}; // Create a copy to mutate
+
+        if (newParams.recurringBillToEdit) {
+            urlParams.set('editTemplateId', newParams.recurringBillToEdit.id);
+            delete newParams.recurringBillToEdit;
+        }
+        if (newParams.fromTemplate) {
+            urlParams.set('fromTemplateId', newParams.fromTemplate.id);
+            delete newParams.fromTemplate;
+        }
+        if (newParams.convertFromBill) {
+            urlParams.set('convertFromBillId', newParams.convertFromBill);
+            delete newParams.convertFromBill;
+        }
+        
+        Object.keys(newParams).forEach(key => {
+            if (newParams[key] !== undefined && newParams[key] !== null) {
+               urlParams.set(key, String(newParams[key]));
+            }
+        });
+    
+        const queryString = urlParams.toString();
+        if (queryString) {
+            hash += `?${queryString}`;
+        }
+        
+        window.location.hash = hash;
+    }, []);
+
+    useEffect(() => {
+        const parseHash = () => {
+            const hash = window.location.hash;
+            const pathWithQuery = hash.substring(1);
+            const [path, queryString] = pathWithQuery.split('?');
+            
+            const viewPath = path.startsWith('/') ? path.substring(1) : path;
+        
+            const view = Object.values(View).find(v => v === viewPath) || View.Dashboard;
+            const query = new URLSearchParams(queryString || '');
+            
+            const params: Record<string, any> = {};
+            query.forEach((value, key) => {
+                params[key] = value;
+            });
+        
+            const convertFromBillId = query.get('convertFromBillId');
+            const billConversionSource = bills.find(b => b.id === convertFromBillId);
+        
+            const editTemplateId = query.get('editTemplateId');
+            const recurringBillToEdit = recurringBills.find(b => b.id === editTemplateId);
+        
+            const fromTemplateId = query.get('fromTemplateId');
+            const fromTemplate = recurringBills.find(b => b.id === fromTemplateId);
+            
+            setRouterState({ view, params, billConversionSource, recurringBillToEdit, fromTemplate });
+        };
+
+        parseHash();
+        window.addEventListener('hashchange', parseHash);
+        return () => window.removeEventListener('hashchange', parseHash);
+    }, [bills, recurringBills]);
+
+    // Effect to reset dashboard-specific state when navigating away
+    useEffect(() => {
+        if (view !== View.Dashboard) {
+            setSelectedParticipant(null);
+            setDashboardSummaryFilter('total');
+        }
+    }, [view]);
+
     // --- Wrapped updateBill to handle server sync ---
     const updateBill = useCallback(async (bill: Bill) => {
         const updatedBillFromDB = await originalUpdateBill(bill);
@@ -100,41 +173,6 @@ export const useAppLogic = () => {
         poll();
         return () => clearInterval(intervalId);
     }, [bills, updateMultipleBills]);
-
-    // --- Routing ---
-    const navigate = (targetView: View, params: any = {}) => {
-        setView(targetView);
-        setCurrentBillId(params.billId || null);
-        setCurrentImportedBillId(params.importedBillId || null);
-        if (targetView === View.CreateBill) {
-            setRecurringBillToEdit(params.recurringBillToEdit || undefined);
-            setFromTemplate(params.fromTemplate || undefined);
-            const sourceBill = bills.find(b => b.id === params.convertFromBill);
-            setBillConversionSource(sourceBill || undefined);
-        } else {
-            setRecurringBillToEdit(undefined);
-            setFromTemplate(undefined);
-            setBillConversionSource(undefined);
-        }
-        if (targetView !== View.Dashboard) {
-            setSelectedParticipant(null);
-            setDashboardSummaryFilter('total');
-        }
-    };
-    
-    useEffect(() => {
-        const parseHash = () => {
-            const hash = window.location.hash.slice(2);
-            if (hash.startsWith(View.ViewShared)) {
-                setView(View.ViewShared);
-            } else {
-                if(view !== View.Dashboard) setView(View.Dashboard);
-            }
-        };
-        parseHash();
-        window.addEventListener('hashchange', parseHash);
-        return () => window.removeEventListener('hashchange', parseHash);
-    }, []);
 
     // --- Callbacks ---
     const requestConfirmation: RequestConfirmationFn = (title, message, onConfirm, options) => {
@@ -218,6 +256,8 @@ export const useAppLogic = () => {
     };
 
     // --- Loading State & Derived Data ---
+    const currentBillId = routerState.params.billId || null;
+    const currentImportedBillId = routerState.params.importedBillId || null;
     const currentBill = bills.find(b => b.id === currentBillId);
     const currentImportedBill = importedBills.find(b => b.id === currentImportedBillId);
     const isLoading = isBillsLoading || isImportedLoading || isRecurringLoading || isSettingsLoading;
@@ -231,7 +271,6 @@ export const useAppLogic = () => {
         selectedParticipant, setSelectedParticipant,
         dashboardStatusFilter,
         dashboardSummaryFilter,
-        // FIX: Rename state setters to match the 'onSet...' prop names expected by components.
         onSetDashboardView: setDashboardView,
         onSetDashboardStatusFilter: setDashboardStatusFilter,
         onSetDashboardSummaryFilter: setDashboardSummaryFilter,
