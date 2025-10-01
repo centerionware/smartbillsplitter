@@ -17,7 +17,7 @@ const ActionButton: React.FC<{ onClick: () => void; children: React.ReactNode; d
         title={title}
         className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-wait cursor-pointer ${
             isUsed 
-                ? 'text-emerald-500 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/50' 
+                ? 'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-400/20' 
                 : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
         }`}
     >
