@@ -7,13 +7,14 @@ import PaymentMethodWarningModal from './PaymentMethodWarningModal';
 
 interface BillDetailsProps {
     bill: Bill;
-    onUpdateBill: (bill: Bill) => void;
+    onUpdateBill: (bill: Bill) => Promise<Bill>;
     onBack: () => void;
     settings: Settings;
     updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
     setSettingsSection: (section: SettingsSection) => void;
     navigate: (view: View, params?: any) => void;
     onReshareBill: () => void;
+    checkAndMakeSpaceForImageShare: (bill: Bill) => Promise<boolean>;
 }
 
 const LiveIndicator: React.FC<{ status: Bill['shareStatus'], onClick?: (e: React.MouseEvent) => void }> = ({ status, onClick }) => {
@@ -22,7 +23,7 @@ const LiveIndicator: React.FC<{ status: Bill['shareStatus'], onClick?: (e: React
     const config = {
         live: { color: 'bg-emerald-500', title: 'Live: This bill is actively shared.' },
         expired: { color: 'bg-red-500', title: 'Expired: Click to reactivate sharing.' },
-        error: { color: 'bg-amber-500', title: 'Error: Connection issue with share server.' },
+        error: { color: 'bg-amber-500', title: 'Connection issue with share server.' },
     }[status];
     
     if (!config) return null;
@@ -45,7 +46,7 @@ const LiveIndicator: React.FC<{ status: Bill['shareStatus'], onClick?: (e: React
 };
 
 
-const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, settings, updateSettings, setSettingsSection, navigate, onReshareBill }) => {
+const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, settings, updateSettings, setSettingsSection, navigate, onReshareBill, checkAndMakeSpaceForImageShare }) => {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaymentWarningOpen, setIsPaymentWarningOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -194,7 +195,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, s
                         onUpdateSettings={updateSettings}
                     />
                 )}
-                {isShareModalOpen && <ShareModal bill={bill} settings={settings} onClose={() => setIsShareModalOpen(false)} onUpdateBill={onUpdateBill as (b: Bill) => Promise<void>} />}
+                {isShareModalOpen && <ShareModal bill={bill} settings={settings} onClose={() => setIsShareModalOpen(false)} onUpdateBill={onUpdateBill} checkAndMakeSpaceForImageShare={checkAndMakeSpaceForImageShare} />}
             </div>
 
             {isReceiptModalOpen && bill.receiptImage && (

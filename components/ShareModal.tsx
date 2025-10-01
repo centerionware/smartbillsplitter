@@ -7,7 +7,8 @@ interface ShareModalProps {
   bill: Bill;
   settings: Settings;
   onClose: () => void;
-  onUpdateBill: (bill: Bill) => Promise<void>;
+  onUpdateBill: (bill: Bill) => Promise<Bill>;
+  checkAndMakeSpaceForImageShare: (bill: Bill) => Promise<boolean>;
 }
 
 const ActionButton: React.FC<{ onClick: () => void; children: React.ReactNode; disabled?: boolean, title: string, isUsed?: boolean }> = ({ onClick, children, disabled, title, isUsed }) => (
@@ -25,7 +26,7 @@ const ActionButton: React.FC<{ onClick: () => void; children: React.ReactNode; d
     </button>
 );
 
-const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpdateBill }) => {
+const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpdateBill, checkAndMakeSpaceForImageShare }) => {
   const [loading, setLoading] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<string | null>(null);
   const { showNotification } = useAppControl();
@@ -44,7 +45,13 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
     setLoading(prev => new Set(prev).add(loadingKey));
 
     try {
-        const url = await generateShareLink(bill, participant.id, settings, onUpdateBill);
+        const canProceed = await checkAndMakeSpaceForImageShare(bill);
+        if (!canProceed) {
+            return; // Abort if space could not be made. Notification is shown by the check function.
+        }
+
+        // FIX: Wrapped the 'onUpdateBill' callback to match the expected 'Promise<void>' return type required by 'generateShareLink', resolving a TypeScript type mismatch.
+        const url = await generateShareLink(bill, participant.id, settings, async (updatedBill) => { await onUpdateBill(updatedBill); });
         if (!url) {
             throw new Error('Failed to generate share link.');
         }

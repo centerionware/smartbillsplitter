@@ -15,6 +15,8 @@ import * as notificationService from '../services/notificationService';
 import { getDiscoveredApiBaseUrl } from '../services/api';
 import { usePwaInstall } from './usePwaInstall.ts';
 
+const FREE_TIER_IMAGE_SHARE_LIMIT = 5;
+
 export const useAppLogic = () => {
     // --- Hooks ---
     const { settings, updateSettings, isLoading: isSettingsLoading } = useSettings();
@@ -22,7 +24,7 @@ export const useAppLogic = () => {
     const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, updateMultipleImportedBills, isLoading: isImportedLoading } = useImportedBills();
     const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: isRecurringLoading } = useRecurringBills();
     const { theme, setTheme } = useTheme();
-    const { subscriptionStatus } = useAuth();
+    const { subscriptionStatus, logout } = useAuth();
     const { showNotification } = useAppControl();
     const { canInstall, promptInstall } = usePwaInstall();
 
@@ -32,6 +34,7 @@ export const useAppLogic = () => {
     const [isCsvImporterOpen, setIsCsvImporterOpen] = useState(false);
     const [isQrImporterOpen, setIsQrImporterOpen] = useState(false);
     const [showDebugConsole, setShowDebugConsole] = useState(() => sessionStorage.getItem('debugConsoleEnabled') === 'true');
+    const [manageImageStorage, setManageImageStorage] = useState(null);
     
     // --- Dashboard State ---
     const [dashboardView, setDashboardView] = useState<DashboardView>('bills');
@@ -131,7 +134,47 @@ export const useAppLogic = () => {
                 showNotification(e.message || "Failed to sync bill update to server", 'error');
             });
         }
+        return updatedBillFromDB;
     }, [originalUpdateBill, settings, showNotification]);
+
+    const checkAndMakeSpaceForImageShare = useCallback(async (billToShare: Bill): Promise<boolean> => {
+        if (subscriptionStatus !== 'free' || !billToShare.receiptImage) {
+            return true; // No limit applies, proceed.
+        }
+
+        const sharedImageBills = bills.filter(b => 
+            b.id !== billToShare.id &&
+            b.status === 'active' && 
+            !!b.shareInfo?.shareId && 
+            !!b.receiptImage
+        );
+
+        if (sharedImageBills.length < FREE_TIER_IMAGE_SHARE_LIMIT) {
+            return true; // Limit not reached, proceed.
+        }
+
+        // Limit reached, perform automatic downgrade.
+        const oldestBill = [...sharedImageBills].sort((a, b) => (a.lastUpdatedAt || 0) - (b.lastUpdatedAt || 0))[0];
+        
+        showNotification(`Free image limit reached. Removing image from "${oldestBill.description}" to make space.`, 'info');
+        
+        // Give user a moment to see the notification
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        try {
+            const downgradedBill: Bill = { ...oldestBill, receiptImage: undefined };
+            await updateBill(downgradedBill); // This handles local and server update
+            showNotification('Space freed. Proceeding with share.', 'success');
+            return true; // Downgrade successful, proceed.
+        } catch (error: any) {
+            console.error("Failed to automatically downgrade bill:", error);
+            showNotification(`Error: ${error.message || 'Could not make space for the new image.'}`, 'error');
+            return false; // Downgrade failed, stop.
+        }
+    }, [subscriptionStatus, bills, updateBill, showNotification]);
+
+    const handleDowngradeAndProceed = () => {}; // No longer needed with automatic flow
+
 
     const toggleDebugConsole = (enabled: boolean) => {
         sessionStorage.setItem('debugConsoleEnabled', String(enabled));
@@ -317,6 +360,7 @@ export const useAppLogic = () => {
         view, currentBillId, currentImportedBillId, recurringBillToEdit, fromTemplate, billConversionSource,
         confirmation, setConfirmation, settingsSection, setSettingsSection, isCsvImporterOpen, setIsCsvImporterOpen,
         isQrImporterOpen, setIsQrImporterOpen, showDebugConsole, toggleDebugConsole,
+        manageImageStorage, setManageImageStorage, handleDowngradeAndProceed,
         dashboardView,
         selectedParticipant, setSelectedParticipant,
         dashboardStatusFilter,
@@ -338,5 +382,7 @@ export const useAppLogic = () => {
         archiveImportedBill, unarchiveImportedBill, mergeImportedBills,
         // Recurring Bill actions
         addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate,
+        // New image share logic
+        checkAndMakeSpaceForImageShare,
     };
 };

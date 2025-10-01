@@ -48,7 +48,7 @@ type AppLogicProps = {
     onSetDashboardSummaryFilter: (filter: SummaryFilter) => void;
     setSelectedParticipant: (name: string | null) => void;
     // Bill Handlers
-    updateBill: (bill: Bill) => Promise<void>;
+    updateBill: (bill: Bill) => Promise<Bill>;
     addImportedBill: (bill: ImportedBill) => Promise<void>;
     updateImportedBill: (bill: ImportedBill) => void;
     updateMultipleImportedBills: (bills: ImportedBill[]) => Promise<void>;
@@ -62,7 +62,6 @@ type AppLogicProps = {
     createFromTemplate: (template: RecurringBill) => void;
     archiveBill: (billId: string) => Promise<void>;
     unarchiveBill: (billId: string) => Promise<void>;
-    // FIX: Added missing properties for recurring bill actions.
     archiveRecurringBill: (billId: string) => Promise<void>;
     unarchiveRecurringBill: (billId: string) => Promise<void>;
     updateMultipleBills: (bills: Bill[]) => Promise<void>;
@@ -70,6 +69,7 @@ type AppLogicProps = {
     unarchiveImportedBill: (billId: string) => Promise<void>;
     canInstall: boolean;
     promptInstall: () => void;
+    checkAndMakeSpaceForImageShare: (bill: Bill) => Promise<boolean>;
 };
 
 export const AppRouter: React.FC<AppLogicProps> = (props) => {
@@ -79,7 +79,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         settings, updateSettings, recurringBillToEdit, fromTemplate, billConversionSource,
         updateBill, setSettingsSection, requestConfirmation,
         recurringBills, createFromTemplate, archiveRecurringBill, unarchiveRecurringBill, handleDeleteRecurringBill,
-        addImportedBill, importedBills, canInstall, promptInstall
+        addImportedBill, importedBills, canInstall, promptInstall, checkAndMakeSpaceForImageShare
     } = props;
 
     if (isLoading) {
@@ -97,7 +97,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         case View.CreateBill:
             return <CreateBill onSaveBill={handleSaveBill} onSaveRecurringBill={handleSaveRecurringBill} onUpdateRecurringBill={handleUpdateRecurringBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} recurringBillToEdit={recurringBillToEdit} fromTemplate={fromTemplate} billConversionSource={billConversionSource} />;
         case View.BillDetails:
-            return currentBill ? <BillDetails bill={currentBill} onUpdateBill={updateBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} setSettingsSection={setSettingsSection} navigate={navigate} onReshareBill={() => props.handleReshareBill(currentBill.id)}/> : <div>Bill not found.</div>;
+            return currentBill ? <BillDetails bill={currentBill} onUpdateBill={updateBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} setSettingsSection={setSettingsSection} navigate={navigate} onReshareBill={() => props.handleReshareBill(currentBill.id)} checkAndMakeSpaceForImageShare={checkAndMakeSpaceForImageShare} /> : <div>Bill not found.</div>;
         case View.ImportedBillDetails:
             return currentImportedBill ? <ImportedBillDetails bill={currentImportedBill} onUpdateBill={props.updateImportedBill} onBack={() => navigate(View.Dashboard)} /> : <div>Bill not found.</div>;
         case View.RecurringBills:

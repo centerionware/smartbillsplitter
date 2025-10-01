@@ -7,6 +7,8 @@ import { getApiUrl, fetchWithRetry } from './api.ts';
 // FIX: Added declaration for pako, which is loaded as a global script.
 declare var pako: any;
 
+const FREE_TIER_IMAGE_SHARE_LIMIT = 5;
+
 interface ShareBillInfo {
     description: string;
     amountOwed: number;
@@ -92,8 +94,9 @@ export const generateAggregateBill = async (
     participantName: string, 
     unpaidBills: Bill[], 
     settings: Settings,
-    updateMultipleBillsCallback: (billsToUpdate: Bill[]) => Promise<void>
-): Promise<{ summaryBill: Bill, constituentShares: ConstituentShareInfo[] }> => {
+    updateMultipleBillsCallback: (billsToUpdate: Bill[]) => Promise<void>,
+    availableSlots: number
+): Promise<{ summaryBill: Bill, constituentShares: ConstituentShareInfo[], imagesDropped: number }> => {
     
     const billsToUpdate: Bill[] = [];
     const constituentShares: ConstituentShareInfo[] = [];
@@ -152,40 +155,55 @@ export const generateAggregateBill = async (
         await updateMultipleBillsCallback(Array.from(billsToUpdateMap.values()));
     }
 
-  const totalOwed = unpaidBills.reduce((sum, bill) => {
-    const p = bill.participants.find(p => p.name === participantName);
-    return sum + (p?.amountOwed || 0);
-  }, 0);
+    const totalOwed = unpaidBills.reduce((sum, bill) => {
+        const p = bill.participants.find(p => p.name === participantName);
+        return sum + (p?.amountOwed || 0);
+    }, 0);
 
-  const items: ReceiptItem[] = unpaidBills.map(bill => {
-    const p = bill.participants.find(p => p.name === participantName);
-    const billToStore = billsToUpdateMap.get(bill.id) || bill;
-    return {
-      id: bill.id,
-      name: bill.description,
-      price: p?.amountOwed || 0,
-      assignedTo: [],
-      originalBillData: JSON.parse(JSON.stringify(billToStore)),
+    let imagesDropped = 0;
+    let slotsRemaining = availableSlots;
+    const sortedUnpaidBills = [...unpaidBills].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const items: ReceiptItem[] = sortedUnpaidBills.map(bill => {
+        const p = bill.participants.find(p => p.name === participantName);
+        // Ensure we use the version of the bill that has the correct shareInfo if it was just created
+        const billToStore = { ...(billsToUpdateMap.get(bill.id) || bill) };
+    
+        if (billToStore.receiptImage) {
+            if (slotsRemaining > 0) {
+                slotsRemaining--;
+            } else {
+                imagesDropped++;
+                delete billToStore.receiptImage; // Omit the image if no slots are left
+            }
+        }
+    
+        return {
+            id: bill.id,
+            name: bill.description,
+            price: p?.amountOwed || 0,
+            assignedTo: [],
+            originalBillData: JSON.parse(JSON.stringify(billToStore)),
+        };
+    });
+
+    const summaryParticipant: Participant = {
+        id: `p-summary-${participantName.replace(/\s/g, '')}`,
+        name: participantName,
+        amountOwed: totalOwed,
+        paid: totalOwed < 0.01,
     };
-  });
 
-  const summaryParticipant: Participant = {
-    id: `p-summary-${participantName.replace(/\s/g, '')}`,
-    name: participantName,
-    amountOwed: totalOwed,
-    paid: totalOwed < 0.01,
-  };
-
-  const summaryBill = {
-    id: `summary-${Date.now()}`,
-    description: `Summary for ${participantName}`,
-    totalAmount: totalOwed,
-    date: new Date().toISOString(),
-    participants: [summaryParticipant],
-    items,
-    status: 'active' as const,
-  };
-  return { summaryBill, constituentShares };
+    const summaryBill = {
+        id: `summary-${Date.now()}`,
+        description: `Summary for ${participantName}`,
+        totalAmount: totalOwed,
+        date: new Date().toISOString(),
+        participants: [summaryParticipant],
+        items,
+        status: 'active' as const,
+    };
+    return { summaryBill, constituentShares, imagesDropped };
 };
 
 /**
@@ -199,9 +217,20 @@ export const generateOneTimeShareLink = async (
     unpaidBills: Bill[],
     participantName: string,
     settings: Settings,
-    updateMultipleBillsCallback: (billsToUpdate: Bill[]) => Promise<void>
-): Promise<string> => {
-    const { summaryBill, constituentShares } = await generateAggregateBill(participantName, unpaidBills, settings, updateMultipleBillsCallback);
+    updateMultipleBillsCallback: (billsToUpdate: Bill[]) => Promise<void>,
+    allUserBills: Bill[],
+    subscriptionStatus: SubscriptionStatus
+): Promise<{ shareUrl: string; imagesDropped: number; }> => {
+    let availableSlots = Infinity;
+    if (subscriptionStatus === 'free') {
+        // Count how many *other* bills are already shared with images.
+        // The summary itself will count as one "share", but the constituent parts don't count individually against the limit here.
+        const usedSlots = allUserBills.filter(b => b.status === 'active' && !!b.shareInfo?.shareId && !!b.receiptImage).length;
+        availableSlots = Math.max(0, FREE_TIER_IMAGE_SHARE_LIMIT - usedSlots);
+    }
+    
+    // FIX: Swapped `participantName` and `unpaidBills` to match the function signature.
+    const { summaryBill, constituentShares, imagesDropped } = await generateAggregateBill(participantName, unpaidBills, settings, updateMultipleBillsCallback, availableSlots);
     const signingKeyPair = await cryptoService.generateSigningKeyPair();
     const signingPublicKeyJwk = await cryptoService.exportKey(signingKeyPair.publicKey);
     const billEncryptionKey = await cryptoService.generateEncryptionKey();
@@ -245,7 +274,7 @@ export const generateOneTimeShareLink = async (
     const url = new URL(window.location.href);
     url.hash = `#/view-bill?shareId=${shareId}&keyId=${keyId}&fragmentKey=${encodedFragmentKey}&p=${urlSafeEncryptedParticipantId}`;
 
-    return url.toString();
+    return { shareUrl: url.toString(), imagesDropped };
 };
 
 /**
@@ -615,12 +644,12 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
                 }
             }
         } else {
-            throw new Error(`Batch check failed with status ${response.status}`);
+             throw new Error(`Batch check failed with status ${response.status}`);
         }
     } catch (error) {
         console.error("Polling for imported bills failed:", error);
         for (const bill of bills) {
-            if (bill.liveStatus !== 'stale') billsNeedingUpdate.push({ ...bill, liveStatus: 'stale' });
+            if (bill.liveStatus !== 'stale') billsNeedingUpdate.push({ ...bill, liveStatus: 'stale' as const });
         }
     }
     

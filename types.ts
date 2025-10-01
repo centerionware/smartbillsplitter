@@ -164,3 +164,8 @@ export interface PayPalSubscriptionDetails {
 }
 
 export type SettingsSection = 'personalization' | 'payments' | 'reminders' | 'data' | 'sync' | 'subscription' | 'danger' | 'about' | 'disclaimer';
+
+export interface ManageImageStorageState {
+  onProceed: () => void;
+  billsToDowngrade: Bill[];
+}
