@@ -13,31 +13,34 @@ import TutorialManager from './components/TutorialManager.tsx';
 
 const App: React.FC = () => {
     const appLogic = useAppLogic();
-    const [isDevEnvironment, setIsDevEnvironment] = useState(false);
+    // Use null to represent the "checking" state.
+    const [isDevEnvironment, setIsDevEnvironment] = useState<boolean | null>(null);
 
+    // This effect runs once to determine if the environment is 'dev'
+    // based on the user's specific definition.
     useEffect(() => {
-      const checkDevEnvironment = async () => {
-        const apiUrlString = await getDiscoveredApiBaseUrl();
-        // If the URL is an empty string, it's a relative path, meaning same host.
-        if (apiUrlString === '') {
-          setIsDevEnvironment(true);
-          return;
-        }
-        // If it's a full URL, parse it and compare hostnames.
-        if (apiUrlString) {
-          try {
-            const apiUrl = new URL(apiUrlString);
-            if (apiUrl.hostname === window.location.hostname) {
-              setIsDevEnvironment(true);
+        const determineEnv = async () => {
+            const backendUrl = await getDiscoveredApiBaseUrl();
+            if (backendUrl === '') {
+                // Fallback to relative path means same host, so it's a dev environment.
+                setIsDevEnvironment(true);
+            } else if (backendUrl) {
+                try {
+                    const backendHost = new URL(backendUrl).hostname;
+                    const frontendHost = window.location.hostname;
+                    setIsDevEnvironment(backendHost === frontendHost);
+                } catch (e) {
+                    // Invalid URL, assume not dev.
+                    setIsDevEnvironment(false);
+                }
+            } else {
+                // API_BASE_URL is null, discovery must have failed. Assume not dev.
+                setIsDevEnvironment(false);
             }
-          } catch (e) {
-            console.warn("Could not parse discovered API URL for dev environment check:", e);
-          }
-        }
-      };
+        };
 
-      checkDevEnvironment();
-    }, []); // Run only once after the API is initialized.
+        determineEnv();
+    }, []);
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans text-slate-900 dark:text-slate-100 flex flex-col">
@@ -55,7 +58,10 @@ const App: React.FC = () => {
             
             <AppModals {...appLogic} />
 
-            {appLogic.showDebugConsole && <DebugConsole isDevEnvironment={isDevEnvironment} />}
+            {/* Only render the debug console once the environment has been determined. */}
+            {appLogic.showDebugConsole && isDevEnvironment !== null && (
+              <DebugConsole isDevEnvironment={isDevEnvironment} />
+            )}
 
             {appLogic.view === View.Dashboard && (
               <TutorialManager 
