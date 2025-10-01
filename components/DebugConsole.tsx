@@ -10,7 +10,11 @@ import { ObjectExplorer } from './debug/common/ObjectExplorer';
 import { useDebugServices } from './debug/useDebugServices';
 import type { ConsoleMode, NetworkLogEntry } from './debug/types';
 
-const DebugConsole: React.FC = () => {
+interface DebugConsoleProps {
+  isDevEnvironment: boolean;
+}
+
+const DebugConsole: React.FC<DebugConsoleProps> = ({ isDevEnvironment }) => {
     const { logs, networkLogs, broadcastLogs, clearLogs, clearNetworkLogs, clearBroadcastLogs, networkInterceptionActive } = useDebugServices();
     const [mode, setMode] = useState<ConsoleMode>('console');
     const [isExpanded, setIsExpanded] = useState(false);
@@ -56,6 +60,7 @@ const DebugConsole: React.FC = () => {
                     onClear={handleClear} 
                     isExpanded={isExpanded} 
                     onToggleExpand={() => setIsExpanded(!isExpanded)} 
+                    isDevEnvironment={isDevEnvironment}
                 />
                 <div ref={logContainerRef} className="flex-grow p-2 overflow-auto">
                    {renderContent()}

@@ -22,6 +22,8 @@ export default defineConfig(({ mode }) => {
       'process.env.VITE_AADS_ID': JSON.stringify(env.VITE_AADS_ID),
       'process.env.VITE_CUSTOM_AD_HTML_BASE64': JSON.stringify(env.VITE_CUSTOM_AD_HTML_BASE64),
       'process.env.VITE_PAYMENT_PROVIDER': JSON.stringify(env.VITE_PAYMENT_PROVIDER),
+      // FIX: Explicitly define process.env.NODE_ENV to make it available for conditional rendering.
+      'process.env.NODE_ENV': JSON.stringify(mode),
     },
     build: {
       // Configure multi-page app inputs
