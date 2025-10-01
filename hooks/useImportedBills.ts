@@ -99,7 +99,7 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX: Renamed loop variable to `bill` for direct type inference and removed the redundant type assertion. This resolves errors where `incomingBill` was being inferred as 'unknown'.
+      // FIX: Use a for...of loop to ensure the `bill` variable is correctly typed from the `billsToMerge` array. This resolves errors where the loop variable was being inferred as 'unknown'.
       for (const bill of billsToMerge) {
           const existingBill = existingBillMap.get(bill.id);
 
