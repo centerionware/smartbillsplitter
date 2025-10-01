@@ -316,7 +316,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         setShareSheetParticipant(null);
         return;
     }
-    const shareUrl = await generateOneTimeShareLink(unpaidBills, participantName, settings, onUpdateMultipleBills);
+    const { shareUrl, imagesDropped } = await generateOneTimeShareLink(unpaidBills, participantName, settings, onUpdateMultipleBills, bills, subscriptionStatus);
+    
+    if (imagesDropped > 0) {
+        showNotification(`Free image limit reached. ${imagesDropped} older image(s) omitted from summary.`, 'info');
+    }
+
     const message = `Here is a link to view a summary of your outstanding bills with me. This link contains a key and should not be shared with others:\n\n${shareUrl}`;
     try {
         if (method === 'sms') {
@@ -341,7 +346,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     } finally {
         setShareSheetParticipant(null);
     }
-  }, [bills, settings, onUpdateMultipleBills, participantsData, showNotification]);
+  }, [bills, settings, onUpdateMultipleBills, participantsData, showNotification, subscriptionStatus]);
 
   const handleMarkParticipantAsPaid = async (participantName: string) => {
     const billsToUpdate: Bill[] = bills.filter(bill => bill.status === 'active' && bill.participants.some(p => p.name === participantName && !p.paid)).map(bill => ({ ...bill, participants: bill.participants.map(p => p.name === participantName ? { ...p, paid: true } : p) }));
