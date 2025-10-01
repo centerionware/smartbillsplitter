@@ -16,6 +16,7 @@ const initialSettings: Settings = {
   shareTemplate: 'Hi {participantName}, this is a reminder for your outstanding bill(s). You owe a total of {totalOwed}.\n\nBreakdown:\n{billList}{paymentInfo}{promoText}',
   notificationsEnabled: false,
   notificationDays: 3,
+  hidePaymentMethodWarning: false,
 };
 
 export const useSettings = () => {

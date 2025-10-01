@@ -81,6 +81,7 @@ export interface Settings {
   shareTemplate: string;
   notificationsEnabled: boolean;
   notificationDays: number;
+  hidePaymentMethodWarning?: boolean;
 }
 
 export type Theme = 'light' | 'dark' | 'system';

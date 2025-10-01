@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { Bill, Settings } from '../types';
+import type { Bill, Settings, SettingsSection } from '../types';
 import ShareModal from './ShareModal.tsx';
 import { exportData } from '../services/exportService.ts';
 import { View } from '../types';
+import PaymentMethodWarningModal from './PaymentMethodWarningModal';
 
 interface BillDetailsProps {
     bill: Bill;
     onUpdateBill: (bill: Bill) => void;
     onBack: () => void;
     settings: Settings;
+    updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
+    setSettingsSection: (section: SettingsSection) => void;
     navigate: (view: View, params?: any) => void;
     onReshareBill: () => void;
 }
@@ -42,8 +45,9 @@ const LiveIndicator: React.FC<{ status: Bill['shareStatus'], onClick?: (e: React
 };
 
 
-const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, settings, navigate, onReshareBill }) => {
+const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, settings, updateSettings, setSettingsSection, navigate, onReshareBill }) => {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isPaymentWarningOpen, setIsPaymentWarningOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -81,11 +85,22 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, s
         setIsMenuOpen(false);
     };
 
+    const handleOpenShare = () => {
+        const { paymentDetails, hidePaymentMethodWarning } = settings;
+        const hasPaymentMethods = paymentDetails.venmo || paymentDetails.paypal || paymentDetails.cashApp || paymentDetails.zelle || paymentDetails.customMessage;
+
+        if (!hasPaymentMethods && !hidePaymentMethodWarning) {
+            setIsPaymentWarningOpen(true);
+        } else {
+            setIsShareModalOpen(true);
+        }
+    };
+
     return (
         <>
             <div className="max-w-2xl mx-auto">
                 <button onClick={onBack} className="flex items-center gap-2 mb-6 text-teal-600 dark:text-teal-400 font-semibold hover:text-teal-800 dark:hover:text-teal-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l-4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                     Back
                 </button>
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
@@ -160,11 +175,25 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, s
                     </div>
 
                     <div className="mt-8 border-t border-slate-200 dark:border-slate-700 pt-6">
-                        <button onClick={() => setIsShareModalOpen(true)} className="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors">
+                        <button onClick={handleOpenShare} className="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors">
                             Share Bill
                         </button>
                     </div>
                 </div>
+                {isPaymentWarningOpen && (
+                    <PaymentMethodWarningModal
+                        onClose={() => setIsPaymentWarningOpen(false)}
+                        onContinue={() => {
+                            setIsPaymentWarningOpen(false);
+                            setIsShareModalOpen(true);
+                        }}
+                        onAddMethods={() => {
+                            setIsPaymentWarningOpen(false);
+                            setSettingsSection('payments');
+                        }}
+                        onUpdateSettings={updateSettings}
+                    />
+                )}
                 {isShareModalOpen && <ShareModal bill={bill} settings={settings} onClose={() => setIsShareModalOpen(false)} onUpdateBill={onUpdateBill as (b: Bill) => Promise<void>} />}
             </div>
 

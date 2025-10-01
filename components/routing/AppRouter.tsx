@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView } from '../../types';
+import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView, SettingsSection } from '../../types';
 import { View } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
 
@@ -35,7 +35,7 @@ type AppLogicProps = {
     subscriptionStatus: SubscriptionStatus;
     // Navigation & Callbacks
     navigate: (view: View, params?: any) => void;
-    setSettingsSection: (section: any) => void;
+    setSettingsSection: (section: SettingsSection) => void;
     updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
     requestConfirmation: any;
     // Dashboard State
@@ -97,7 +97,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         case View.CreateBill:
             return <CreateBill onSaveBill={handleSaveBill} onSaveRecurringBill={handleSaveRecurringBill} onUpdateRecurringBill={handleUpdateRecurringBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} recurringBillToEdit={recurringBillToEdit} fromTemplate={fromTemplate} billConversionSource={billConversionSource} />;
         case View.BillDetails:
-            return currentBill ? <BillDetails bill={currentBill} onUpdateBill={updateBill} onBack={() => navigate(View.Dashboard)} settings={settings} navigate={navigate} onReshareBill={() => props.handleReshareBill(currentBill.id)}/> : <div>Bill not found.</div>;
+            return currentBill ? <BillDetails bill={currentBill} onUpdateBill={updateBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} setSettingsSection={setSettingsSection} navigate={navigate} onReshareBill={() => props.handleReshareBill(currentBill.id)}/> : <div>Bill not found.</div>;
         case View.ImportedBillDetails:
             return currentImportedBill ? <ImportedBillDetails bill={currentImportedBill} onUpdateBill={props.updateImportedBill} onBack={() => navigate(View.Dashboard)} /> : <div>Bill not found.</div>;
         case View.RecurringBills:
@@ -115,33 +115,15 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         case View.Dashboard:
         default:
             return <Dashboard 
-                        bills={props.bills} 
-                        importedBills={props.importedBills}
-                        recurringBills={props.recurringBills}
-                        settings={props.settings}
-                        subscriptionStatus={props.subscriptionStatus}
+                        {...props}
                         onSelectBill={(bill) => navigate(View.BillDetails, { billId: bill.id })} 
                         onSelectImportedBill={(bill) => navigate(View.ImportedBillDetails, { importedBillId: bill.id })}
-                        onArchiveBill={props.archiveBill}
-                        onUnarchiveBill={props.unarchiveBill}
                         onDeleteBill={props.handleDeleteBill}
                         onReshareBill={props.handleReshareBill}
-                        onUpdateMultipleBills={props.updateMultipleBills}
-                        onUpdateImportedBill={props.updateImportedBill}
-                        onArchiveImportedBill={props.archiveImportedBill}
-                        onUnarchiveImportedBill={props.unarchiveImportedBill}
                         onDeleteImportedBill={props.handleDeleteImportedBill}
                         onShowSummaryDetails={(bill) => navigate(View.ImportedBillDetails, { importedBillId: bill.id, showSummary: true })}
                         onCreateFromTemplate={props.createFromTemplate}
-                        navigate={navigate}
                         // Dashboard specific props
-                        dashboardView={props.dashboardView}
-                        selectedParticipant={props.selectedParticipant}
-                        dashboardStatusFilter={props.dashboardStatusFilter}
-                        dashboardSummaryFilter={props.dashboardSummaryFilter}
-                        onSetDashboardView={props.onSetDashboardView}
-                        onSetDashboardStatusFilter={props.onSetDashboardStatusFilter}
-                        onSetDashboardSummaryFilter={props.onSetDashboardSummaryFilter}
                         onSelectParticipant={(name) => props.setSelectedParticipant(name)}
                         onClearParticipant={() => props.setSelectedParticipant(null)}
                    />;

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View } from '../../types';
-import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView } from '../../types';
+import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
 import ShareActionSheet from '../ShareActionSheet';
 import { generateShareText, generateOneTimeShareLink } from '../../services/shareService';
@@ -8,6 +8,7 @@ import { useAppControl } from '../../contexts/AppControlContext';
 import HalfScreenAdModal from '../HalfScreenAdModal';
 import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
 import PaymentMethodsModal from '../PaymentMethodsModal';
+import PaymentMethodWarningModal from '../PaymentMethodWarningModal';
 import { exportData } from '../../services/exportService';
 
 // New Child Components
@@ -28,6 +29,8 @@ interface DashboardProps {
   importedBills: ImportedBill[];
   recurringBills: RecurringBill[];
   settings: Settings;
+  updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
+  setSettingsSection: (section: SettingsSection) => void;
   subscriptionStatus: SubscriptionStatus;
   onSelectBill: (bill: Bill) => void;
   onSelectImportedBill: (bill: ImportedBill) => void;
@@ -58,7 +61,7 @@ interface DashboardProps {
 const BILLS_PER_PAGE = 15;
 
 const Dashboard: React.FC<DashboardProps> = ({ 
-  bills, importedBills, recurringBills, settings, subscriptionStatus, 
+  bills, importedBills, recurringBills, settings, updateSettings, setSettingsSection, subscriptionStatus, 
   onSelectBill, onSelectImportedBill, 
   onArchiveBill, onUnarchiveBill, onDeleteBill, onReshareBill, onUpdateMultipleBills, 
   onUpdateImportedBill, onArchiveImportedBill, onUnarchiveImportedBill, onDeleteImportedBill,
@@ -74,6 +77,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [archivingBillIds, setArchivingBillIds] = useState<string[]>([]);
   const [isHalfScreenAdOpen, setIsHalfScreenAdOpen] = useState(false);
   const [settleUpBill, setSettleUpBill] = useState<ImportedBill | null>(null);
+  const [isPaymentWarningOpen, setIsPaymentWarningOpen] = useState(false);
+  const [deferredShareAction, setDeferredShareAction] = useState<(() => void) | null>(null);
   const { showNotification } = useAppControl();
 
   const hasRecurringBills = recurringBills.length > 0;
@@ -412,6 +417,18 @@ const Dashboard: React.FC<DashboardProps> = ({
     setSettleUpBill(bill);
   };
 
+  const handleSelectParticipantForShare = (participant: ParticipantData) => {
+      const { paymentDetails, hidePaymentMethodWarning } = settings;
+      const hasPaymentMethods = paymentDetails.venmo || paymentDetails.paypal || paymentDetails.cashApp || paymentDetails.zelle || paymentDetails.customMessage;
+      
+      if (!hasPaymentMethods && !hidePaymentMethodWarning) {
+        setDeferredShareAction(() => () => setShareSheetParticipant(participant));
+        setIsPaymentWarningOpen(true);
+      } else {
+        setShareSheetParticipant(participant);
+      }
+  };
+
   const myParticipantForSettleUp = settleUpBill ? settleUpBill.sharedData.bill.participants.find(p => p.id === settleUpBill.myParticipantId) : null;
 
   const getActiveFilterTag = () => {
@@ -438,7 +455,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const renderContent = () => {
     if (dashboardView === 'participants' && !selectedParticipant) {
         if (participantsData.length > 0) {
-            return <ParticipantList participantsData={participantsData} onSetShareSheetParticipant={setShareSheetParticipant} onMarkParticipantAsPaid={handleMarkParticipantAsPaid} />;
+            return <ParticipantList participantsData={participantsData} onSetShareSheetParticipant={handleSelectParticipantForShare} onMarkParticipantAsPaid={handleMarkParticipantAsPaid} />;
         }
     } else if (selectedParticipant) {
         return <ParticipantDetailView 
@@ -555,6 +572,22 @@ const Dashboard: React.FC<DashboardProps> = ({
         onViewDetails={() => { onSelectParticipant(shareSheetParticipant.name); setShareSheetParticipant(null); }} 
         shareContext="dashboard" />}
       {isHalfScreenAdOpen && <HalfScreenAdModal onClose={() => setIsHalfScreenAdOpen(false)} />}
+      {isPaymentWarningOpen && (
+        <PaymentMethodWarningModal
+            onClose={() => { setIsPaymentWarningOpen(false); setDeferredShareAction(null); }}
+            onContinue={() => {
+                setIsPaymentWarningOpen(false);
+                if(deferredShareAction) deferredShareAction();
+                setDeferredShareAction(null);
+            }}
+            onAddMethods={() => {
+                setIsPaymentWarningOpen(false);
+                setDeferredShareAction(null);
+                setSettingsSection('payments');
+            }}
+            onUpdateSettings={updateSettings}
+        />
+      )}
       {settleUpBill && myParticipantForSettleUp && (
         <PaymentMethodsModal
             paymentDetails={settleUpBill.sharedData.paymentDetails}
