@@ -10,12 +10,16 @@ interface ShareModalProps {
   onUpdateBill: (bill: Bill) => Promise<void>;
 }
 
-const ActionButton: React.FC<{ onClick: () => void; children: React.ReactNode; disabled?: boolean, title: string }> = ({ onClick, children, disabled, title }) => (
+const ActionButton: React.FC<{ onClick: () => void; children: React.ReactNode; disabled?: boolean, title: string, isUsed?: boolean }> = ({ onClick, children, disabled, title, isUsed }) => (
     <button
         onClick={onClick}
         disabled={disabled}
         title={title}
-        className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition-colors disabled:opacity-50 disabled:cursor-wait cursor-pointer"
+        className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-wait cursor-pointer ${
+            isUsed 
+                ? 'text-emerald-500 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/50' 
+                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
+        }`}
     >
         {children}
     </button>
@@ -26,69 +30,76 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
   const [copied, setCopied] = useState<string | null>(null);
   const { showNotification } = useAppControl();
 
-  const getShareUrlForParticipant = useCallback(async (participant: Participant): Promise<string | null> => {
-    setLoading(prev => new Set(prev).add(participant.id));
-    try {
-      const url = await generateShareLink(bill, participant.id, settings, onUpdateBill);
-      return url;
-    } catch (e: any) {
-      console.error("Error generating share link:", e);
-      showNotification(e.message || 'Failed to generate share link.', 'error');
-      return null;
-    } finally {
-      setLoading(prev => {
-        const next = new Set(prev);
-        next.delete(participant.id);
-        return next;
-      });
-    }
-  }, [bill, settings, onUpdateBill, showNotification]);
-
-  const handleCopy = async (p: Participant) => {
-    const url = await getShareUrlForParticipant(p);
-    if (url) {
-      navigator.clipboard.writeText(url);
-      setCopied(p.id);
-      setTimeout(() => setCopied(null), 2000);
-    }
-  };
-
-  const handleShare = async (p: Participant) => {
-    const url = await getShareUrlForParticipant(p);
-    if (!url) return;
-    
-    const message = `Here is a secure link to our bill for "${bill.description}":\n\n${url}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `Bill: ${bill.description}`, text: message });
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          showNotification('Failed to share link', 'error');
-        }
-      }
-    } else {
-      navigator.clipboard.writeText(message);
-      showNotification('Share message with link copied.', 'success');
-      setCopied(p.id);
-      setTimeout(() => setCopied(null), 2000);
-    }
-  };
-
   const getShareMessage = (p: Participant, url: string) => {
     return `Hi ${p.name.split(' ')[0]}, here is the secure link to our bill for "${bill.description}":\n\n${url}`;
   };
 
-  const handleSms = async (p: Participant) => {
-    const url = await getShareUrlForParticipant(p);
-    if (url && p.phone) {
-      window.location.href = `sms:${p.phone}?&body=${encodeURIComponent(getShareMessage(p, url))}`;
-    }
-  };
-  
-  const handleEmail = async (p: Participant) => {
-    const url = await getShareUrlForParticipant(p);
-    if (url && p.email) {
-      window.location.href = `mailto:${p.email}?subject=${encodeURIComponent(`Bill: ${bill.description}`)}&body=${encodeURIComponent(getShareMessage(p, url))}`;
+  const handleShareAction = async (
+    participant: Participant,
+    method: 'sms' | 'email' | 'copy' | 'share'
+  ) => {
+    const loadingKey = `${participant.id}-${method}`;
+    if (loading.has(loadingKey)) return;
+
+    setLoading(prev => new Set(prev).add(loadingKey));
+
+    try {
+        const url = await generateShareLink(bill, participant.id, settings, onUpdateBill);
+        if (!url) {
+            throw new Error('Failed to generate share link.');
+        }
+
+        const message = getShareMessage(participant, url);
+
+        switch (method) {
+            case 'sms':
+                if (participant.phone) {
+                    window.location.href = `sms:${participant.phone}?&body=${encodeURIComponent(message)}`;
+                }
+                break;
+            case 'email':
+                if (participant.email) {
+                    window.location.href = `mailto:${participant.email}?subject=${encodeURIComponent(`Bill: ${bill.description}`)}&body=${encodeURIComponent(message)}`;
+                }
+                break;
+            case 'copy':
+                await navigator.clipboard.writeText(url);
+                setCopied(participant.id);
+                setTimeout(() => setCopied(null), 2000);
+                break;
+            case 'share':
+                if (navigator.share) {
+                    await navigator.share({ title: `Bill: ${bill.description}`, text: message });
+                } else {
+                    await navigator.clipboard.writeText(message);
+                    showNotification('Share message with link copied.', 'success');
+                    setCopied(participant.id);
+                    setTimeout(() => setCopied(null), 2000);
+                }
+                break;
+        }
+
+        const now = Date.now();
+        const updatedHistory = {
+            ...(bill.shareHistory || {}),
+            [participant.id]: {
+                ...(bill.shareHistory?.[participant.id] || {}),
+                [method]: now,
+            },
+        };
+        await onUpdateBill({ ...bill, shareHistory: updatedHistory });
+
+    } catch (e: any) {
+        if (e.name !== 'AbortError') {
+          console.error(`Share action '${method}' failed:`, e);
+          showNotification(e.message || 'Failed to perform share action.', 'error');
+        }
+    } finally {
+        setLoading(prev => {
+            const next = new Set(prev);
+            next.delete(loadingKey);
+            return next;
+        });
     }
   };
 
@@ -108,12 +119,12 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
                   <span className="font-semibold text-slate-800 dark:text-slate-100">{p.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  {p.phone && <ActionButton title="Share via Text Message" onClick={() => handleSms(p)} disabled={loading.has(p.id)}><span className="text-xl" role="img" aria-label="Text message">💬</span></ActionButton>}
-                  {p.email && <ActionButton title="Share via Email" onClick={() => handleEmail(p)} disabled={loading.has(p.id)}><span className="text-xl" role="img" aria-label="Email">📧</span></ActionButton>}
-                  <ActionButton title="Copy Link" onClick={() => handleCopy(p)} disabled={loading.has(p.id)}>
+                  {p.phone && <ActionButton title="Share via Text Message" onClick={() => handleShareAction(p, 'sms')} disabled={loading.has(`${p.id}-sms`)} isUsed={!!bill.shareHistory?.[p.id]?.sms}><span className="text-xl" role="img" aria-label="Text message">💬</span></ActionButton>}
+                  {p.email && <ActionButton title="Share via Email" onClick={() => handleShareAction(p, 'email')} disabled={loading.has(`${p.id}-email`)} isUsed={!!bill.shareHistory?.[p.id]?.email}><span className="text-xl" role="img" aria-label="Email">📧</span></ActionButton>}
+                  <ActionButton title="Copy Link" onClick={() => handleShareAction(p, 'copy')} disabled={loading.has(`${p.id}-copy`)} isUsed={!!bill.shareHistory?.[p.id]?.copy}>
                     {copied === p.id ? <span className="text-xl" role="img" aria-label="Checkmark">✅</span> : <span className="text-xl" role="img" aria-label="Copy">📋</span>}
                   </ActionButton>
-                  <ActionButton title="Share..." onClick={() => handleShare(p)} disabled={loading.has(p.id)}><span className="text-xl" role="img" aria-label="Share">🔗</span></ActionButton>
+                  <ActionButton title="Share..." onClick={() => handleShareAction(p, 'share')} disabled={loading.has(`${p.id}-share`)} isUsed={!!bill.shareHistory?.[p.id]?.share}><span className="text-xl" role="img" aria-label="Share">🔗</span></ActionButton>
                 </div>
               </li>
             ))}

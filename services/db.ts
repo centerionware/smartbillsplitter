@@ -3,7 +3,7 @@ import type { SubscriptionStatus } from '../hooks/useAuth';
 import { postMessage } from './broadcastService';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 12; // Incremented to force migration for all users
+const DB_VERSION = 13; // Incremented to force migration for all users
 
 // Object Store Names
 const STORES = {

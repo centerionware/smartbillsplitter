@@ -49,6 +49,7 @@ export interface Bill {
   shareInfo?: ShareInfo;
   participantShareInfo?: Record<string, ParticipantShareInfo>;
   shareStatus?: 'live' | 'expired' | 'error';
+  shareHistory?: Record<string, Partial<Record<'sms' | 'email' | 'copy' | 'share', number>>>;
 }
 
 export interface RecurrenceRule {
