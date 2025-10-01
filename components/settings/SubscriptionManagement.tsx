@@ -22,7 +22,11 @@ const SubscriptionManagement: React.FC<SubscriptionManagementProps> = ({ onNavig
           <p className="font-semibold text-emerald-800 dark:text-emerald-200">You are a Pro Subscriber!</p>
           <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">Thank you for your support.</p>
           <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
-            Status: Active ({subscriptionDetails.duration}) via {subscriptionDetails.provider}
+            {subscriptionDetails.customerId === 'trial-user' ? (
+              'Status: Active (Free Trial)'
+            ) : (
+              `Status: Active (${subscriptionDetails.duration}) via ${subscriptionDetails.provider}`
+            )}
           </p>
         </div>
       ) : (

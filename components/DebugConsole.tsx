@@ -4,6 +4,7 @@ import { ConsoleView } from './debug/views/ConsoleView';
 import { NetworkView } from './debug/views/NetworkView';
 import { BroadcastView } from './debug/views/BroadcastView';
 import { DatabaseView } from './debug/views/DatabaseView';
+import { DevView } from './debug/views/DevView';
 import { NetworkDetailView } from './debug/common/NetworkDetailView';
 import { ObjectExplorer } from './debug/common/ObjectExplorer';
 import { useDebugServices } from './debug/useDebugServices';
@@ -38,6 +39,7 @@ const DebugConsole: React.FC = () => {
             case 'network': return selectedNetworkLog ? <NetworkDetailView log={selectedNetworkLog} onBack={() => setSelectedNetworkLog(null)} /> : <NetworkView networkLogs={networkLogs} onSelectLog={setSelectedNetworkLog} interceptionActive={networkInterceptionActive} />;
             case 'broadcast': return <BroadcastView logs={broadcastLogs} />;
             case 'database': return <DatabaseView />;
+            case 'dev': return <DevView />;
             default: return null;
         }
     };

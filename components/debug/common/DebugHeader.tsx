@@ -14,6 +14,14 @@ export const DebugHeader: React.FC<{
             <button onClick={() => setMode('network')} className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors ${mode === 'network' ? 'bg-slate-800 shadow text-teal-400' : 'text-slate-300'}`}>Network</button>
             <button onClick={() => setMode('broadcast')} className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors ${mode === 'broadcast' ? 'bg-slate-800 shadow text-teal-400' : 'text-slate-300'}`}>Broadcast</button>
             <button onClick={() => setMode('database')} className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors ${mode === 'database' ? 'bg-slate-800 shadow text-teal-400' : 'text-slate-300'}`}>Database</button>
+            {/* FIX: Replaced Vite-specific `import.meta.env.DEV` with `process.env.NODE_ENV` to resolve
+            a TypeScript error where `env` was not found on `import.meta`. This is a robust way to
+            check for development mode as Vite statically replaces `process.env.NODE_ENV`. */}
+            {process.env.NODE_ENV === 'development' && (
+              <button onClick={() => setMode('dev')} className={`px-2 py-0.5 text-xs font-semibold rounded-md transition-colors ${mode === 'dev' ? 'bg-slate-800 shadow text-teal-400' : 'text-slate-300'}`}>
+                  Dev
+              </button>
+           )}
         </div>
         <div className="flex items-center gap-4">
             <button onClick={onClear} title="Clear" className="hover:text-teal-400 p-1">

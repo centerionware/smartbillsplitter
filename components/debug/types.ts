@@ -1,5 +1,5 @@
 export type LogLevel = 'log' | 'warn' | 'error' | 'info' | 'debug';
-export type ConsoleMode = 'console' | 'network' | 'broadcast' | 'database';
+export type ConsoleMode = 'console' | 'network' | 'broadcast' | 'database' | 'dev';
 export type DetailView = 'requestHeaders' | 'responseHeaders' | 'requestBody' | 'responseBody';
 
 export interface LogEntry {
