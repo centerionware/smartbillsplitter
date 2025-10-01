@@ -61,6 +61,7 @@ const renderErrorFallback = (error: Error) => {
         messageContainer.innerHTML = '';
     }
     console.warn("Performing hard reset from fallback UI.");
+    closeDB(); // Close the connection if it was opened
     const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
 
     deleteRequest.onsuccess = () => {

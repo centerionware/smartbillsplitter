@@ -1,4 +1,5 @@
 import React, { ErrorInfo, ReactNode } from 'react';
+import { closeDB } from '../services/db.ts';
 
 interface Props {
   children: ReactNode;
@@ -32,6 +33,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   
   handleHardReset = () => {
       console.warn("Performing hard reset from Error Boundary.");
+      closeDB();
       const deleteRequest = indexedDB.deleteDatabase('SmartBillSplitterDB');
 
       deleteRequest.onsuccess = () => {

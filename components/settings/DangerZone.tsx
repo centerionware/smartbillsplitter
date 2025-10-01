@@ -1,6 +1,7 @@
 import React from 'react';
 import type { RequestConfirmationFn } from '../../types';
-import { useAppControl } from '../../contexts/AppControlContext';
+import { useAppControl } from '../../contexts/AppControlContext.tsx';
+import { closeDB } from '../../services/db.ts';
 
 interface DangerZoneProps {
   requestConfirmation: RequestConfirmationFn;
@@ -14,7 +15,12 @@ const DangerZone: React.FC<DangerZoneProps> = ({ requestConfirmation }) => {
       'Hard Reset Application?',
       'This will permanently delete all bills, settings, and subscription data from this device. This action cannot be undone. Are you sure you want to proceed?',
       () => {
+        // First, close any active database connection from this tab.
+        // This is crucial to prevent the current tab from blocking the delete operation.
+        closeDB();
+
         const deleteRequest = indexedDB.deleteDatabase('SmartBillSplitterDB');
+        
         deleteRequest.onsuccess = () => {
           localStorage.clear();
           sessionStorage.clear();
