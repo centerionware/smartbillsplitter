@@ -119,9 +119,24 @@ try {
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           <h1 class="text-2xl font-semibold text-slate-700 dark:text-slate-200">Initializing App...</h1>
+          <div id="loading-warning" class="mt-4 w-full max-w-md"></div>
         </div>
       `;
       
+      const loadingWarningTimeout = setTimeout(() => {
+          const warningContainer = document.getElementById('loading-warning');
+          if (warningContainer) {
+              warningContainer.innerHTML = `
+                <div class="p-4 bg-yellow-100 dark:bg-yellow-900/40 border-l-4 border-yellow-500 rounded-r-lg text-left">
+                    <h4 class="font-bold text-yellow-800 dark:text-yellow-200">Still Loading?</h4>
+                    <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                        This is taking longer than usual. If you have this app open in other browser tabs, closing them may help speed things up.
+                    </p>
+                </div>
+              `;
+          }
+      }, 3000);
+
       type NotificationType = 'success' | 'info' | 'error';
       interface NotificationState {
         message: string;
@@ -248,6 +263,7 @@ try {
       };
 
       startup().then(() => {
+        clearTimeout(loadingWarningTimeout);
         rootElement.innerHTML = '';
         const root = ReactDOM.createRoot(rootElement);
         root.render(
@@ -258,6 +274,7 @@ try {
           </React.StrictMode>
         );
       }).catch(err => {
+        clearTimeout(loadingWarningTimeout);
         console.error("Failed to initialize the application.", err);
         renderErrorFallback(err);
       });
