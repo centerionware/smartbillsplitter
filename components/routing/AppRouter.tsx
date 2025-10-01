@@ -118,8 +118,14 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
                         {...props}
                         onSelectBill={(bill) => navigate(View.BillDetails, { billId: bill.id })} 
                         onSelectImportedBill={(bill) => navigate(View.ImportedBillDetails, { importedBillId: bill.id })}
+                        onArchiveBill={props.archiveBill}
+                        onUnarchiveBill={props.unarchiveBill}
                         onDeleteBill={props.handleDeleteBill}
                         onReshareBill={props.handleReshareBill}
+                        onUpdateMultipleBills={props.updateMultipleBills}
+                        onUpdateImportedBill={props.updateImportedBill}
+                        onArchiveImportedBill={props.archiveImportedBill}
+                        onUnarchiveImportedBill={props.unarchiveImportedBill}
                         onDeleteImportedBill={props.handleDeleteImportedBill}
                         onShowSummaryDetails={(bill) => navigate(View.ImportedBillDetails, { importedBillId: bill.id, showSummary: true })}
                         onCreateFromTemplate={props.createFromTemplate}
