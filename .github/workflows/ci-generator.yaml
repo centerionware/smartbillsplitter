@@ -32,17 +32,19 @@ jobs:
     name: CI/CD Task
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout ci-cd branch for workflow discovery
-        if: startsWith(inputs.task, 'run:')
-        uses: actions/checkout@v4
-        with:
-          ref: 'ci-cd'
-
       - name: Trigger a remote workflow
         if: startsWith(inputs.task, 'run:')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          TEMP_DIR=$(mktemp -d)
+          cd "$TEMP_DIR"
+          git init
+          git remote add origin "https://x-access-token:${WORKFLOWS_TOKEN}@github.com/${{ github.repository }}.git"
+          git fetch --depth 1 origin main
+          git checkout origin/main -- cicd
           # Extract workflow name, removing the 'run: ' prefix
           WORKFLOW_NAME=$(echo "${{ inputs.task }}" | cut -d' ' -f2)
           echo "Manually triggering '$WORKFLOW_NAME' on the 'ci-cd' branch..."
