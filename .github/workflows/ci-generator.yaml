@@ -1,0 +1,62 @@
+name: Generate CI/CD Branch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cicd/github/workflows/**' # Only run when templates change
+  workflow_dispatch:
+
+jobs:
+  generate-branch:
+    name: Generate ci-cd Branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+
+      - name: Create or Update ci-cd branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+
+          # Configure git
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+          # Create a new orphan branch in a temporary directory
+          TEMP_DIR=$(mktemp -d)
+          echo "Working in temporary directory $TEMP_DIR"
+          cd "$TEMP_DIR"
+          
+          # Initialize a new repo and connect to the remote
+          git init
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          
+          # Fetch only the main branch to get the cicd files
+          git fetch --depth 1 origin main
+          
+          # Checkout just the 'cicd' directory from the main branch into our empty repo
+          git checkout main -- cicd
+
+          # Reorganize files for the new branch structure
+          mkdir -p .github/workflows
+          mv cicd/github/workflows/* .github/workflows/
+          rm -rf cicd
+          
+          echo "Workflow files prepared:"
+          ls -R .github/workflows
+
+          # Commit and push to the 'ci-cd' branch
+          git add .
+          # Use --allow-empty in case the workflows haven't changed, to ensure the branch is created/reset
+          git commit --allow-empty -m "chore: Sync CI/CD workflows from main branch [ci skip]"
+          echo "Pushing to ci-cd branch..."
+          git push -f origin HEAD:ci-cd
+          
+          echo "Successfully updated the 'ci-cd' branch with the latest workflows."
