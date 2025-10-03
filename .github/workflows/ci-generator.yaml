@@ -48,7 +48,7 @@ jobs:
           # Extract workflow name, removing the 'run: ' prefix
           WORKFLOW_NAME=$(echo "${{ inputs.task }}" | cut -d' ' -f2)
           echo "Manually triggering '$WORKFLOW_NAME' on the 'ci-cd' branch..."
-          gh workflow run "$WORKFLOW_NAME" --ref ci-cd --repo ${{ github.repository }}
+          gh workflow run $WORKFLOW_NAME --ref ci-cd -f branch_to_lint=${{ github.ref_name }} --repo ${{ github.repository }}
 
       - name: Sync ci-cd branch and/or trigger lint
         # This runs on push OR on manual trigger if 'sync-and-lint' is selected
