@@ -1,0 +1,35 @@
+name: 10. Frontend Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get_lambda_url:
+    name: Get AWS Lambda URL
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/utils-get-lambda-url.yaml
+    secrets: inherit
+
+  build_frontend:
+    name: Build Frontend
+    needs: get_lambda_url
+    uses: ./.github/workflows/03-build-frontend.yaml
+    with:
+      # Construct a comma-separated list of API URLs.
+      # Start with the static Kubernetes URL.
+      # If the lambda URL was found, append it to the list.
+      api_urls: ${{ needs.get_lambda_url.outputs.function_url && format('https://k.sharedbills.app,{0}', needs.get_lambda_url.outputs.function_url) || 'https://k.sharedbills.app' }}
+    secrets: inherit
+
+  publish_frontend:
+    name: Publish Frontend to gh-pages
+    needs: build_frontend
+    permissions:
+      contents: write
+    uses: ./.github/workflows/04-publish-to-branches.yaml
+    with:
+      publish_frontend: true
+      publish_backend: false
+    secrets: inherit

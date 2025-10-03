@@ -1,0 +1,19 @@
+name: 10. Deploy Backend Lambda
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_backend:
+    name: Build Backend
+    uses: ./.github/workflows/01-build-backend.yaml
+    secrets: inherit
+
+  deploy_lambda:
+    name: Deploy AWS Lambda
+    needs: build_backend
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/02-deploy-aws.yaml
+    secrets: inherit

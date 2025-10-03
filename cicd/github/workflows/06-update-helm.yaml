@@ -1,0 +1,86 @@
+name: 6. Update and Publish Helm Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'The image tag to update the Helm chart with'
+        required: true
+  workflow_call:
+    inputs:
+      image_tag:
+        description: 'The image tag to update the Helm chart with'
+        required: true
+        type: string
+
+jobs:
+  update-and-publish:
+    name: Update and Publish Helm Chart
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main branch (source of truth)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Checkout production branch (to get current version)
+        uses: actions/checkout@v4
+        with:
+          ref: production
+          path: temp_prod
+        # Continue if the branch doesn't exist on the first run
+        continue-on-error: true
+
+      - name: Bump Helm chart version
+        id: bump_version
+        run: |
+          CHART_FILE_MAIN="./charts/bill-splitter/Chart.yaml"
+          CHART_FILE_PROD="./temp_prod/charts/bill-splitter/Chart.yaml"
+
+          # Get the current version from production branch, or default to the main branch version if it doesn't exist
+          if [ -f "$CHART_FILE_PROD" ]; then
+            VERSION=$(grep '^version:' ${CHART_FILE_PROD} | awk '{print $2}')
+            echo "Found version '${VERSION}' in production branch."
+          else
+            echo "Production branch or its Chart.yaml not found. Using version from main branch as base."
+            VERSION=$(grep '^version:' ${CHART_FILE_MAIN} | awk '{print $2}')
+          fi
+          
+          # Simple patch version bump logic
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          
+          echo "Bumping Helm chart from v${VERSION} to v${NEW_VERSION}"
+          
+          # Update the version in the main branch's Chart.yaml (our source for publishing)
+          sed -i "s/^version: .*/version: ${NEW_VERSION}/" ${CHART_FILE_MAIN}
+          echo "Updated ${CHART_FILE_MAIN} with new version."
+          
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Update Helm chart with new image tags
+        run: |
+          DEPLOYMENT_FILE="./charts/bill-splitter/templates/deployment.yaml"
+          echo "Updating image tags in ${DEPLOYMENT_FILE} to ${{ inputs.image_tag }}"
+          sed -i "s/IMAGE_TAG_PLACEHOLDER_FRONTEND/${{ inputs.image_tag }}/g" ${DEPLOYMENT_FILE}
+          sed -i "s/IMAGE_TAG_PLACEHOLDER_BACKEND/${{ inputs.image_tag }}/g" ${DEPLOYMENT_FILE}
+          echo "Image tags updated."
+
+      - name: Prepare publish directory
+        run: |
+          mkdir publish
+          mv ./charts ./publish/
+
+      - name: Deploy updated chart to production branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./publish
+          publish_branch: production
+          force_orphan: true
+          commit_message: "deploy(helm): Bump chart to v${{ steps.bump_version.outputs.new_version }}, update images to tag ${{ inputs.image_tag }}"
