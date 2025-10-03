@@ -14,8 +14,7 @@ on:
         options:
           - 'sync-and-lint'
           - 'run: 00-lint.yaml'
-          - 'run: 10-orchestrator-main.yaml'
-          - 'run: 10-orchestrator-simple.yaml'
+          - 'run: 10-orchestrator-full.yaml'
           - 'run: 10-deploy-backend-lambda.yaml'
           - 'run: 10-frontend-deploy.yaml'
           - 'run: 10-kubernetes-build.yaml'
