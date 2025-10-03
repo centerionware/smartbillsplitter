@@ -6,16 +6,13 @@ on:
     secrets:
       PROD_URL:
         required: true
-    outputs:
-      function_url:
-        description: "The deployed AWS Lambda Function URL."
-        value: ${{ jobs.deploy.outputs.function_url }}
 
 env:
   AWS_REGION: us-east-1
   LAMBDA_FUNCTION_NAME: SharedBills-Backend
   DYNAMODB_TABLE_NAME: shared-bills-kv-store
   IAM_ROLE_NAME: Lambda-SharedBills-ExecutionRole
+  API_GATEWAY_NAME: SharedBills-Backend-Gateway
 
 jobs:
   deploy:
@@ -24,8 +21,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    outputs:
-      function_url: ${{ steps.lambda_url.outputs.FUNCTION_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -98,39 +93,55 @@ jobs:
             echo "Updating existing Lambda function configuration: ${{ env.LAMBDA_FUNCTION_NAME }}"
             aws lambda update-function-configuration --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --environment "$ENV_VARS" --timeout 15
           fi
-          
-      - name: Create or Update Lambda Function URL
-        id: lambda_url
-        run: |
-          if [ -z "${{ secrets.PROD_URL }}" ]; then
-            echo "::error::PROD_URL secret is not set."
-            exit 1
-          fi
-
-          # Using a single-quoted string for the JSON payload is more robust against shell expansion issues.
-          CORS_CONFIG='{"AllowOrigins":["${{ secrets.PROD_URL }}"],"AllowMethods":["*"],"AllowHeaders":["content-type","authorization"]}'
-          
-          URL_CONFIG=$(aws lambda get-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'FunctionUrl' --output text 2>/dev/null)
-          
-          if [ -z "$URL_CONFIG" ]; then
-            echo "Function URL not found. Creating a new one with correct CORS settings..."
-            URL_CONFIG=$(aws lambda create-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --auth-type NONE --cors "$CORS_CONFIG" --query 'FunctionUrl' --output text)
-          else
-             echo "Function URL already exists. Updating CORS configuration..."
-             aws lambda update-function-url-config --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --cors "$CORS_CONFIG"
-             echo "CORS configuration updated."
-          fi
-          
-          echo "Lambda Function URL is: ${URL_CONFIG}"
-          echo "FUNCTION_URL=${URL_CONFIG}" >> $GITHUB_OUTPUT
       
-      - name: Grant Public Access to Function URL
+      - name: Create or Update API Gateway
+        id: api_gateway
         run: |
-          echo "Attempting to grant public access to Lambda Function URL..."
+          FUNCTION_ARN=$(aws lambda get-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'Configuration.FunctionArn' --output text)
+          API_NAME="${{ env.API_GATEWAY_NAME }}"
+          CORS_CONFIG='{"AllowOrigins":["${{ secrets.PROD_URL }}"]}'
+          
+          API_ID=$(aws apigatewayv2 get-apis --query "Items[?Name=='${API_NAME}'].ApiId" --output text)
+
+          if [ -z "$API_ID" ]; then
+            echo "API Gateway '${API_NAME}' not found. Creating it..."
+            API_ID=$(aws apigatewayv2 create-api \
+              --name "${API_NAME}" \
+              --protocol-type HTTP \
+              --target "${FUNCTION_ARN}" \
+              --cors-configuration "${CORS_CONFIG}" \
+              --query 'ApiId' --output text)
+            echo "API Gateway created with ID: ${API_ID}"
+          else
+            echo "API Gateway '${API_NAME}' already exists with ID: ${API_ID}. Updating CORS..."
+            aws apigatewayv2 update-api --api-id ${API_ID} --cors-configuration "${CORS_CONFIG}"
+          fi
+          
+          echo "API_ID=${API_ID}" >> $GITHUB_OUTPUT
+
+      - name: Grant API Gateway permission to invoke Lambda
+        run: |
+          API_ID=${{ steps.api_gateway.outputs.API_ID }}
+          SOURCE_ARN="arn:aws:execute-api:${{ env.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:${API_ID}/*/*"
+          STATEMENT_ID="apigateway-invoke-${{ env.LAMBDA_FUNCTION_NAME }}"
+          
+          aws lambda remove-permission --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --statement-id ${STATEMENT_ID} 2>/dev/null || true
+          
+          echo "Granting API Gateway permission to invoke Lambda function..."
           aws lambda add-permission \
             --function-name ${{ env.LAMBDA_FUNCTION_NAME }} \
-            --statement-id FunctionURLAllowPublicAccess \
-            --action lambda:InvokeFunctionUrl \
-            --principal "*" \
-            --function-url-auth-type NONE \
-          || echo "Permission may already exist. This is not a fatal error and the workflow will continue."
+            --statement-id ${STATEMENT_ID} \
+            --action lambda:InvokeFunction \
+            --principal apigateway.amazonaws.com \
+            --source-arn "${SOURCE_ARN}"
+          echo "Permission granted."
+
+      - name: Configure API Gateway Throttling
+        run: |
+          API_ID=${{ steps.api_gateway.outputs.API_ID }}
+          echo "Configuring rate limiting for the default stage..."
+          aws apigatewayv2 update-stage \
+            --api-id ${API_ID} \
+            --stage-name '$default' \
+            --default-route-settings '{"ThrottlingBurstLimit": 5, "ThrottlingRateLimit": 10.0}'
+          echo "Throttling configured to 10 requests/sec with a burst of 5."

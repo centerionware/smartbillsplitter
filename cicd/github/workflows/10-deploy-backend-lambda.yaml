@@ -2,6 +2,7 @@ name: 10. Deploy Backend Lambda
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   build_backend:

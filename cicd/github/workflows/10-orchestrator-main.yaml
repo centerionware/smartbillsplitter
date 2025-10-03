@@ -35,7 +35,7 @@ jobs:
     needs: deploy_lambda
     uses: ./.github/workflows/03-build-frontend.yaml
     with:
-      api_urls: "${{ needs.deploy_lambda.outputs.function_url }},https://k.sharedbills.app"
+      api_urls: "https://k.sharedbills.app"
     secrets: inherit
 
   publish_artifacts:
