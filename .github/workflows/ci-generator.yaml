@@ -10,19 +10,13 @@ on:
 
 permissions:
   contents: write
-  workflows: write
 
 jobs:
   generate-branch:
     name: Generate ci-cd Branch
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main branch
-        uses: actions/checkout@v4
-
       - name: Create or Update ci-cd branch
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
 
@@ -30,33 +24,39 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-          # Create a new orphan branch in a temporary directory
+          # Create a new orphan branch in a temporary directory to ensure a clean state
           TEMP_DIR=$(mktemp -d)
           echo "Working in temporary directory $TEMP_DIR"
           cd "$TEMP_DIR"
           
-          # Initialize a new repo and connect to the remote
+          # Initialize a new repo and connect to the remote using the PAT
           git init
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git remote add origin "https://x-access-token:${{ secrets.WORKFLOWS_TOKEN }}@github.com/${{ github.repository }}.git"
           
           # Fetch only the main branch to get the cicd files
           git fetch --depth 1 origin main
           
-          # Checkout just the 'cicd' directory from the main branch into our empty repo
+          # Checkout ONLY the 'cicd' directory from the main branch into our empty repo
           git checkout origin/main -- cicd
 
           # Reorganize files for the new branch structure
-          mkdir -p .github/workflows
-          mv cicd/github/workflows/* .github/workflows/
-          rm -rf cicd
+          if [ -d "cicd/github/workflows" ]; then
+            mkdir -p .github
+            mv cicd/github/ .github/
+          fi
           
           echo "Workflow files prepared:"
-          ls -R .github/workflows
+          ls -R .github || echo "No workflow files to prepare."
 
-          # Commit and push to the 'ci-cd' branch
-          git add .
-          # Use --allow-empty in case the workflows haven't changed, to ensure the branch is created/reset
-          git commit --allow-empty -m "chore: Sync CI/CD workflows from main branch [ci skip]"
+          # Explicitly add only the .github directory to the commit
+          if [ -d ".github" ]; then
+            git add .github
+            git commit -m "chore: Sync CI/CD workflows from main branch [ci skip]"
+          else
+            # If no files were found, create an empty commit to ensure the branch is created/reset
+            git commit --allow-empty -m "chore: Sync CI/CD workflows from main branch [ci skip]"
+          fi
+
           echo "Pushing to ci-cd branch..."
           git push -f origin HEAD:ci-cd
           
