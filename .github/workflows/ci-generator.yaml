@@ -32,6 +32,12 @@ jobs:
     name: CI/CD Task
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout ci-cd branch for workflow discovery
+        if: startsWith(inputs.task, 'run:')
+        uses: actions/checkout@v4
+        with:
+          ref: 'ci-cd'
+
       - name: Trigger a remote workflow
         if: startsWith(inputs.task, 'run:')
         env:
