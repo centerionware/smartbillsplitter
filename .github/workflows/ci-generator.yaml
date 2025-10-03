@@ -66,6 +66,6 @@ jobs:
           echo "CI/CD branch updated. Triggering lint workflow to check the main branch..."
           # Wait a moment for the push to ci-cd to settle before triggering
           sleep 5
-          gh workflow run 00-lint.yaml --ref ci-cd -f branch_to_lint=${{ github.ref_name }}
+          gh workflow run 00-lint.yaml --ref ci-cd -f branch_to_lint=${{ github.ref_name }} --repo ${{ github.repository }}
         env:
-          GH_TOKEN: ${{ secrets.WORKFLOWS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
