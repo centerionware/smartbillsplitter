@@ -8,14 +8,14 @@ on:
       - 'cicd/github/workflows/**' # Only run when templates change
   workflow_dispatch:
 
+permissions:
+  contents: write
+  workflows: write
+
 jobs:
   generate-branch:
     name: Generate ci-cd Branch
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      workflows: write
-
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
