@@ -1,10 +1,12 @@
 name: Lint Code
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      branch_to_lint:
+        description: 'The branch to check out and lint'
+        required: true
+        type: string
 
 jobs:
   lint:
@@ -14,8 +16,12 @@ jobs:
       contents: write
       actions: write # Required to trigger a workflow run
     steps:
-      - name: Checkout repository
+      - name: Checkout target branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_to_lint }}
+          # The default GITHUB_TOKEN has write permission because of the 'permissions' block above
+          # A PAT is not needed here.
 
       - name: Check for package-lock.json
         id: check_lockfile
@@ -74,13 +80,6 @@ jobs:
           echo "Lockfile was pushed. Triggering a new workflow run to perform linting."
           # Wait a few seconds to allow the push to be fully processed by GitHub before the new workflow starts.
           sleep 5 
-          # Assign the full context variable to a shell variable first
-          WORKFLOW_REF="${{ github.workflow_ref }}"
-          # Then, use shell parameter expansion to strip the part after '@'
-          WORKFLOW_PATH="${WORKFLOW_REF%@*}"
-          # Finally, get the basename to get just the filename
-          WORKFLOW_FILE=$(basename "$WORKFLOW_PATH")
-          gh workflow run "$WORKFLOW_FILE" --ref ${{ github.ref }}
+          gh workflow run 00-lint.yaml --ref ci-cd -f branch_to_lint=${{ inputs.branch_to_lint }} --repo ${{ github.repository }}
         env:
-          # The GITHUB_TOKEN is automatically used by gh CLI, but explicitly setting GH_TOKEN is best practice.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
