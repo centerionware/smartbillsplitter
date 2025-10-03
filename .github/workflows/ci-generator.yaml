@@ -1,70 +1,87 @@
-name: Generate CI/CD Branch and Trigger Lint
+name: CI/CD Control Center
 
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      task:
+        description: 'Select a task to run'
+        type: choice
+        required: true
+        default: 'sync-and-lint'
+        options:
+          - 'sync-and-lint'
+          - 'run: 00-lint.yaml'
+          - 'run: 10-orchestrator-main.yaml'
+          - 'run: 10-orchestrator-simple.yaml'
+          - 'run: 10-deploy-backend-lambda.yaml'
+          - 'run: 10-frontend-deploy.yaml'
+          - 'run: 10-kubernetes-build.yaml'
+          - 'run: 20-redeploy-lambda.yaml'
+          - 'run: 21-cleanup-lambda.yaml'
+          - 'run: 22-cleanup-docker-images.yaml'
+          - 'run: generate-lockfile.yaml'
 
 permissions:
   contents: write
   actions: write
 
 jobs:
-  generate-branch:
-    name: Generate ci-cd Branch & Trigger Lint
+  main:
+    name: CI/CD Task
     runs-on: ubuntu-latest
     steps:
-      - name: Create or Update ci-cd branch
+      - name: Trigger a remote workflow
+        if: startsWith(inputs.task, 'run:')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extract workflow name, removing the 'run: ' prefix
+          WORKFLOW_NAME=$(echo "${{ inputs.task }}" | cut -d' ' -f2)
+          echo "Manually triggering '$WORKFLOW_NAME' on the 'ci-cd' branch..."
+          gh workflow run "$WORKFLOW_NAME" --ref ci-cd --repo ${{ github.repository }}
+
+      - name: Sync ci-cd branch and/or trigger lint
+        # This runs on push OR on manual trigger if 'sync-and-lint' is selected
+        if: github.event_name == 'push' || inputs.task == 'sync-and-lint'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOWS_TOKEN: ${{ secrets.WORKFLOWS_TOKEN }}
         run: |
           set -e
-
-          # Configure git
+          # --- Step 1: Create or Update ci-cd branch ---
+          echo "### Syncing ci-cd branch ###"
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-          # Create a new orphan branch in a temporary directory to ensure a clean state
           TEMP_DIR=$(mktemp -d)
-          echo "Working in temporary directory $TEMP_DIR"
           cd "$TEMP_DIR"
-          
-          # Initialize a new repo and connect to the remote using the PAT
           git init
-          git remote add origin "https://x-access-token:${{ secrets.WORKFLOWS_TOKEN }}@github.com/${{ github.repository }}.git"
-          
-          # Fetch only the main branch to get the cicd files
+          git remote add origin "https://x-access-token:${WORKFLOWS_TOKEN}@github.com/${{ github.repository }}.git"
           git fetch --depth 1 origin main
-          
-          # Checkout ONLY the 'cicd' directory from the main branch into our empty repo
           git checkout origin/main -- cicd
-
-          # Reorganize files for the new branch structure
           if [ -d "cicd/github/workflows" ]; then
-            mv cicd/github .github
+            mkdir -p .github
+            mv cicd/github/workflows .github/
           fi
-          
-          echo "Workflow files prepared:"
+          echo "Workflow files prepared for ci-cd branch:"
           ls -R .github || echo "No workflow files to prepare."
-
-          # Explicitly add only the .github directory to the commit
           if [ -d ".github" ]; then
             git add .github
             git commit -m "chore: Sync CI/CD workflows from main branch [ci skip]"
           else
-            # If no files were found, create an empty commit to ensure the branch is created/reset
             git commit --allow-empty -m "chore: Sync CI/CD workflows from main branch [ci skip]"
           fi
-
           echo "Pushing to ci-cd branch..."
           git push -f origin HEAD:ci-cd
-          
-          echo "Successfully updated the 'ci-cd' branch with the latest workflows."
+          echo "Successfully updated the 'ci-cd' branch."
 
-      - name: Trigger lint workflow
-        run: |
-          echo "CI/CD branch updated. Triggering lint workflow to check the main branch..."
-          # Wait a moment for the push to ci-cd to settle before triggering
-          sleep 5
-          gh workflow run 00-lint.yaml --ref ci-cd -f branch_to_lint=${{ github.ref_name }} --repo ${{ github.repository }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # --- Step 2: Trigger lint workflow (only on push) ---
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "### Triggering lint workflow for main branch ###"
+            sleep 5 # Wait a moment for the push to settle
+            gh workflow run 00-lint.yaml --ref ci-cd -f branch_to_lint=${{ github.ref_name }} --repo ${{ github.repository }}
+          else
+            echo "Manual sync complete. Skipping automatic lint trigger."
+          fi
