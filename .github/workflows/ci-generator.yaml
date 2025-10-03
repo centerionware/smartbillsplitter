@@ -50,7 +50,7 @@ jobs:
           # Extract workflow name, removing the 'run: ' prefix
           WORKFLOW_NAME=$(echo "${{ inputs.task }}" | cut -d' ' -f2)
           echo "Manually triggering '$WORKFLOW_NAME' on the 'ci-cd' branch..."
-          gh workflow list --repo ${{ github.repository }} --ref ci-cd
+          gh workflow list --repo ${{ github.repository }}
           if [ "$WORKFLOW_NAME" = "00-lint.yaml" ]; then
             # The lint workflow requires the branch_to_lint input
             gh workflow run "$WORKFLOW_NAME" --ref ci-cd -f branch_to_lint=${{ github.ref_name }} --repo ${{ github.repository }}
