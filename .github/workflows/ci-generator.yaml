@@ -40,8 +40,7 @@ jobs:
 
           # Reorganize files for the new branch structure
           if [ -d "cicd/github/workflows" ]; then
-            mkdir -p .github
-            mv cicd/github/ .github/
+            mv cicd/github .github
           fi
           
           echo "Workflow files prepared:"
