@@ -42,7 +42,7 @@ jobs:
           git fetch --depth 1 origin main
           
           # Checkout just the 'cicd' directory from the main branch into our empty repo
-          git checkout main -- cicd
+          git checkout origin/main -- cicd
 
           # Reorganize files for the new branch structure
           mkdir -p .github/workflows
