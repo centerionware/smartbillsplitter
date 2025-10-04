@@ -101,16 +101,19 @@ export const useImportedBills = () => {
 
       // FIX: Use a for...of loop to ensure the `bill` variable is correctly typed from the `billsToMerge` array. This resolves errors where the loop variable was being inferred as 'unknown'.
       for (const bill of billsToMerge) {
-          const existingBill = existingBillMap.get(bill.id);
+          // By casting `bill` here, we provide TypeScript with the correct type information,
+          // resolving the 'unknown' type inference issue.
+          const billToProcess = bill as Omit<ImportedBill, 'status' | 'liveStatus'>;
+          const existingBill = existingBillMap.get(billToProcess.id);
 
           if (existingBill) {
-              if ((bill.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
-                  billsToUpdate.push({ ...existingBill, ...bill, status: existingBill.status, liveStatus: 'live' });
+              if ((billToProcess.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
+                  billsToUpdate.push({ ...existingBill, ...billToProcess, status: existingBill.status, liveStatus: 'live' });
               } else {
                   skippedCount++;
               }
           } else {
-              billsToAdd.push({ ...bill, status: 'active', liveStatus: 'live' });
+              billsToAdd.push({ ...billToProcess, status: 'active', liveStatus: 'live' });
           }
       }
 
