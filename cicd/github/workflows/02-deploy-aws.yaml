@@ -101,7 +101,7 @@ jobs:
           FUNCTION_ARN=$(aws lambda get-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'Configuration.FunctionArn' --output text)
           API_NAME="${{ env.API_GATEWAY_NAME }}"
           # Use double quotes for the outer shell variable and escape inner quotes to ensure correct JSON parsing.
-          CORS_CONFIG="{\"AllowOrigins\":[\"https://${{ secrets.PROD_URL }}\"],\"AllowMethods\":[\"GET\",\"POST\",\"OPTIONS\"],\"AllowHeaders\":[\"Content-Type\"]}"
+          CORS_CONFIG="{\"AllowOrigins\":[\"${{ secrets.PROD_URL }}\"],\"AllowMethods\":[\"GET\",\"POST\",\"OPTIONS\"],\"AllowHeaders\":[\"Content-Type\"]}"
           
           API_ID=$(aws apigatewayv2 get-apis --query "Items[?Name=='${API_NAME}'].ApiId" --output text)
 
