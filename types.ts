@@ -78,6 +78,7 @@ export interface Group {
         splitValues?: Record<string, number>; // participant.id -> value
     };
     lastUpdatedAt: number;
+    popularity: number;
 }
 
 export interface PaymentDetails {

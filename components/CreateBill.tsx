@@ -11,6 +11,7 @@ import BillPrimaryDetails from './BillPrimaryDetails.tsx';
 import BillSplitMethod from './BillSplitMethod.tsx';
 import BillParticipants from './BillParticipants.tsx';
 import BillExtraDetails from './BillExtraDetails.tsx';
+import SelectGroupModal from './modals/SelectGroupModal.tsx';
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -49,6 +50,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const { showNotification } = useAppControl();
   
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
 
   const setStep = (newStep: number | string) => {
     setStepState(parseFloat(String(newStep)));
@@ -231,20 +233,33 @@ const CreateBill: React.FC<CreateBillProps> = ({
             })));
         }
     }
+    setIsGroupModalOpen(false);
     setStep(1);
   };
 
   const renderGroupSelectionStep = () => (
     <div className="text-center">
       <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-6">Start with a Group?</h3>
-      <div className="space-y-4 mb-6">
-        {groups.map(group => (
-            <button key={group.id} type="button" onClick={() => handleGroupSelect(group.id)} className="w-full text-left p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                <p className="font-bold text-lg">{group.name}</p>
-                <p className="text-sm text-slate-500">{group.participants.length} members</p>
+      {groups.length > 5 ? (
+        <div className="mb-6">
+            <button
+                type="button"
+                onClick={() => setIsGroupModalOpen(true)}
+                className="w-full px-6 py-4 bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 font-bold text-lg rounded-lg border-2 border-teal-500 hover:bg-teal-50 dark:hover:bg-slate-600 transition-colors"
+            >
+                Select a Group
             </button>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="space-y-4 mb-6">
+            {groups.map(group => (
+                <button key={group.id} type="button" onClick={() => handleGroupSelect(group.id)} className="w-full text-left p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <p className="font-bold text-lg">{group.name}</p>
+                    <p className="text-sm text-slate-500">{group.participants.length} members</p>
+                </button>
+            ))}
+        </div>
+      )}
       <button type="button" onClick={() => setStep(1)} className="w-full px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600">
         Continue without a Group
       </button>
@@ -286,6 +301,14 @@ const CreateBill: React.FC<CreateBillProps> = ({
 
   return (
     <div className="max-w-2xl mx-auto">
+      {isGroupModalOpen && (
+        <SelectGroupModal
+            isOpen={isGroupModalOpen}
+            onClose={() => setIsGroupModalOpen(false)}
+            onSelectGroup={handleGroupSelect}
+            groups={groups}
+        />
+      )}
       {isSetupModalOpen && <SetupDisplayNameModal onSave={handleSaveDisplayName} currentName={settings.myDisplayName} />}
       <button onClick={onBack} className="flex items-center gap-2 mb-6 text-teal-600 dark:text-teal-400 font-semibold hover:text-teal-800 dark:hover:text-teal-300">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l-4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>

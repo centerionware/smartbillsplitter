@@ -3,7 +3,7 @@ import type { SubscriptionStatus } from '../hooks/useAuth';
 import { postMessage } from './broadcastService';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 14; // Incremented for groups feature
+const DB_VERSION = 15; // Incremented for group popularity feature
 
 // Object Store Names
 const STORES = {
@@ -75,6 +75,7 @@ export function initDB(): Promise<void> {
 
     request.onupgradeneeded = (event) => {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
 
       const storesToCreate = [
         { name: STORES.BILLS, options: { keyPath: 'id' } },
@@ -95,6 +96,26 @@ export function initDB(): Promise<void> {
           dbInstance.createObjectStore(storeInfo.name, storeInfo.options);
         }
       });
+      
+      if (oldVersion < 15) {
+        console.log('Migrating database to v15: Adding popularity to groups.');
+        const transaction = (event.target as IDBOpenDBRequest).transaction;
+        if (transaction) {
+            const groupStore = transaction.objectStore(STORES.GROUPS);
+            const cursorRequest = groupStore.openCursor();
+            cursorRequest.onsuccess = () => {
+                const cursor = cursorRequest.result;
+                if (cursor) {
+                    const group = cursor.value;
+                    if (typeof group.popularity === 'undefined') {
+                        group.popularity = 0;
+                        cursor.update(group);
+                    }
+                    cursor.continue();
+                }
+            };
+        }
+      }
     };
     
     request.onblocked = () => {
