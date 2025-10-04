@@ -21,7 +21,7 @@ export const DisclaimerContent: React.FC = () => (
             </p>
             <ul className="list-disc list-inside space-y-1 mt-2 pl-2">
                 <li>The data is <strong>end-to-end encrypted</strong> on your device before it is sent. This means we, the server operators, cannot read its contents.</li>
-                <li>This encrypted data is stored temporarily <strong>in-memory</strong> on our server and is never written to a permanent database.</li>
+                <li>This encrypted data is stored temporarily in a secure, managed NoSQL database (<strong>Amazon DynamoDB</strong>) and is automatically deleted upon expiration.</li>
                 <li>"Sync" data expires and is deleted after <strong>5 minutes</strong>.</li>
                 <li>"Share Bill" encrypted data expires and is deleted after <strong>30 days</strong>.</li>
             </ul>
