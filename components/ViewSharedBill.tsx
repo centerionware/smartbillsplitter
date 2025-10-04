@@ -15,6 +15,7 @@ interface ViewSharedBillProps {
   addImportedBill: (bill: ImportedBill) => Promise<void>;
   importedBills: ImportedBill[];
   requestConfirmation: RequestConfirmationFn;
+  bills: Bill[];
 }
 
 type Status = 'loading' | 'fetching_key' | 'fetching_data' | 'verifying' | 'verified' | 'imported' | 'error' | 'expired';
@@ -73,7 +74,7 @@ function base64UrlDecode(base64Url: string): string {
 }
 
 // FIX: Changed to a named export to resolve module resolution issues.
-export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills, requestConfirmation }) => {
+export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills, requestConfirmation, bills }) => {
   const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(
     () => typeof window !== 'undefined' && localStorage.getItem('privacyConsentAccepted') === 'true'
   );
@@ -83,6 +84,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(0);
   const [billEncryptionKey, setBillEncryptionKey] = useState<JsonWebKey | null>(null);
   const [myParticipantId, setMyParticipantId] = useState<string | null>(null);
+  const [isOwnBill, setIsOwnBill] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -153,6 +155,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
       setLastUpdatedAt(0);
       setBillEncryptionKey(null);
       setMyParticipantId(null);
+      setIsOwnBill(false);
 
       try {
         const hash = window.location.hash;
@@ -225,6 +228,18 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         const publicKey = await cryptoService.importPublicKey(data.publicKey);
         const isVerified = await cryptoService.verify(JSON.stringify(data.bill), data.signature, publicKey);
         if (!isVerified) throw new Error("Signature verification failed. The bill data may have been tampered with.");
+        
+        const incomingPublicKey = data.publicKey;
+        let isSelfImported = false;
+        for (const localBill of bills) {
+            if (localBill.shareInfo?.signingPublicKey) {
+                if (JSON.stringify(localBill.shareInfo.signingPublicKey) === JSON.stringify(incomingPublicKey)) {
+                    isSelfImported = true;
+                    break;
+                }
+            }
+        }
+        setIsOwnBill(isSelfImported);
 
         setSharedData(data);
         setStatus('verified');
@@ -235,7 +250,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
       }
     };
     processShareLink();
-  }, [hasAcceptedPrivacy, window.location.hash]);
+  }, [hasAcceptedPrivacy, window.location.hash, bills]);
 
   const handleImport = async () => {
     if (!sharedData || !myParticipantId || !billEncryptionKey) return;
@@ -277,6 +292,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
             myPortionPaid: false,
             paidItems: initialPaidItems,
         },
+        isOwnBill: isOwnBill,
         liveStatus: 'live',
     };
 

@@ -74,6 +74,11 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onAr
         <div className="flex justify-between items-start gap-2">
             <div className="flex-grow flex items-center gap-2">
                 <LiveIndicator status={bill.liveStatus} />
+                {bill.isOwnBill && (
+                  <span title="This is one of your own bills that you imported." className="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded-full">
+                      You
+                  </span>
+                )}
                 <p className="text-lg font-bold text-slate-800 dark:text-slate-100 break-words">{bill.sharedData.bill.description}</p>
             </div>
             <div className="flex-shrink-0 flex items-center gap-2">

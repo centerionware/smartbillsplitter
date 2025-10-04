@@ -134,6 +134,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       });
     });
     importedBills.forEach(imported => {
+        if (imported.isOwnBill) return; // Don't count self-imported bills in totals
         if (imported.status === 'active' && !imported.localStatus.myPortionPaid) {
             const myPart = imported.sharedData.bill.participants.find(p => p.id === imported.myParticipantId);
             if (myPart && !myPart.paid) iOwe += myPart.amountOwed;

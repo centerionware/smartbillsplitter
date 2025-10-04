@@ -79,7 +79,8 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         settings, updateSettings, recurringBillToEdit, fromTemplate, billConversionSource,
         updateBill, setSettingsSection, requestConfirmation,
         recurringBills, createFromTemplate, archiveRecurringBill, unarchiveRecurringBill, handleDeleteRecurringBill,
-        addImportedBill, importedBills, canInstall, promptInstall, checkAndMakeSpaceForImageShare
+        addImportedBill, importedBills, canInstall, promptInstall, checkAndMakeSpaceForImageShare,
+        bills
     } = props;
 
     if (isLoading) {
@@ -109,7 +110,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         case View.Disclaimer:
             return <Disclaimer onBack={() => navigate(View.Settings)} />;
         case View.ViewShared:
-            return <ViewSharedBill onImportComplete={() => { window.location.hash = ''; navigate(View.Dashboard); }} settings={settings} addImportedBill={addImportedBill} importedBills={importedBills} requestConfirmation={requestConfirmation}/>;
+            return <ViewSharedBill onImportComplete={() => { window.location.hash = ''; navigate(View.Dashboard); }} settings={settings} addImportedBill={addImportedBill} importedBills={importedBills} requestConfirmation={requestConfirmation} bills={bills}/>;
         case View.ManageSubscription:
             return <ManageSubscriptionPage onBack={() => navigate(View.Settings)} requestConfirmation={requestConfirmation} />;
         case View.Dashboard:

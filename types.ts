@@ -139,6 +139,7 @@ export interface ImportedBill {
         paidItems?: Record<string, boolean>; // key is item.id
     };
     liveStatus?: 'live' | 'stale' | 'error';
+    isOwnBill?: boolean;
 }
 
 export interface RequestConfirmationFn {
