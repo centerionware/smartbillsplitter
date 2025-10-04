@@ -69,17 +69,7 @@ async function retrieveSyncSession(code: string, kv: KeyValueStore): Promise<{ e
 
 // --- Framework-Agnostic Handler ---
 export const syncHandler = async (req: HttpRequest, context: { kv: KeyValueStore }): Promise<HttpResponse> => {
-  const corsHeaders = {
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
-
-  if (req.method === "OPTIONS") {
-    return { statusCode: 204, headers: corsHeaders };
-  }
-
   const responseHeaders = {
-    ...corsHeaders,
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
   };

@@ -80,17 +80,7 @@ async function checkOnetimeKeyStatus(keyId: string, kv: KeyValueStore): Promise<
 
 // --- Framework-Agnostic Handler ---
 export const onetimeKeyHandler = async (req: HttpRequest, context: { kv: KeyValueStore }): Promise<HttpResponse> => {
-  const corsHeaders = {
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
-
-  if (req.method === "OPTIONS") {
-    return { statusCode: 204, headers: corsHeaders };
-  }
-
   const responseHeaders = {
-    ...corsHeaders,
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
   };

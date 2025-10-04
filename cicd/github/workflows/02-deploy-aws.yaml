@@ -81,7 +81,7 @@ jobs:
       - name: Deploy Lambda Function
         run: |
           # Construct the environment variables string
-          ENV_VARS="Variables={API_KEY=${{ secrets.API_KEY }},STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},STRIPE_PRICE_ID_MONTHLY=${{ secrets.STRIPE_PRICE_ID_MONTHLY }},STRIPE_PRICE_ID_YEARLY=${{ secrets.STRIPE_PRICE_ID_YEARLY }},PAYMENT_PROVIDER=${{ secrets.PAYMENT_PROVIDER || 'paypal' }},PAYPAL_CLIENT_ID=${{ secrets.PAYPAL_CLIENT_ID }},PAYPAL_CLIENT_SECRET=${{ secrets.PAYPAL_CLIENT_SECRET }},PAYPAL_PLAN_ID_MONTHLY=${{ secrets.PAYPAL_PLAN_ID_MONTHLY }},PAYPAL_PLAN_ID_YEARLY=${{ secrets.PAYPAL_PLAN_ID_YEARLY }},PAYPAL_MODE=${{ secrets.PAYPAL_MODE || 'live' }},DYNAMODB_TABLE_NAME=${{ env.DYNAMODB_TABLE_NAME }}}"
+          ENV_VARS="Variables={API_KEY=${{ secrets.API_KEY }},STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }},STRIPE_PRICE_ID_MONTHLY=${{ secrets.STRIPE_PRICE_ID_MONTHLY }},STRIPE_PRICE_ID_YEARLY=${{ secrets.STRIPE_PRICE_ID_YEARLY }},PAYMENT_PROVIDER=${{ secrets.PAYMENT_PROVIDER || 'paypal' }},PAYPAL_CLIENT_ID=${{ secrets.PAYPAL_CLIENT_ID }},PAYPAL_CLIENT_SECRET=${{ secrets.PAYPAL_CLIENT_SECRET }},PAYPAL_PLAN_ID_MONTHLY=${{ secrets.PAYPAL_PLAN_ID_MONTHLY }},PAYPAL_PLAN_ID_YEARLY=${{ secrets.PAYPAL_PLAN_ID_YEARLY }},PAYPAL_MODE=${{ secrets.PAYPAL_MODE || 'live' }},DYNAMODB_TABLE_NAME=${{ env.DYNAMODB_TABLE_NAME }},CORS_ALLOWED_ORIGIN=${{ secrets.PROD_URL }}}"
 
           if ! aws lambda get-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} > /dev/null 2>&1; then
             echo "Creating new Lambda function: ${{ env.LAMBDA_FUNCTION_NAME }}"
@@ -100,7 +100,7 @@ jobs:
         run: |
           FUNCTION_ARN=$(aws lambda get-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'Configuration.FunctionArn' --output text)
           API_NAME="${{ env.API_GATEWAY_NAME }}"
-          CORS_CONFIG='{"AllowOrigins":["${{ secrets.PROD_URL }}"]}'
+          CORS_CONFIG='{"AllowOrigins":["https://{{ secrets.PROD_URL }}"]}'
           
           API_ID=$(aws apigatewayv2 get-apis --query "Items[?Name=='${API_NAME}'].ApiId" --output text)
 
