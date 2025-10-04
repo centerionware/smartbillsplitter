@@ -7,14 +7,13 @@ interface ObserverOptions {
   threshold?: number | number[];
 }
 
-// FIX: Made the hook generic over the element type `T`. This allows it to return a correctly-typed ref for any HTML element, resolving the error where a `Ref<HTMLDivElement>` was assigned to an `HTMLLIElement`.
-export const useIntersectionObserver = <T extends HTMLElement>({
+export const useIntersectionObserver = ({
   onIntersect,
   root = null,
   rootMargin = '0px',
   threshold = 0.1,
 }: ObserverOptions) => {
-  const ref = useRef<T>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   const handleIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
     entries.forEach(entry => {

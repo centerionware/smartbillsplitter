@@ -1,5 +1,4 @@
 
-
 import { useState, useEffect, useCallback } from 'react';
 import type { Group } from '../types';
 import { getGroups, addGroup as addDB, updateGroup as updateDB, deleteGroupDB } from '../services/db';
@@ -57,19 +56,5 @@ export const useGroups = () => {
         await loadGroups(false);
     }, [loadGroups]);
 
-    const incrementGroupPopularity = useCallback(async (groupId: string) => {
-        const currentGroup = groups.find(g => g.id === groupId);
-        if (currentGroup) {
-            const updatedGroup = {
-                ...currentGroup,
-                popularity: (currentGroup.popularity || 0) + 1,
-            };
-            // updateGroup already sets lastUpdatedAt
-            await updateGroup(updatedGroup); 
-        } else {
-            console.warn(`Could not find group with id ${groupId} to increment popularity.`);
-        }
-    }, [groups, updateGroup]);
-
-    return { groups, addGroup, updateGroup, deleteGroup, incrementGroupPopularity, isLoading };
+    return { groups, addGroup, updateGroup, deleteGroup, isLoading };
 };

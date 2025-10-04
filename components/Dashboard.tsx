@@ -271,8 +271,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (hasMore) setVisibleCount(prev => prev + BILLS_PER_PAGE);
   }, [hasMore]);
   
-  // FIX: Specified the element type `HTMLDivElement` for the generic `useIntersectionObserver` hook to ensure the returned ref is correctly typed for a `<div>` element.
-  const { ref: loadMoreRef } = useIntersectionObserver<HTMLDivElement>({ onIntersect: loadMore });
+  const { ref: loadMoreRef } = useIntersectionObserver({ onIntersect: loadMore });
 
   const getShareTextForParticipant = useCallback((participantName: string): string => {
     const participantData = participantsData.find(p => p.name === participantName && p.type === 'owed');

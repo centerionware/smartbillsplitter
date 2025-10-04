@@ -52,8 +52,7 @@ const CreateGroup: React.FC<CreateGroupProps> = ({ onSave, onUpdate, onBack, gro
       defaultSplit: {
         mode: splitMode,
         splitValues,
-      },
-      popularity: groupToEdit?.popularity ?? 0,
+      }
     };
 
     if (isEditing && groupToEdit) {

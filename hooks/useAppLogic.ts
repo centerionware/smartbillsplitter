@@ -1,5 +1,4 @@
 
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Bill, Settings, ImportedBill, RecurringBill, RequestConfirmationFn, SettingsSection, SummaryFilter, DashboardView, Group } from '../types';
 import { View } from '../types';
@@ -26,7 +25,7 @@ export const useAppLogic = () => {
     const { bills, addBill, updateBill: originalUpdateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills, isLoading: isBillsLoading } = useBills();
     const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, updateMultipleImportedBills, isLoading: isImportedLoading } = useImportedBills();
     const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: isRecurringLoading } = useRecurringBills();
-    const { groups, addGroup, updateGroup, deleteGroup, incrementGroupPopularity, isLoading: isGroupsLoading } = useGroups();
+    const { groups, addGroup, updateGroup, deleteGroup, isLoading: isGroupsLoading } = useGroups();
     const { theme, setTheme } = useTheme();
     const { subscriptionStatus } = useAuth();
     const { showNotification } = useAppControl();
@@ -270,9 +269,6 @@ export const useAppLogic = () => {
 
     const handleSaveBill = async (billData: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => {
         await addBill(billData);
-        if (billData.groupId) {
-            await incrementGroupPopularity(billData.groupId);
-        }
         if (fromTemplateId) {
             await updateRecurringBillDueDate(fromTemplateId);
             const template = recurringBills.find(rb => rb.id === fromTemplateId);
