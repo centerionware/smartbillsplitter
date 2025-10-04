@@ -107,6 +107,7 @@ export const useImportedBills = () => {
           const existingBill = existingBillMap.get(billToProcess.id);
 
           if (existingBill) {
+              // FIX: Access properties on the correctly-typed `billToProcess` object instead of the `bill` variable of type 'unknown'. This resolves type errors for `lastUpdatedAt` and spread syntax.
               if ((billToProcess.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
                   billsToUpdate.push({ ...existingBill, ...billToProcess, status: existingBill.status, liveStatus: 'live' });
               } else {

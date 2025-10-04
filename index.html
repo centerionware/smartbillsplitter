@@ -139,21 +139,21 @@
                     <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-500 dark:text-slate-400">Everything you need to manage group expenses without the hassle.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    <!-- Feature 1 -->
-                    <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
-                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
-                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        </div>
-                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">AI Receipt Scanner</h3>
-                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Snap a photo of any receipt. Our AI intelligently extracts every item and price, saving you from manual entry for faster expense management.</p>
-                    </div>
-                    <!-- Feature 2 -->
+                    <!-- Feature 1 (Privacy) -->
                     <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
                          <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                         </div>
                         <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Privacy First Design</h3>
                         <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Your financial data is yours. All bills are stored locally on your device, not on our servers. Shared bills are end-to-end encrypted.</p>
+                    </div>
+                    <!-- Feature 2 (AI Scanner) -->
+                    <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-300">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        </div>
+                        <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">AI Receipt Scanner</h3>
+                        <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Snap a photo of any receipt. Our AI intelligently extracts every item and price, saving you from manual entry for faster expense management.</p>
                     </div>
                     <!-- Feature 3 -->
                     <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
@@ -171,6 +171,112 @@
                         <h3 class="mt-6 text-lg font-bold text-slate-900 dark:text-white">Recurring Bills</h3>
                         <p class="mt-2 text-base text-slate-500 dark:text-slate-400">Set up templates for monthly expenses like rent or subscriptions. Create new bills from your templates in a single tap to streamline your budgeting.</p>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screenshots Section -->
+        <section id="screenshots" class="hero-bg py-20 sm:py-24">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">See It In Action</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-500 dark:text-slate-400">Explore the clean, intuitive interface that makes managing shared expenses a breeze.</p>
+                </div>
+                
+                <div class="relative max-w-lg mx-auto">
+                    <div class="relative max-w-sm mx-auto">
+                        <!-- Screenshots Wrapper -->
+                        <div id="screenshots-container" class="grid rounded-2xl shadow-2xl overflow-hidden border-8 border-slate-800 dark:border-slate-700 bg-slate-800 dark:bg-slate-700">
+                            <!-- Screenshot 1 -->
+                            <div class="screenshot-item col-start-1 row-start-1 transition-opacity duration-500 ease-in-out">
+                                <img src="/dashboard.png" alt="SharedBills dashboard showing a summary of bills, amounts owed, and a list of recent expenses." class="w-full h-auto">
+                            </div>
+                            <!-- Screenshot 2 -->
+                            <div class="screenshot-item col-start-1 row-start-1 transition-opacity duration-500 ease-in-out opacity-0 pointer-events-none">
+                                <img src="/scanner.png" alt="AI receipt scanner interface with a camera view ready to capture a receipt for automated itemization." class="w-full h-auto">
+                            </div>
+                            <!-- Screenshot 3 -->
+                            <div class="screenshot-item col-start-1 row-start-1 transition-opacity duration-500 ease-in-out opacity-0 pointer-events-none">
+                                <img src="/details.png" alt="Bill details screen showing participants, their individual shares, and their payment status (paid or unpaid)." class="w-full h-auto">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Arrows -->
+                    <button id="prev-screenshot" class="absolute top-1/2 -left-4 md:-left-24 transform -translate-y-1/2 p-2 bg-white/50 dark:bg-slate-700/50 rounded-full hover:bg-white dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors" aria-label="Previous screenshot">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <button id="next-screenshot" class="absolute top-1/2 -right-4 md:-right-24 transform -translate-y-1/2 p-2 bg-white/50 dark:bg-slate-700/50 rounded-full hover:bg-white dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors" aria-label="Next screenshot">
+                       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                </div>
+
+                <!-- Indicator dots -->
+                <div id="screenshot-indicators" class="flex justify-center gap-2 mt-8">
+                    <button class="screenshot-indicator-dot w-3 h-3 rounded-full bg-teal-500 transition-colors" data-index="0" aria-label="Go to screenshot 1"></button>
+                    <button class="screenshot-indicator-dot w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 transition-colors" data-index="1" aria-label="Go to screenshot 2"></button>
+                    <button class="screenshot-indicator-dot w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 transition-colors" data-index="2" aria-label="Go to screenshot 3"></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reviews Section -->
+        <section id="reviews" class="py-20 sm:py-24 bg-slate-100 dark:bg-slate-800/50 overflow-hidden">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <h2 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">What Users Are Saying</h2>
+                </div>
+                
+                <div class="relative max-w-2xl mx-auto">
+                    <!-- Reviews Wrapper -->
+                    <div id="reviews-container" class="grid">
+                        <!-- Review 1 -->
+                        <div class="review-item col-start-1 row-start-1 transition-opacity duration-500 ease-in-out">
+                            <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
+                                <svg class="h-10 w-10 text-teal-200 dark:text-teal-700" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 10c-1.38 0-2.5-1.12-2.5-2.5S5.12 5 6.5 5 9 6.12 9 7.5 7.88 10 6.5 10zm11 0c-1.38 0-2.5-1.12-2.5-2.5S16.12 5 17.5 5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zM12 16.5c-2.33 0-4.31-1.46-5.11-3.5h10.22c-.8 2.04-2.78 3.5-5.11 3.5z"/></svg>
+                                <blockquote class="mt-4">
+                                    <p class="text-lg text-slate-700 dark:text-slate-200">"Finally, a bill splitting app that isn't bloated. It's simple, fast, and the fact that my data stays on my device is a huge plus for me."</p>
+                                </blockquote>
+                                <footer class="mt-4 font-semibold text-slate-500 dark:text-slate-400">&mdash; Sarah K.</footer>
+                            </div>
+                        </div>
+                        <!-- Review 2 -->
+                        <div class="review-item col-start-1 row-start-1 transition-opacity duration-500 ease-in-out opacity-0 pointer-events-none">
+                            <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
+                                <svg class="h-10 w-10 text-teal-200 dark:text-teal-700" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 10c-1.38 0-2.5-1.12-2.5-2.5S5.12 5 6.5 5 9 6.12 9 7.5 7.88 10 6.5 10zm11 0c-1.38 0-2.5-1.12-2.5-2.5S16.12 5 17.5 5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zM12 16.5c-2.33 0-4.31-1.46-5.11-3.5h10.22c-.8 2.04-2.78 3.5-5.11 3.5z"/></svg>
+                                <blockquote class="mt-4">
+                                    <p class="text-lg text-slate-700 dark:text-slate-200">"The AI receipt scanner is magic. Scanned a super long grocery receipt and it got everything right. Splitting costs with my roommates is no longer a chore."</p>
+                                </blockquote>
+                                <footer class="mt-4 font-semibold text-slate-500 dark:text-slate-400">&mdash; Alex R.</footer>
+                            </div>
+                        </div>
+                        <!-- Review 3 -->
+                        <div class="review-item col-start-1 row-start-1 transition-opacity duration-500 ease-in-out opacity-0 pointer-events-none">
+                            <div class="p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-lg">
+                                <svg class="h-10 w-10 text-teal-200 dark:text-teal-700" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 10c-1.38 0-2.5-1.12-2.5-2.5S5.12 5 6.5 5 9 6.12 9 7.5 7.88 10 6.5 10zm11 0c-1.38 0-2.5-1.12-2.5-2.5S16.12 5 17.5 5s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zM12 16.5c-2.33 0-4.31-1.46-5.11-3.5h10.22c-.8 2.04-2.78 3.5-5.11 3.5z"/></svg>
+                                <blockquote class="mt-4">
+                                    <p class="text-lg text-slate-700 dark:text-slate-200">"Used this for a week-long trip with friends. No more awkward 'you owe me' texts at the end. We just shared the final summary link. So easy."</p>
+                                </blockquote>
+                                <footer class="mt-4 font-semibold text-slate-500 dark:text-slate-400">&mdash; Jordan P.</footer>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Arrows -->
+                    <button id="prev-review" class="absolute top-1/2 -left-4 md:-left-16 transform -translate-y-1/2 p-2 bg-white/50 dark:bg-slate-700/50 rounded-full hover:bg-white dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors" aria-label="Previous review">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <button id="next-review" class="absolute top-1/2 -right-4 md:-right-16 transform -translate-y-1/2 p-2 bg-white/50 dark:bg-slate-700/50 rounded-full hover:bg-white dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors" aria-label="Next review">
+                       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-600 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                </div>
+
+                <!-- Indicator dots -->
+                <div id="review-indicators" class="flex justify-center gap-2 mt-8">
+                    <!-- Dots will be generated here by JS, but we can pre-populate for no-JS fallback -->
+                    <button class="indicator-dot w-3 h-3 rounded-full bg-teal-500 transition-colors" data-index="0" aria-label="Go to review 1"></button>
+                    <button class="indicator-dot w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 transition-colors" data-index="1" aria-label="Go to review 2"></button>
+                    <button class="indicator-dot w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-600 transition-colors" data-index="2" aria-label="Go to review 3"></button>
                 </div>
             </div>
         </section>
@@ -214,6 +320,191 @@
     <script>
       // Update copyright year dynamically
       document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
+    <script>
+      // Screenshots Carousel Logic
+      document.addEventListener('DOMContentLoaded', function() {
+        const screenshotsContainer = document.getElementById('screenshots-container');
+        if (!screenshotsContainer) return;
+
+        const screenshotItems = screenshotsContainer.querySelectorAll('.screenshot-item');
+        const prevButton = document.getElementById('prev-screenshot');
+        const nextButton = document.getElementById('next-screenshot');
+        const indicatorDots = document.querySelectorAll('.screenshot-indicator-dot');
+        
+        if (screenshotItems.length <= 1) {
+            if (prevButton) prevButton.style.display = 'none';
+            if (nextButton) nextButton.style.display = 'none';
+            if (indicatorDots.length > 0) document.getElementById('screenshot-indicators').style.display = 'none';
+            return;
+        };
+
+        let currentIndex = 0;
+        let intervalId = null;
+        const intervalTime = 5000; // 5 seconds
+
+        function showScreenshot(index) {
+            // Handle wrap-around
+            if (index >= screenshotItems.length) {
+                currentIndex = 0;
+            } else if (index < 0) {
+                currentIndex = screenshotItems.length - 1;
+            } else {
+                currentIndex = index;
+            }
+
+            screenshotItems.forEach((item, i) => {
+                if (i === currentIndex) {
+                    item.classList.remove('opacity-0', 'pointer-events-none');
+                    item.classList.add('opacity-100');
+                } else {
+                    item.classList.add('opacity-0', 'pointer-events-none');
+                    item.classList.remove('opacity-100');
+                }
+            });
+
+            indicatorDots.forEach((dot, i) => {
+                if (i === currentIndex) {
+                    dot.classList.remove('bg-slate-300', 'dark:bg-slate-600');
+                    dot.classList.add('bg-teal-500');
+                } else {
+                    dot.classList.add('bg-slate-300', 'dark:bg-slate-600');
+                    dot.classList.remove('bg-teal-500');
+                }
+            });
+        }
+
+        function nextScreenshot() {
+            showScreenshot(currentIndex + 1);
+        }
+        
+        function prevScreenshot() {
+            showScreenshot(currentIndex - 1);
+        }
+        
+        function resetInterval() {
+            clearInterval(intervalId);
+            intervalId = setInterval(nextScreenshot, intervalTime);
+        }
+
+        if (prevButton && nextButton) {
+            prevButton.addEventListener('click', () => {
+                prevScreenshot();
+                resetInterval();
+            });
+
+            nextButton.addEventListener('click', () => {
+                nextScreenshot();
+                resetInterval();
+            });
+        }
+
+        indicatorDots.forEach(dot => {
+            dot.addEventListener('click', (e) => {
+                const index = parseInt(e.currentTarget.dataset.index, 10);
+                showScreenshot(index);
+                resetInterval();
+            });
+        });
+
+        // Start the automatic cycle
+        intervalId = setInterval(nextScreenshot, intervalTime);
+
+        // Initial setup
+        showScreenshot(0);
+      });
+
+      // Reviews Carousel Logic
+      document.addEventListener('DOMContentLoaded', function() {
+        const reviewsContainer = document.getElementById('reviews-container');
+        if (!reviewsContainer) return;
+
+        const reviewItems = reviewsContainer.querySelectorAll('.review-item');
+        const prevButton = document.getElementById('prev-review');
+        const nextButton = document.getElementById('next-review');
+        const indicatorDots = document.querySelectorAll('.indicator-dot');
+        
+        if (reviewItems.length <= 1) {
+            if (prevButton) prevButton.style.display = 'none';
+            if (nextButton) nextButton.style.display = 'none';
+            if (indicatorDots.length > 0) document.getElementById('review-indicators').style.display = 'none';
+            return;
+        };
+
+        let currentIndex = 0;
+        let intervalId = null;
+        const intervalTime = 7000; // 7 seconds
+
+        function showReview(index) {
+            // Handle wrap-around
+            if (index >= reviewItems.length) {
+                currentIndex = 0;
+            } else if (index < 0) {
+                currentIndex = reviewItems.length - 1;
+            } else {
+                currentIndex = index;
+            }
+
+            reviewItems.forEach((item, i) => {
+                if (i === currentIndex) {
+                    item.classList.remove('opacity-0', 'pointer-events-none');
+                    item.classList.add('opacity-100');
+                } else {
+                    item.classList.add('opacity-0', 'pointer-events-none');
+                    item.classList.remove('opacity-100');
+                }
+            });
+
+            indicatorDots.forEach((dot, i) => {
+                if (i === currentIndex) {
+                    dot.classList.remove('bg-slate-300', 'dark:bg-slate-600');
+                    dot.classList.add('bg-teal-500');
+                } else {
+                    dot.classList.add('bg-slate-300', 'dark:bg-slate-600');
+                    dot.classList.remove('bg-teal-500');
+                }
+            });
+        }
+
+        function nextReview() {
+            showReview(currentIndex + 1);
+        }
+        
+        function prevReview() {
+            showReview(currentIndex - 1);
+        }
+        
+        function resetInterval() {
+            clearInterval(intervalId);
+            intervalId = setInterval(nextReview, intervalTime);
+        }
+
+        if (prevButton && nextButton) {
+            prevButton.addEventListener('click', () => {
+                prevReview();
+                resetInterval();
+            });
+
+            nextButton.addEventListener('click', () => {
+                nextReview();
+                resetInterval();
+            });
+        }
+
+        indicatorDots.forEach(dot => {
+            dot.addEventListener('click', (e) => {
+                const index = parseInt(e.currentTarget.dataset.index, 10);
+                showReview(index);
+                resetInterval();
+            });
+        });
+
+        // Start the automatic cycle
+        intervalId = setInterval(nextReview, intervalTime);
+
+        // Initial setup
+        showReview(0);
+      });
     </script>
 </body>
 </html>
