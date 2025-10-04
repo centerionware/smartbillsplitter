@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from 'react';
 import { getCommunicationKeyPair } from './db.ts';
 import { sign, verify } from './cryptoService.ts';
@@ -20,7 +21,9 @@ export type BroadcastMessageType =
     | 'settings-updated' 
     | 'theme-updated' 
     | 'db-close-request' 
-    | 'db-migration-complete';
+    | 'db-migration-complete'
+    // FIX: Added 'groups-updated' to the type to support broadcasting group changes.
+    | 'groups-updated';
 
 export interface BroadcastMessage {
   type: BroadcastMessageType;

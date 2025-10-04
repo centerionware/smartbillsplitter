@@ -46,6 +46,7 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({
           ) : (
              <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg self-start sm:self-center flex-wrap gap-1 sm:gap-0">
                 <button onClick={() => onSetDashboardView('bills')} className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${dashboardView === 'bills' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Bills</button>
+                <button onClick={() => onSetDashboardView('groups')} className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${dashboardView === 'groups' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Groups</button>
                 <button onClick={() => onSetDashboardView('participants')} className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${dashboardView === 'participants' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>People</button>
                 {hasRecurringBills && (
                     <>
@@ -56,7 +57,7 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({
             </div>
           )}
         </div>
-        {!['upcoming', 'templates'].includes(dashboardView) && (
+        {!['upcoming', 'templates', 'groups'].includes(dashboardView) && (
             <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg self-start sm:self-center">
                 <button onClick={() => onSetDashboardStatusFilter('active')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${dashboardStatusFilter === 'active' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Active</button>
                 <button onClick={() => onSetDashboardStatusFilter('archived')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${dashboardStatusFilter === 'archived' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Archived</button>
@@ -74,7 +75,7 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({
             <button onClick={() => setSearchMode('description')} className={`p-1.5 rounded ${searchMode === 'description' ? 'bg-white dark:bg-slate-800 text-teal-600 shadow-sm' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-300/50 dark:hover:bg-slate-500/50'}`} aria-label="Search by bill description" title="Search by bill description">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             </button>
-            <button onClick={() => setSearchMode('participant')} disabled={['upcoming', 'templates'].includes(dashboardView)} className={`p-1.5 rounded ${searchMode === 'participant' ? 'bg-white dark:bg-slate-800 text-teal-600 shadow-sm' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-300/50 dark:hover:bg-slate-500/50'} disabled:opacity-50 disabled:cursor-not-allowed`} aria-label="Search by participant name" title="Search by participant name">
+            <button onClick={() => setSearchMode('participant')} disabled={['upcoming', 'templates', 'groups'].includes(dashboardView)} className={`p-1.5 rounded ${searchMode === 'participant' ? 'bg-white dark:bg-slate-800 text-teal-600 shadow-sm' : 'text-slate-500 dark:text-slate-300 hover:bg-slate-300/50 dark:hover:bg-slate-500/50'} disabled:opacity-50 disabled:cursor-not-allowed`} aria-label="Search by participant name" title="Search by participant name">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
             </button>
           </div>

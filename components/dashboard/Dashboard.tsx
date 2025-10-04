@@ -1,7 +1,10 @@
+
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View } from '../../types';
-import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection } from '../../types';
+import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
+import type { ParticipantData } from '../ParticipantList';
 import ShareActionSheet from '../ShareActionSheet';
 import { generateShareText, generateOneTimeShareLink } from '../../services/shareService';
 import { useAppControl } from '../../contexts/AppControlContext';
@@ -15,10 +18,11 @@ import { exportData } from '../../services/exportService';
 import DashboardSummary from './DashboardSummary';
 import DashboardControls from './DashboardControls';
 import BillList from './BillList';
-import ParticipantList, { ParticipantData } from '../ParticipantList';
+import ParticipantList from '../ParticipantList';
 import ParticipantDetailView from './ParticipantDetailView';
 import EmptyState from './EmptyState';
 import RecurringBillCard from '../RecurringBillCard';
+import SwipeableGroupCard from './SwipeableGroupCard';
 
 // Import the ad error message
 import { AD_ERROR_MESSAGE } from '../../services/adService';
@@ -28,6 +32,8 @@ interface DashboardProps {
   bills: Bill[];
   importedBills: ImportedBill[];
   recurringBills: RecurringBill[];
+  groups: Group[];
+  participantsData: ParticipantData[];
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
   setSettingsSection: (section: SettingsSection) => void;
@@ -37,6 +43,7 @@ interface DashboardProps {
   onArchiveBill: (billId: string) => void;
   onUnarchiveBill: (billId: string) => void;
   onDeleteBill: (billId: string) => void;
+  onDeleteGroup: (groupId: string) => void;
   onReshareBill: (billId: string) => void;
   onUpdateMultipleBills: (bills: Bill[]) => Promise<void>;
   onUpdateImportedBill: (bill: ImportedBill) => void;
@@ -54,22 +61,24 @@ interface DashboardProps {
   onSetDashboardView: (view: DashboardView) => void;
   onSetDashboardStatusFilter: (status: 'active' | 'archived') => void;
   onSetDashboardSummaryFilter: (filter: SummaryFilter) => void;
-  onSelectParticipant: (name: string) => void;
+  onSelectParticipant: (name: string | null) => void;
   onClearParticipant: () => void;
 }
 
 const BILLS_PER_PAGE = 15;
 
-const Dashboard: React.FC<DashboardProps> = ({ 
-  bills, importedBills, recurringBills, settings, updateSettings, setSettingsSection, subscriptionStatus, 
-  onSelectBill, onSelectImportedBill, 
-  onArchiveBill, onUnarchiveBill, onDeleteBill, onReshareBill, onUpdateMultipleBills, 
-  onUpdateImportedBill, onArchiveImportedBill, onUnarchiveImportedBill, onDeleteImportedBill,
-  onShowSummaryDetails, onCreateFromTemplate,
-  navigate,
-  dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter,
-  onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant
-}) => {
+const Dashboard: React.FC<DashboardProps> = (props) => {
+  const { 
+    bills, importedBills, recurringBills, groups, participantsData, settings, updateSettings, setSettingsSection, subscriptionStatus, 
+    onSelectBill, onSelectImportedBill, 
+    onArchiveBill, onUnarchiveBill, onDeleteBill, onDeleteGroup, onReshareBill, onUpdateMultipleBills, 
+    onUpdateImportedBill, onArchiveImportedBill, onUnarchiveImportedBill, onDeleteImportedBill,
+    onShowSummaryDetails, onCreateFromTemplate,
+    navigate,
+    dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter,
+    onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant
+  } = props;
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'description' | 'participant'>('description');
   const [visibleCount, setVisibleCount] = useState(BILLS_PER_PAGE);
@@ -83,7 +92,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const hasRecurringBills = recurringBills.length > 0;
 
-  // If the last recurring bill is deleted, switch back to the main 'bills' view.
   useEffect(() => {
     if (!hasRecurringBills && (dashboardView === 'upcoming' || dashboardView === 'templates')) {
         onSetDashboardView('bills');
@@ -91,17 +99,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [hasRecurringBills, dashboardView, onSetDashboardView]);
 
 
-  // Reset search mode when switching to a view that doesn't support participant search
   useEffect(() => {
-    if (['upcoming', 'templates'].includes(dashboardView)) {
+    if (['upcoming', 'templates', 'groups'].includes(dashboardView)) {
         setSearchMode('description');
     }
   }, [dashboardView]);
 
-  // --- Calculations for Summary & Participant View ---
   const activeBills = useMemo(() => bills.filter(b => b.status === 'active'), [bills]);
 
-  // --- Auto-Archive Logic ---
   useEffect(() => {
     if (dashboardView !== 'bills' || dashboardStatusFilter !== 'active') return;
     const billsToAutoArchive = activeBills.filter(b => b.participants.length > 0 && b.participants.every(p => p.paid));
@@ -118,26 +123,22 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [activeBills, onUpdateMultipleBills, dashboardView, dashboardStatusFilter]);
 
-  // --- Half-Screen Ad Logic ---
   useEffect(() => {
     if (subscriptionStatus === 'free') {
       const key = 'dashboardViewCount';
-      // Increment dashboard view count
       const count = parseInt(sessionStorage.getItem(key) || '0', 10);
       const newCount = count + 1;
       sessionStorage.setItem(key, String(newCount));
 
-      // Show modal on every 4th view
       if (newCount > 0 && newCount % 4 === 0) {
         const timer = setTimeout(() => {
           setIsHalfScreenAdOpen(true);
-        }, 500); // 500ms delay before showing
+        }, 500);
         return () => clearTimeout(timer);
       }
     }
   }, [subscriptionStatus]);
 
-  // --- Ad Error Notification Logic ---
   useEffect(() => {
     if (subscriptionStatus === 'free' && AD_ERROR_MESSAGE) {
       if (!sessionStorage.getItem('adConfigErrorShown')) {
@@ -167,48 +168,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
     return { totalTracked, othersOweMe, iOwe };
   }, [activeBills, importedBills, settings.myDisplayName]);
-
-  const participantsData = useMemo((): ParticipantData[] => {
-    const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
-    const participantContactInfo = new Map<string, { phone?: string; email?: string }>();
-    bills.forEach(bill => {
-        bill.participants.forEach(p => {
-            if (p.name.trim().toLowerCase() === myDisplayNameLower) return;
-            const existing = participantContactInfo.get(p.name) || {};
-            if ((p.phone && !existing.phone) || (p.email && !existing.email)) {
-                participantContactInfo.set(p.name, { phone: p.phone || existing.phone, email: p.email || existing.email });
-            }
-        });
-    });
-
-    if (dashboardStatusFilter === 'active') {
-        const debtMap = new Map<string, number>();
-        bills.forEach(bill => {
-            bill.participants.forEach(p => {
-                if (!p.paid && p.amountOwed > 0.005 && p.name.trim().toLowerCase() !== myDisplayNameLower) {
-                    debtMap.set(p.name, (debtMap.get(p.name) || 0) + p.amountOwed);
-                }
-            });
-        });
-        return Array.from(debtMap.entries())
-            .map(([name, amount]) => ({ name, amount, type: 'owed' as const, ...participantContactInfo.get(name) }))
-            .sort((a, b) => b.amount - a.amount);
-    } else {
-        const participantStats = new Map<string, { outstandingDebt: number; totalBilled: number }>();
-        bills.forEach(bill => {
-            bill.participants.forEach(p => {
-                const stats = participantStats.get(p.name) || { outstandingDebt: 0, totalBilled: 0 };
-                stats.totalBilled += p.amountOwed;
-                if (!p.paid) stats.outstandingDebt += p.amountOwed;
-                participantStats.set(p.name, stats);
-            });
-        });
-        return Array.from(participantStats.entries())
-            .filter(([name, stats]) => stats.outstandingDebt < 0.01 && stats.totalBilled > 0 && name.trim().toLowerCase() !== myDisplayNameLower)
-            .map(([name, stats]) => ({ name, amount: stats.totalBilled, type: 'paid' as const, ...participantContactInfo.get(name) }))
-            .sort((a, b) => b.amount - a.amount);
-    }
-  }, [bills, dashboardStatusFilter, settings.myDisplayName]);
 
   const participantBills = useMemo(() => {
     if (!selectedParticipant) return { active: [], allArchived: [], unpaidArchived: [] };
@@ -282,6 +241,12 @@ const Dashboard: React.FC<DashboardProps> = ({
       return filtered.sort((a, b) => a.description.localeCompare(b.description));
   }, [recurringBills, searchQuery]);
 
+  const filteredGroups = useMemo(() => {
+      const lowercasedQuery = searchQuery.toLowerCase().trim();
+      if (!lowercasedQuery) return groups;
+      return groups.filter(group => group.name.toLowerCase().includes(lowercasedQuery));
+  }, [groups, searchQuery]);
+
   useEffect(() => {
     setVisibleCount(BILLS_PER_PAGE);
   }, [dashboardStatusFilter, searchQuery, searchMode, dashboardView, selectedParticipant, dashboardSummaryFilter]);
@@ -289,6 +254,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const hasMore = useMemo(() => {
       if (dashboardView === 'upcoming') return visibleCount < upcomingRecurringBills.length;
       if (dashboardView === 'templates') return visibleCount < allRecurringBills.length;
+      if (dashboardView === 'groups') return false; // No pagination for groups for now
       return visibleCount < filteredBills.length;
   }, [dashboardView, visibleCount, upcomingRecurringBills.length, allRecurringBills.length, filteredBills.length]);
   
@@ -342,7 +308,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         setShareSheetParticipant(null);
         return;
     }
-    // FIX: Pass all required arguments to generateOneTimeShareLink and handle the returned object.
     const { shareUrl, imagesDropped } = await generateOneTimeShareLink(unpaidBills, participantName, settings, onUpdateMultipleBills, bills, subscriptionStatus);
     
     if (imagesDropped > 0) {
@@ -400,6 +365,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
     if (dashboardView === 'templates') {
         return { title: "No recurring bills", message: "Create a recurring bill template to get started." };
+    }
+     if (dashboardView === 'groups') {
+        return { title: "No groups yet", message: "Create a group to quickly add a set of friends to a new bill." };
     }
     if (dashboardSummaryFilter === 'othersOweMe' && filteredBills.length === 0) {
       return { title: "All Caught Up!", message: "No one currently owes you money on active bills." };
@@ -494,6 +462,21 @@ const Dashboard: React.FC<DashboardProps> = ({
                 ))}
             </div>
         );
+    } else if (dashboardView === 'groups') {
+        if (filteredGroups.length > 0) {
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredGroups.map(group => (
+                <SwipeableGroupCard 
+                  key={group.id} 
+                  group={group} 
+                  onClick={() => navigate(View.GroupDetails, { groupToView: group })} 
+                  onEdit={() => navigate(View.CreateGroup, { groupToEdit: group })} 
+                  onDelete={() => onDeleteGroup(group.id)} />
+              ))}
+            </div>
+          );
+        }
     } else if (dashboardView === 'bills' && (filteredBills.length > 0 || filteredImportedBills.length > 0 || (subscriptionStatus === 'free' && dashboardStatusFilter === 'active'))) {
         return <BillList 
             filteredBills={filteredBills} 
@@ -527,19 +510,19 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div>
-      {!['upcoming', 'templates'].includes(dashboardView) &&
+      {!['upcoming', 'templates', 'groups'].includes(dashboardView) &&
         <DashboardSummary summaryTotals={summaryTotals} dashboardStatusFilter={dashboardStatusFilter} dashboardSummaryFilter={dashboardSummaryFilter} onSetDashboardSummaryFilter={onSetDashboardSummaryFilter} />
       }
       <DashboardControls 
-        selectedParticipant={selectedParticipant} 
-        onClearParticipant={onClearParticipant} 
-        dashboardView={dashboardView} 
-        onSetDashboardView={onSetDashboardView} 
-        dashboardStatusFilter={dashboardStatusFilter} 
-        onSetDashboardStatusFilter={onSetDashboardStatusFilter} 
-        searchQuery={searchQuery} 
-        setSearchQuery={setSearchQuery} 
-        searchMode={searchMode} 
+        selectedParticipant={selectedParticipant}
+        onClearParticipant={onClearParticipant}
+        dashboardView={dashboardView}
+        onSetDashboardView={onSetDashboardView}
+        dashboardStatusFilter={dashboardStatusFilter}
+        onSetDashboardStatusFilter={onSetDashboardStatusFilter}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchMode={searchMode}
         setSearchMode={setSearchMode}
         hasRecurringBills={hasRecurringBills}
       />
@@ -552,6 +535,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
             </button>
           </span>
+        </div>
+      )}
+      
+      {dashboardView === 'groups' && (
+        <div className="mb-6">
+          <button
+            onClick={() => navigate(View.CreateGroup)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-teal-500/50 dark:border-teal-400/50 rounded-lg text-teal-600 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/40 bg-teal-50/50 dark:bg-teal-900/20 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            <span className="font-bold text-lg">Add New Group</span>
+          </button>
         </div>
       )}
 

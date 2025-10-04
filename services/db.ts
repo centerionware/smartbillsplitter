@@ -1,15 +1,16 @@
-import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscriptionDetails } from '../types';
+import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscriptionDetails, Group } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import { postMessage } from './broadcastService';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 13; // Incremented to force migration for all users
+const DB_VERSION = 14; // Incremented for groups feature
 
 // Object Store Names
 const STORES = {
   BILLS: 'bills',
   RECURRING_BILLS: 'recurring_bills',
   IMPORTED_BILLS: 'imported_bills',
+  GROUPS: 'groups',
   SETTINGS: 'settings',
   THEME: 'theme',
   SUBSCRIPTION: 'subscription',
@@ -75,12 +76,11 @@ export function initDB(): Promise<void> {
     request.onupgradeneeded = (event) => {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
 
-      // This migration path is safer. It ensures all required stores exist
-      // regardless of the user's previous version by creating them if they are missing.
       const storesToCreate = [
         { name: STORES.BILLS, options: { keyPath: 'id' } },
         { name: STORES.RECURRING_BILLS, options: { keyPath: 'id' } },
         { name: STORES.IMPORTED_BILLS, options: { keyPath: 'id' } },
+        { name: STORES.GROUPS, options: { keyPath: 'id' } },
         { name: STORES.SETTINGS },
         { name: STORES.THEME },
         { name: STORES.SUBSCRIPTION },
@@ -98,11 +98,8 @@ export function initDB(): Promise<void> {
     };
     
     request.onblocked = () => {
-      // This event fires if an old version of the app is open in another tab.
-      // Proactively notify other tabs to close their connections and wait.
       console.warn("Database upgrade is blocked. Broadcasting close request to other tabs.");
       postMessage({ type: 'db-close-request' });
-      // Reject to show a user-friendly error in the current (upgrading) tab's UI.
       reject(new Error("Waiting for other tabs to apply the update. If this message persists, please close all other tabs for this site."));
     };
 
@@ -110,11 +107,9 @@ export function initDB(): Promise<void> {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
       db = dbInstance;
 
-      // The 'versionchange' event is the browser's native way of handling this.
-      // If another tab triggers an upgrade, this event fires, forcing this tab to close.
       db.onversionchange = () => {
         console.warn("Database version change detected from another tab. Closing connection.");
-        closeDB(); // Use our own close function
+        closeDB();
         window.dispatchEvent(new CustomEvent('db-versionchange'));
       };
       
@@ -221,6 +216,13 @@ export const mergeImportedBillsDB = async (billsToAdd: ImportedBill[], billsToUp
     });
 };
 
+// --- Group Operations ---
+export const getGroups = () => getAll<Group>(STORES.GROUPS);
+export const addGroup = (group: Group) => set(STORES.GROUPS, group);
+export const updateGroup = (group: Group) => set(STORES.GROUPS, group);
+export const deleteGroupDB = (groupId: string) => del(STORES.GROUPS, groupId);
+
+
 // --- Settings Operations ---
 export const getSettings = () => get<Settings>(STORES.SETTINGS, SINGLE_KEY);
 export const saveSettings = (settings: Settings) => set(STORES.SETTINGS, settings, SINGLE_KEY);
@@ -271,17 +273,12 @@ export const deleteBillSigningKeyDB = (billId: string) => del(STORES.BILL_SIGNIN
 const COMM_KEY_ID = 'user_comm_key';
 
 export const getCommunicationKeyPair = async (): Promise<CryptoKeyPair | null> => {
-    // Retrieve the CryptoKeyPair object directly.
-    // Modern browsers support storing CryptoKey objects via the structured clone algorithm.
     const keyPair = await get<CryptoKeyPair>(STORES.COMMUNICATION_KEYS, COMM_KEY_ID);
 
-    // Validate that what we retrieved is a valid CryptoKeyPair.
-    // This handles cases of corrupted data or old JWK-formatted data.
     if (keyPair && keyPair.publicKey instanceof CryptoKey && keyPair.privateKey instanceof CryptoKey) {
         return keyPair;
     }
 
-    // If the data is present but invalid, clear it to force regeneration.
     if (keyPair) {
         console.warn("Found invalid or old format for communication keys in DB. A new key pair will be generated on next load.");
         await del(STORES.COMMUNICATION_KEYS, COMM_KEY_ID);
@@ -291,7 +288,6 @@ export const getCommunicationKeyPair = async (): Promise<CryptoKeyPair | null> =
 };
 
 export const saveCommunicationKeyPair = async (keyPair: CryptoKeyPair): Promise<void> => {
-    // Store the CryptoKeyPair object directly without converting to JWK.
     await set(STORES.COMMUNICATION_KEYS, keyPair, COMM_KEY_ID);
 };
 
@@ -305,6 +301,7 @@ export const exportData = async () => {
     const bills = await getBills();
     const recurringBills = await getRecurringBills();
     const importedBills = await getImportedBills();
+    const groups = await getGroups();
     const settings = await getSettings();
     const theme = await getTheme();
     const subscription = await getSubscriptionStatus();
@@ -315,6 +312,7 @@ export const exportData = async () => {
         bills,
         recurringBills,
         importedBills,
+        groups,
         settings,
         theme,
         subscription,
@@ -347,6 +345,10 @@ export const importData = async (data: any): Promise<void> => {
         const store = tx.objectStore(STORES.IMPORTED_BILLS);
         data.importedBills.forEach((ib: ImportedBill) => store.put(ib));
     }
+     if (data.groups) {
+        const store = tx.objectStore(STORES.GROUPS);
+        data.groups.forEach((g: Group) => store.put(g));
+    }
     if (data.settings) {
         tx.objectStore(STORES.SETTINGS).put(data.settings, SINGLE_KEY);
     }
@@ -367,12 +369,6 @@ export const importData = async (data: any): Promise<void> => {
 };
 
 // --- DB Explorer Function ---
-/**
- * Retrieves all records from all object stores in the database.
- * Intended for debugging and inspection purposes.
- * @returns A promise resolving to an object where keys are store names
- * and values are arrays of records from that store.
- */
 export const getAllStoreData = async (): Promise<Record<string, any[]>> => {
     const db = getDB();
     const storeNames = Array.from(db.objectStoreNames);

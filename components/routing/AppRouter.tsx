@@ -1,11 +1,14 @@
+
 import React from 'react';
-import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView, SettingsSection } from '../../types';
+import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView, SettingsSection, Group } from '../../types';
 import { View } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
+import type { ParticipantData } from '../ParticipantList';
 
 // Components
 import Dashboard from '../dashboard/Dashboard';
 import CreateBill from '../CreateBill';
+import CreateGroup from '../CreateGroup';
 import BillDetails from '../BillDetails';
 import ImportedBillDetails from '../ImportedBillDetails';
 import SettingsComponent from '../Settings';
@@ -14,22 +17,25 @@ import Disclaimer from '../Disclaimer';
 import { ViewSharedBill } from '../ViewSharedBill';
 import RecurringBillsList from '../RecurringBillsList';
 import ManageSubscriptionPage from '../ManageSubscriptionPage';
+import GroupDetailsView from '../dashboard/GroupDetailsView';
 
-// This is a temporary type for the massive props object.
-// In a more mature app, this might be handled by a context provider.
 type AppLogicProps = {
     view: View;
     isLoading: boolean;
-    // Bill Data
+    // Data
     bills: Bill[];
     importedBills: ImportedBill[];
     recurringBills: RecurringBill[];
+    groups: Group[];
+    participantsData: ParticipantData[];
     // Current Items
     currentBill?: Bill;
     currentImportedBill?: ImportedBill;
     recurringBillToEdit?: RecurringBill;
     fromTemplate?: RecurringBill;
     billConversionSource?: Bill;
+    groupToEdit?: Group;
+    currentGroup?: Group;
     // Settings & Auth
     settings: Settings;
     subscriptionStatus: SubscriptionStatus;
@@ -46,18 +52,20 @@ type AppLogicProps = {
     onSetDashboardView: (view: DashboardView) => void;
     onSetDashboardStatusFilter: (status: 'active' | 'archived') => void;
     onSetDashboardSummaryFilter: (filter: SummaryFilter) => void;
-    setSelectedParticipant: (name: string | null) => void;
-    // Bill Handlers
+    onSelectParticipant: (name: string | null) => void;
+    // Handlers
     updateBill: (bill: Bill) => Promise<Bill>;
     addImportedBill: (bill: ImportedBill) => Promise<void>;
     updateImportedBill: (bill: ImportedBill) => void;
-    updateMultipleImportedBills: (bills: ImportedBill[]) => Promise<void>;
     handleSaveBill: (billData: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => Promise<void>;
     handleSaveRecurringBill: (billData: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => Promise<void>;
     handleUpdateRecurringBill: (bill: RecurringBill) => Promise<void>;
+    handleSaveGroup: (groupData: Omit<Group, 'id' | 'lastUpdatedAt'>) => Promise<void>;
+    handleUpdateGroup: (group: Group) => Promise<void>;
     handleDeleteBill: (billId: string) => void;
     handleDeleteImportedBill: (billId: string) => void;
     handleDeleteRecurringBill: (billId: string) => void;
+    handleDeleteGroup: (groupId: string) => void;
     handleReshareBill: (billId: string) => Promise<void>;
     createFromTemplate: (template: RecurringBill) => void;
     archiveBill: (billId: string) => Promise<void>;
@@ -74,13 +82,13 @@ type AppLogicProps = {
 
 export const AppRouter: React.FC<AppLogicProps> = (props) => {
     const { 
-        view, isLoading, currentBill, currentImportedBill,
+        view, isLoading, currentBill, currentImportedBill, currentGroup,
         handleSaveBill, handleSaveRecurringBill, handleUpdateRecurringBill, navigate,
         settings, updateSettings, recurringBillToEdit, fromTemplate, billConversionSource,
         updateBill, setSettingsSection, requestConfirmation,
         recurringBills, createFromTemplate, archiveRecurringBill, unarchiveRecurringBill, handleDeleteRecurringBill,
         addImportedBill, importedBills, canInstall, promptInstall, checkAndMakeSpaceForImageShare,
-        bills
+        bills, groups, groupToEdit, handleSaveGroup, handleUpdateGroup, handleDeleteGroup
     } = props;
 
     if (isLoading) {
@@ -96,7 +104,12 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
 
     switch (view) {
         case View.CreateBill:
-            return <CreateBill onSaveBill={handleSaveBill} onSaveRecurringBill={handleSaveRecurringBill} onUpdateRecurringBill={handleUpdateRecurringBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} recurringBillToEdit={recurringBillToEdit} fromTemplate={fromTemplate} billConversionSource={billConversionSource} />;
+            return <CreateBill onSaveBill={handleSaveBill} onSaveRecurringBill={handleSaveRecurringBill} onUpdateRecurringBill={handleUpdateRecurringBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} recurringBillToEdit={recurringBillToEdit} fromTemplate={fromTemplate} billConversionSource={billConversionSource} groups={groups} />;
+        case View.CreateGroup:
+            return <CreateGroup onSave={handleSaveGroup} onUpdate={handleUpdateGroup} onBack={() => navigate(View.Dashboard, { view: 'groups' })} groupToEdit={groupToEdit} />;
+        case View.GroupDetails:
+            // FIX: Explicitly pass `onUpdateMultipleBills` by mapping it from `props.updateMultipleBills` to satisfy the component's props interface.
+            return currentGroup ? <GroupDetailsView group={currentGroup} {...props} onUpdateMultipleBills={props.updateMultipleBills} onBack={() => navigate(View.Dashboard, { view: 'groups' })} /> : <div>Group not found.</div>;
         case View.BillDetails:
             return currentBill ? <BillDetails bill={currentBill} onUpdateBill={updateBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} setSettingsSection={setSettingsSection} navigate={navigate} onReshareBill={() => props.handleReshareBill(currentBill.id)} checkAndMakeSpaceForImageShare={checkAndMakeSpaceForImageShare} /> : <div>Bill not found.</div>;
         case View.ImportedBillDetails:
@@ -117,6 +130,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         default:
             return <Dashboard 
                         {...props}
+                        onDeleteGroup={handleDeleteGroup}
                         onSelectBill={(bill) => navigate(View.BillDetails, { billId: bill.id })} 
                         onSelectImportedBill={(bill) => navigate(View.ImportedBillDetails, { importedBillId: bill.id })}
                         onArchiveBill={props.archiveBill}
@@ -130,9 +144,8 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
                         onDeleteImportedBill={props.handleDeleteImportedBill}
                         onShowSummaryDetails={(bill) => navigate(View.ImportedBillDetails, { importedBillId: bill.id, showSummary: true })}
                         onCreateFromTemplate={props.createFromTemplate}
-                        // Dashboard specific props
-                        onSelectParticipant={(name) => props.setSelectedParticipant(name)}
-                        onClearParticipant={() => props.setSelectedParticipant(null)}
+                        onSelectParticipant={props.onSelectParticipant}
+                        onClearParticipant={() => props.onSelectParticipant(null)}
                    />;
     }
 };

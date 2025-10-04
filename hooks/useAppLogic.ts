@@ -1,18 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { Bill, Settings, ImportedBill, RecurringBill, RequestConfirmationFn, SettingsSection, SummaryFilter, DashboardView } from '../types';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import type { Bill, Settings, ImportedBill, RecurringBill, RequestConfirmationFn, SettingsSection, SummaryFilter, DashboardView, Group } from '../types';
 import { View } from '../types';
+import type { ParticipantData } from '../components/ParticipantList';
 
 // Hooks
 import { useBills } from './useBills';
 import { useImportedBills } from './useImportedBills';
 import { useRecurringBills } from './useRecurringBills';
+import { useGroups } from './useGroups';
 import { useSettings } from './useSettings';
 import { useTheme } from './useTheme';
 import { useAuth } from './useAuth';
 import { useAppControl } from '../contexts/AppControlContext.tsx';
 import { syncSharedBillUpdate, pollImportedBills, pollOwnedSharedBills, reactivateShare } from '../services/shareService';
 import * as notificationService from '../services/notificationService';
-import { getDiscoveredApiBaseUrl } from '../services/api';
 import { usePwaInstall } from './usePwaInstall.ts';
 
 const FREE_TIER_IMAGE_SHARE_LIMIT = 5;
@@ -23,8 +25,9 @@ export const useAppLogic = () => {
     const { bills, addBill, updateBill: originalUpdateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills, isLoading: isBillsLoading } = useBills();
     const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, updateMultipleImportedBills, isLoading: isImportedLoading } = useImportedBills();
     const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: isRecurringLoading } = useRecurringBills();
+    const { groups, addGroup, updateGroup, deleteGroup, isLoading: isGroupsLoading } = useGroups();
     const { theme, setTheme } = useTheme();
-    const { subscriptionStatus, logout } = useAuth();
+    const { subscriptionStatus } = useAuth();
     const { showNotification } = useAppControl();
     const { canInstall, promptInstall } = usePwaInstall();
 
@@ -34,7 +37,6 @@ export const useAppLogic = () => {
     const [isCsvImporterOpen, setIsCsvImporterOpen] = useState(false);
     const [isQrImporterOpen, setIsQrImporterOpen] = useState(false);
     const [showDebugConsole, setShowDebugConsole] = useState(() => sessionStorage.getItem('debugConsoleEnabled') === 'true');
-    const [manageImageStorage, setManageImageStorage] = useState(null);
     
     // --- Dashboard State ---
     const [dashboardView, setDashboardView] = useState<DashboardView>('bills');
@@ -42,33 +44,28 @@ export const useAppLogic = () => {
     const [dashboardStatusFilter, setDashboardStatusFilter] = useState<'active' | 'archived'>('active');
     const [dashboardSummaryFilter, setDashboardSummaryFilter] = useState<SummaryFilter>('total');
 
-    // --- NEW ROUTING LOGIC ---
+    // --- ROUTING LOGIC ---
     const [routerState, setRouterState] = useState({
         view: View.Dashboard,
         params: {} as Record<string, any>,
         billConversionSource: undefined as Bill | undefined,
         recurringBillToEdit: undefined as RecurringBill | undefined,
         fromTemplate: undefined as RecurringBill | undefined,
+        groupToEdit: undefined as Group | undefined,
+        currentGroup: undefined as Group | undefined,
     });
-    const { view, params, billConversionSource, recurringBillToEdit, fromTemplate } = routerState;
+    const { view, params, billConversionSource, recurringBillToEdit, fromTemplate, groupToEdit, currentGroup } = routerState;
 
     const navigate = useCallback((view: View, params: Record<string, any> = {}) => {
         let hash = `#/${view}`;
         const urlParams = new URLSearchParams();
-        const newParams = {...params}; // Create a copy to mutate
+        const newParams = {...params};
 
-        if (newParams.recurringBillToEdit) {
-            urlParams.set('editTemplateId', newParams.recurringBillToEdit.id);
-            delete newParams.recurringBillToEdit;
-        }
-        if (newParams.fromTemplate) {
-            urlParams.set('fromTemplateId', newParams.fromTemplate.id);
-            delete newParams.fromTemplate;
-        }
-        if (newParams.convertFromBill) {
-            urlParams.set('convertFromBillId', newParams.convertFromBill);
-            delete newParams.convertFromBill;
-        }
+        if (newParams.recurringBillToEdit) { urlParams.set('editTemplateId', newParams.recurringBillToEdit.id); delete newParams.recurringBillToEdit; }
+        if (newParams.fromTemplate) { urlParams.set('fromTemplateId', newParams.fromTemplate.id); delete newParams.fromTemplate; }
+        if (newParams.convertFromBill) { urlParams.set('convertFromBillId', newParams.convertFromBill); delete newParams.convertFromBill; }
+        if (newParams.groupToEdit) { urlParams.set('editGroupId', newParams.groupToEdit.id); delete newParams.groupToEdit; }
+        if (newParams.groupToView) { urlParams.set('groupId', newParams.groupToView.id); delete newParams.groupToView; }
         
         Object.keys(newParams).forEach(key => {
             if (newParams[key] !== undefined && newParams[key] !== null) {
@@ -89,16 +86,12 @@ export const useAppLogic = () => {
             const hash = window.location.hash;
             const pathWithQuery = hash.substring(1);
             const [path, queryString] = pathWithQuery.split('?');
-            
             const viewPath = path.startsWith('/') ? path.substring(1) : path;
-        
             const view = Object.values(View).find(v => v === viewPath) || View.Dashboard;
             const query = new URLSearchParams(queryString || '');
             
             const params: Record<string, any> = {};
-            query.forEach((value, key) => {
-                params[key] = value;
-            });
+            query.forEach((value, key) => { params[key] = value; });
         
             const convertFromBillId = query.get('convertFromBillId');
             const billConversionSource = bills.find(b => b.id === convertFromBillId);
@@ -108,16 +101,21 @@ export const useAppLogic = () => {
         
             const fromTemplateId = query.get('fromTemplateId');
             const fromTemplate = recurringBills.find(b => b.id === fromTemplateId);
+
+            const editGroupId = query.get('editGroupId');
+            const groupToEdit = groups.find(g => g.id === editGroupId);
+
+            const groupId = query.get('groupId');
+            const currentGroup = groups.find(g => g.id === groupId);
             
-            setRouterState({ view, params, billConversionSource, recurringBillToEdit, fromTemplate });
+            setRouterState({ view, params, billConversionSource, recurringBillToEdit, fromTemplate, groupToEdit, currentGroup });
         };
 
         parseHash();
         window.addEventListener('hashchange', parseHash);
         return () => window.removeEventListener('hashchange', parseHash);
-    }, [bills, recurringBills]);
+    }, [bills, recurringBills, groups]);
 
-    // Effect to reset dashboard-specific state when navigating away
     useEffect(() => {
         if (view !== View.Dashboard) {
             setSelectedParticipant(null);
@@ -125,7 +123,53 @@ export const useAppLogic = () => {
         }
     }, [view]);
 
-    // --- Wrapped updateBill to handle server sync ---
+    // --- Derived Data & Callbacks ---
+
+    const participantsData = useMemo((): ParticipantData[] => {
+        const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
+        const participantContactInfo = new Map<string, { phone?: string; email?: string }>();
+        bills.forEach(bill => {
+            bill.participants.forEach(p => {
+                if (p.name.trim().toLowerCase() === myDisplayNameLower) return;
+                const existing = participantContactInfo.get(p.name) || {};
+                if ((p.phone && !existing.phone) || (p.email && !existing.email)) {
+                    participantContactInfo.set(p.name, { phone: p.phone || existing.phone, email: p.email || existing.email });
+                }
+            });
+        });
+
+        if (dashboardStatusFilter === 'active') {
+            const debtMap = new Map<string, number>();
+            bills.forEach(bill => {
+                if (bill.status !== 'active') return;
+                bill.participants.forEach(p => {
+                    if (!p.paid && p.amountOwed > 0.005 && p.name.trim().toLowerCase() !== myDisplayNameLower) {
+                        debtMap.set(p.name, (debtMap.get(p.name) || 0) + p.amountOwed);
+                    }
+                });
+            });
+            return Array.from(debtMap.entries())
+                .map(([name, amount]) => ({ name, amount, type: 'owed' as const, ...participantContactInfo.get(name) }))
+                .sort((a, b) => b.amount - a.amount);
+        } else {
+            const participantStats = new Map<string, { outstandingDebt: number; totalBilled: number }>();
+            bills.forEach(bill => {
+                // FIX: Added a nested loop to iterate through bill participants, resolving an issue where the participant variable 'p' was not defined.
+                bill.participants.forEach(p => {
+                    const stats = participantStats.get(p.name) || { outstandingDebt: 0, totalBilled: 0 };
+                    stats.totalBilled += p.amountOwed;
+                    if (!p.paid) stats.outstandingDebt += p.amountOwed;
+                    participantStats.set(p.name, stats);
+                });
+            });
+            return Array.from(participantStats.entries())
+                .filter(([name, stats]) => stats.outstandingDebt < 0.01 && stats.totalBilled > 0 && name.trim().toLowerCase() !== myDisplayNameLower)
+                .map(([name, stats]) => ({ name, amount: stats.totalBilled, type: 'paid' as const, ...participantContactInfo.get(name) }))
+                .sort((a, b) => b.amount - a.amount);
+        }
+    }, [bills, dashboardStatusFilter, settings.myDisplayName]);
+
+
     const updateBill = useCallback(async (bill: Bill) => {
         const updatedBillFromDB = await originalUpdateBill(bill);
         if (updatedBillFromDB.shareInfo?.shareId) {
@@ -156,12 +200,10 @@ export const useAppLogic = () => {
         const oldestBill = [...sharedImageBills].sort((a, b) => (a.lastUpdatedAt || 0) - (b.lastUpdatedAt || 0))[0];
         
         showNotification(`Free image limit reached. Removing image from "${oldestBill.description}" to make space.`, 'info');
-        
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         try {
-            const downgradedBill: Bill = { ...oldestBill, receiptImage: undefined };
-            await updateBill(downgradedBill);
+            await updateBill({ ...oldestBill, receiptImage: undefined });
             showNotification('Space freed. Proceeding with share.', 'success');
             return true;
         } catch (error: any) {
@@ -171,46 +213,31 @@ export const useAppLogic = () => {
         }
     }, [subscriptionStatus, bills, updateBill, showNotification]);
 
-    const handleDowngradeAndProceed = () => {}; // No longer needed with automatic flow
-
-
     const toggleDebugConsole = (enabled: boolean) => {
         sessionStorage.setItem('debugConsoleEnabled', String(enabled));
         setShowDebugConsole(enabled);
-        if (enabled) {
-            showNotification('Debug console enabled for this session.');
-        } else {
-            showNotification('Debug console disabled.');
-        }
+        showNotification(`Debug console ${enabled ? 'enabled' : 'disabled'} for this session.`);
     };
     
-    // Effect for polling imported bills for updates
     useEffect(() => {
         const poll = async () => {
             const activeImported = importedBills.filter(b => b.status === 'active');
-            if (activeImported.length === 0) return;
-
-            const billsToUpdate = await pollImportedBills(activeImported);
-
-            if (billsToUpdate.length > 0) {
-                await updateMultipleImportedBills(billsToUpdate);
+            if (activeImported.length > 0) {
+                const billsToUpdate = await pollImportedBills(activeImported);
+                if (billsToUpdate.length > 0) await updateMultipleImportedBills(billsToUpdate);
             }
         };
-        poll();
         const intervalId = setInterval(poll, 30 * 1000);
+        poll();
         return () => clearInterval(intervalId);
     }, [importedBills, updateMultipleImportedBills]);
 
-    // Effect for polling OWNED shared bills to check for expiration
     useEffect(() => {
         const poll = async () => {
             const ownedShared = bills.filter(b => b.shareInfo?.shareId);
-            if (ownedShared.length === 0) return;
-            
-            const billsToUpdate = await pollOwnedSharedBills(ownedShared);
-            if (billsToUpdate.length > 0) {
-                console.log(`Polling found ${billsToUpdate.length} status changes for owned shared bills.`);
-                await updateMultipleBills(billsToUpdate);
+            if (ownedShared.length > 0) {
+                const billsToUpdate = await pollOwnedSharedBills(ownedShared);
+                if (billsToUpdate.length > 0) await updateMultipleBills(billsToUpdate);
             }
         };
         const intervalId = setInterval(poll, 5 * 60 * 1000);
@@ -218,57 +245,27 @@ export const useAppLogic = () => {
         return () => clearInterval(intervalId);
     }, [bills, updateMultipleBills]);
 
-    // --- Notification Synchronization Effect ---
     useEffect(() => {
-        if (!notificationService.isSupported()) {
-            return;
-        }
-
-        const syncNotifications = async () => {
-            const hasPermission = Notification.permission === 'granted';
-
-            if (settings.notificationsEnabled && hasPermission) {
-                const activeRecurringBills = recurringBills.filter(b => b.status === 'active');
-                const activeBillIds = new Set(activeRecurringBills.map(b => b.id));
-
-                // Schedule new/updated notifications
-                for (const bill of activeRecurringBills) {
-                    await notificationService.scheduleNotification(bill, settings.notificationDays);
-                }
-                
-                // Get all scheduled notifications (both native and fallback) to find ones that need to be cancelled.
+        if (!notificationService.isSupported()) return;
+        const sync = async () => {
+            if (settings.notificationsEnabled && Notification.permission === 'granted') {
+                const active = recurringBills.filter(b => b.status === 'active');
+                for (const bill of active) await notificationService.scheduleNotification(bill, settings.notificationDays);
                 const registration = await navigator.serviceWorker.ready;
-                const scheduledNotifications = await registration.getNotifications();
-                const scheduledBillIds = new Set(
-                    scheduledNotifications
-                        .filter(n => n.tag.startsWith('bill-reminder-'))
-                        .map(n => n.tag.replace('bill-reminder-', ''))
-                );
-
-                // Cancel notifications for bills that are no longer active or have been deleted
-                for (const scheduledId of scheduledBillIds) {
-                    if (!activeBillIds.has(scheduledId)) {
-                        await notificationService.cancelNotification(scheduledId);
-                    }
+                const scheduled = await registration.getNotifications();
+                for (const n of scheduled) {
+                    const billId = n.tag.replace('bill-reminder-', '');
+                    if (!active.some(b => b.id === billId)) await notificationService.cancelNotification(billId);
                 }
             } else {
-                // If notifications are disabled or permission is lost, cancel all existing ones
-                const allRecurringBillIds = recurringBills.map(b => b.id);
-                for (const billId of allRecurringBillIds) {
-                    await notificationService.cancelNotification(billId);
-                }
+                for (const bill of recurringBills) await notificationService.cancelNotification(bill.id);
             }
         };
-
-        syncNotifications().catch(err => console.error("Failed to sync notifications:", err));
-
+        sync().catch(err => console.error("Failed to sync notifications:", err));
     }, [settings.notificationsEnabled, settings.notificationDays, recurringBills]);
 
 
-    // --- Callbacks ---
-    const requestConfirmation: RequestConfirmationFn = (title, message, onConfirm, options) => {
-        setConfirmation({ title, message, onConfirm, options });
-    };
+    const requestConfirmation: RequestConfirmationFn = (title, message, onConfirm, options) => setConfirmation({ title, message, onConfirm, options });
 
     const handleSaveBill = async (billData: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => {
         await addBill(billData);
@@ -290,97 +287,68 @@ export const useAppLogic = () => {
         await updateRecurringBill(bill);
         showNotification('Template updated successfully!');
     };
-    
-    const handleDeleteBill = (billId: string) => {
-        requestConfirmation('Delete Bill?', 'This action cannot be undone. Are you sure you want to delete this bill?', () => {
-            deleteBill(billId);
-            showNotification('Bill deleted.');
-        }, { confirmText: 'Delete', confirmVariant: 'danger' });
+
+    const handleSaveGroup = async (groupData: Omit<Group, 'id' | 'lastUpdatedAt'>) => {
+        await addGroup(groupData);
+        showNotification(`Group "${groupData.name}" created!`);
     };
 
-    const handleDeleteImportedBill = (billId: string) => {
-        requestConfirmation('Delete Imported Bill?', 'This will remove the bill from your dashboard. This action cannot be undone.', () => {
-            deleteImportedBill(billId);
-            showNotification('Imported bill deleted.');
-        }, { confirmText: 'Delete', confirmVariant: 'danger' });
+    const handleUpdateGroup = async (group: Group) => {
+        await updateGroup(group);
+        showNotification(`Group "${group.name}" updated!`);
     };
     
-    const handleDeleteRecurringBill = (billId: string) => {
-        requestConfirmation('Delete Template?', 'This action cannot be undone. Are you sure you want to delete this template?', () => {
-            deleteRecurringBill(billId);
-            showNotification('Template deleted.');
-        }, { confirmText: 'Delete', confirmVariant: 'danger' });
-    };
+    const handleDeleteBill = (billId: string) => requestConfirmation('Delete Bill?', 'This action is permanent.', () => { deleteBill(billId); showNotification('Bill deleted.'); }, { confirmText: 'Delete', confirmVariant: 'danger' });
+    const handleDeleteImportedBill = (billId: string) => requestConfirmation('Delete Imported Bill?', 'This removes it from your dashboard.', () => { deleteImportedBill(billId); showNotification('Imported bill deleted.'); }, { confirmText: 'Delete', confirmVariant: 'danger' });
+    const handleDeleteRecurringBill = (billId: string) => requestConfirmation('Delete Template?', 'This action is permanent.', () => { deleteRecurringBill(billId); showNotification('Template deleted.'); }, { confirmText: 'Delete', confirmVariant: 'danger' });
+    const handleDeleteGroup = (groupId: string) => requestConfirmation('Delete Group?', 'This action is permanent.', () => { deleteGroup(groupId); showNotification('Group deleted.'); }, { confirmText: 'Delete', confirmVariant: 'danger' });
 
     const handleReshareBill = async (billId: string) => {
-        const billToReshare = bills.find(b => b.id === billId);
-        if (!billToReshare) {
-            showNotification("Could not find the bill to reshare.", 'error');
-            return;
-        }
+        const bill = bills.find(b => b.id === billId);
+        if (!bill) { showNotification("Bill not found.", 'error'); return; }
         try {
-            const { lastUpdatedAt, updateToken } = await reactivateShare(billToReshare, settings);
-            await updateBill({ 
-                ...billToReshare, 
-                shareStatus: 'live',
-                lastUpdatedAt,
-                shareInfo: { ...billToReshare.shareInfo!, updateToken }
-            });
-            showNotification("Bill has been reshared successfully!");
-        } catch (e: any) {
-            showNotification(e.message || "Failed to reshare the bill.", 'error');
-        }
+            const { lastUpdatedAt, updateToken } = await reactivateShare(bill, settings);
+            await updateBill({ ...bill, shareStatus: 'live', lastUpdatedAt, shareInfo: { ...bill.shareInfo!, updateToken } });
+            showNotification("Bill reshared successfully!");
+        } catch (e: any) { showNotification(e.message || "Failed to reshare.", 'error'); }
     };
     
     const createFromTemplate = (template: RecurringBill) => {
-        const { id, status, nextDueDate, ...billData } = template;
-        const updatedParticipants = billData.participants.map(p => ({ ...p, paid: false }));
-        const newBill: Omit<Bill, 'id' | 'status'> = {
-            ...billData,
-            participants: updatedParticipants,
-            date: new Date().toISOString(),
-            totalAmount: billData.totalAmount || 0,
-        };
+        const newBill: Omit<Bill, 'id' | 'status'> = { ...template, participants: template.participants.map(p => ({ ...p, paid: false })), date: new Date().toISOString(), totalAmount: template.totalAmount || 0 };
         addBill(newBill);
-        updateRecurringBillDueDate(id);
+        updateRecurringBillDueDate(template.id);
         showNotification(`Created bill from "${template.description}"`);
     };
 
-    // --- Loading State & Derived Data ---
     const currentBillId = routerState.params.billId || null;
     const currentImportedBillId = routerState.params.importedBillId || null;
     const currentBill = bills.find(b => b.id === currentBillId);
     const currentImportedBill = importedBills.find(b => b.id === currentImportedBillId);
-    const isLoading = isBillsLoading || isImportedLoading || isRecurringLoading || isSettingsLoading;
+    const isLoading = isBillsLoading || isImportedLoading || isRecurringLoading || isSettingsLoading || isGroupsLoading;
 
     return {
-        // State
-        view, currentBillId, currentImportedBillId, recurringBillToEdit, fromTemplate, billConversionSource,
+        view, params, currentBillId, currentImportedBillId, recurringBillToEdit, fromTemplate, billConversionSource, groupToEdit, currentGroup,
         confirmation, setConfirmation, settingsSection, setSettingsSection, isCsvImporterOpen, setIsCsvImporterOpen,
         isQrImporterOpen, setIsQrImporterOpen, showDebugConsole, toggleDebugConsole,
-        manageImageStorage, setManageImageStorage, handleDowngradeAndProceed,
-        dashboardView,
-        selectedParticipant, setSelectedParticipant,
-        dashboardStatusFilter,
-        dashboardSummaryFilter,
-        onSetDashboardView: setDashboardView,
-        onSetDashboardStatusFilter: setDashboardStatusFilter,
+        dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter, participantsData,
+        onSetDashboardView: setDashboardView, onSetDashboardStatusFilter: setDashboardStatusFilter,
         onSetDashboardSummaryFilter: setDashboardSummaryFilter,
-        // Data & Hooks
         settings, updateSettings, theme, setTheme, subscriptionStatus,
-        bills, importedBills, recurringBills, currentBill, currentImportedBill,
-        isLoading,
-        canInstall, promptInstall,
-        // Callbacks & Handlers
+        bills, importedBills, recurringBills, groups, currentBill, currentImportedBill,
+        isLoading, canInstall, promptInstall,
         navigate, requestConfirmation, updateBill, addImportedBill, updateImportedBill, updateMultipleImportedBills,
         handleSaveBill, handleSaveRecurringBill, handleUpdateRecurringBill, handleDeleteBill, handleDeleteImportedBill,
         handleDeleteRecurringBill, handleReshareBill, createFromTemplate,
-        // Bill actions
+        handleSaveGroup, handleUpdateGroup, handleDeleteGroup,
         addBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills,
         archiveImportedBill, unarchiveImportedBill, mergeImportedBills,
-        // Recurring Bill actions
         addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate,
-        // New image share logic
         checkAndMakeSpaceForImageShare,
+        onSelectParticipant: (name: string | null) => {
+            if (name) {
+                setDashboardView('participants');
+            }
+            setSelectedParticipant(name);
+        },
     };
 };

@@ -50,6 +50,7 @@ export interface Bill {
   participantShareInfo?: Record<string, ParticipantShareInfo>;
   shareStatus?: 'live' | 'expired' | 'error';
   shareHistory?: Record<string, Partial<Record<'sms' | 'email' | 'copy' | 'share', number>>>;
+  groupId?: string; // Link to a group
 }
 
 export interface RecurrenceRule {
@@ -65,6 +66,18 @@ export interface RecurringBill extends Omit<Bill, 'id' | 'status' | 'date'> {
     nextDueDate: string; // ISO 8601 format
     recurrenceRule: RecurrenceRule;
     splitMode: SplitMode;
+}
+
+export interface Group {
+    id: string;
+    name: string;
+    participants: Participant[];
+    defaultSplit: {
+        mode: SplitMode;
+        // splitValues can store amounts or percentages based on the mode
+        splitValues?: Record<string, number>; // participant.id -> value
+    };
+    lastUpdatedAt: number;
 }
 
 export interface PaymentDetails {
@@ -97,11 +110,13 @@ export enum View {
   RecurringBills = 'recurring-bills',
   ImportedBillDetails = 'imported-bill-details',
   ManageSubscription = 'manage-subscription',
+  CreateGroup = 'create-group',
+  GroupDetails = 'group-details',
 }
 
 export type SummaryFilter = 'total' | 'othersOweMe' | 'iOwe';
 
-export type DashboardView = 'bills' | 'participants' | 'upcoming' | 'templates';
+export type DashboardView = 'bills' | 'participants' | 'upcoming' | 'templates' | 'groups';
 
 export interface ConstituentShareInfo {
     originalBillId: string;

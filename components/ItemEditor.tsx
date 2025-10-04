@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { ReceiptItem, Participant } from '../types';
 
@@ -60,13 +59,16 @@ const ItemEditor: React.FC<ItemEditorProps> = ({ initialItems, participants, onS
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 id="item-editor-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">{isRecurring ? 'Edit Default Items' : 'Edit Itemization'}</h2>
+           {!isRecurring && items.some(i => i.assignedTo.length === 0) && (
+             <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">Some items are unassigned. All items must be assigned to at least one person.</p>
+           )}
         </div>
 
         <div className="p-6 flex-grow overflow-y-auto">
           {items.length === 0 ? <p className="text-center text-slate-500 dark:text-slate-400">No items yet. Add one to get started.</p> : (
             <ul className="space-y-4">
               {items.map((item) => (
-                <li key={item.id} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <li key={item.id} className={`p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg ring-2 ${item.assignedTo.length === 0 && !isRecurring ? 'ring-red-500/50' : 'ring-transparent'}`}>
                   <div className="flex items-center gap-3">
                     <div className="flex-grow">
                       <label htmlFor={`item-name-${item.id}`} className="sr-only">Item Name</label>
