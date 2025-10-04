@@ -10,7 +10,7 @@ jobs:
     uses: ./.github/workflows/03-build-frontend.yaml
     with:
       # The API URL is now static, pointing to the domain that will CNAME to the API Gateway.
-      api_urls: 'https://k.sharedbills.app'
+      api_urls: 'https://backend.sharedbills.app'
     secrets: inherit
 
   publish_frontend:

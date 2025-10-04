@@ -6,7 +6,7 @@ on:
       api_urls:
         description: 'Comma-separated list of backend API base URLs'
         required: true
-        default: 'https://k.sharedbills.app'
+        default: 'https://backend.sharedbills.app'
   workflow_call:
     inputs:
       api_urls:
