@@ -517,16 +517,24 @@ export const recreateShareSession = async (
 
     const encryptedData = await encryptAndSignPayload(updatedBill, settings, privateKey, signingPublicKeyJwk, billEncryptionKey);
 
-    {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
+    // FIX: Await getApiUrl to resolve the URL promise before passing to fetch.
     const shareResponse = await fetchWithRetry(await getApiUrl(`/share/${shareId}`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ encryptedData }),
+        body: JSON.stringify({ encryptedData, updateToken: existingShareInfo.updateToken }),
     });
 
     const shareResult = await shareResponse.json();
     if (!shareResponse.ok) {
         throw new Error(shareResult.error || `Failed to revive the share session on the server for shareId: ${shareId}.`);
+    }
+
+    // FIX: Update the bill object with the new share info returned from the server.
+    if (shareResult.updateToken && updatedBill.shareInfo) {
+        updatedBill.shareInfo.updateToken = shareResult.updateToken;
+    }
+    if (shareResult.lastUpdatedAt) {
+        updatedBill.lastUpdatedAt = shareResult.lastUpdatedAt;
     }
 
     await updateBillCallback(updatedBill);
@@ -727,11 +735,14 @@ export async function reactivateShare(bill: Bill, settings: Settings): Promise<{
   const signingPublicKeyJwk = bill.shareInfo.signingPublicKey;
   const encryptedData = await encryptAndSignPayload(bill, settings, keyRecord.privateKey, signingPublicKeyJwk, billEncryptionKey);
   
+  // FIX: Send the update token to handle updates to non-expired shares correctly.
+  const updateToken = bill.shareInfo.updateToken;
+  
   {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
   const response = await fetchWithRetry(await getApiUrl(`/share/${bill.shareInfo.shareId}`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ encryptedData }), // No token needed for reactivation
+    body: JSON.stringify({ encryptedData, updateToken }),
   });
   
   const result = await response.json();
@@ -739,8 +750,9 @@ export async function reactivateShare(bill: Bill, settings: Settings): Promise<{
     throw new Error(result.error || 'Failed to reactivate share on the server.');
   }
   
+  // The server now consistently returns a token.
   if (!result.updateToken) {
-    throw new Error('Server did not return a new update token on reactivation.');
+    throw new Error('Server did not return an update token on reactivation.');
   }
 
   console.log(`Successfully reactivated share for bill ${bill.id}`);

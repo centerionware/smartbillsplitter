@@ -65,7 +65,8 @@ async function createOrUpdateShare(
                 }
                 const newPayload = { ...storedPayload, encryptedData, lastUpdatedAt: now };
                 await kv.set(key, JSON.stringify(newPayload), { EX: EXPIRATION_SECONDS });
-                return { shareId, lastUpdatedAt: now };
+                // FIX: Consistently return the update token on a successful update for client-side state consistency.
+                return { shareId, lastUpdatedAt: now, updateToken: storedPayload.updateToken };
 
             } else { // Legacy record, perform migration
                 const newUpdateToken = randomUUID();
@@ -74,7 +75,10 @@ async function createOrUpdateShare(
                 // Return the NEW token so the client can save it
                 return { shareId, lastUpdatedAt: now, updateToken: newUpdateToken };
             }
-        } else { // It's a RECREATE (e.g., from an expired link)
+        } else { // It's a RECREATE (e.g., from an expired link or DB wipe)
+            // This logic handles the user's reported issue. If a client tries to update a share
+            // that no longer exists on the server, we treat it as a request to recreate it.
+            // A new update token is generated and returned to the client to re-establish sync.
             const newUpdateToken = randomUUID();
             const payload = { encryptedData, lastUpdatedAt: now, updateToken: newUpdateToken };
             await kv.set(key, JSON.stringify(payload), { EX: EXPIRATION_SECONDS });
