@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useCallback } from 'react';
 import type { Group } from '../types';
 import { getGroups, addGroup as addDB, updateGroup as updateDB, deleteGroupDB } from '../services/db';
@@ -31,11 +32,12 @@ export const useGroups = () => {
         }
     }, [loadGroups]));
 
-    const addGroup = useCallback(async (newGroupData: Omit<Group, 'id' | 'lastUpdatedAt'>) => {
+    const addGroup = useCallback(async (newGroupData: Omit<Group, 'id' | 'lastUpdatedAt' | 'popularity'>) => {
         const newGroup: Group = {
             ...newGroupData,
             id: `group-${Date.now()}`,
             lastUpdatedAt: Date.now(),
+            popularity: 0,
         };
         await addDB(newGroup);
         postMessage({ type: 'groups-updated' });
@@ -55,6 +57,16 @@ export const useGroups = () => {
         postMessage({ type: 'groups-updated' });
         await loadGroups(false);
     }, [loadGroups]);
+    
+    const incrementGroupPopularity = useCallback(async (groupId: string) => {
+        const groupToUpdate = groups.find(g => g.id === groupId);
+        if (groupToUpdate) {
+            const updatedGroup = { ...groupToUpdate, popularity: (groupToUpdate.popularity || 0) + 1 };
+            await updateDB(updatedGroup);
+            postMessage({ type: 'groups-updated' });
+            await loadGroups(false); // Reload to ensure consistency
+        }
+    }, [groups, loadGroups]);
 
-    return { groups, addGroup, updateGroup, deleteGroup, isLoading };
+    return { groups, addGroup, updateGroup, deleteGroup, incrementGroupPopularity, isLoading };
 };

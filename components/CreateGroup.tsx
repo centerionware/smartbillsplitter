@@ -46,18 +46,27 @@ const CreateGroup: React.FC<CreateGroupProps> = ({ onSave, onUpdate, onBack, gro
         }, {} as Record<string, number>)
       : undefined;
 
-    const groupData = {
-      name,
-      participants: finalParticipants,
-      defaultSplit: {
-        mode: splitMode,
-        splitValues,
-      }
-    };
-
     if (isEditing && groupToEdit) {
-      onUpdate({ ...groupToEdit, ...groupData });
+      const groupData: Group = {
+        ...groupToEdit,
+        name,
+        participants: finalParticipants,
+        defaultSplit: {
+          mode: splitMode,
+          splitValues,
+        },
+      };
+      onUpdate(groupData);
     } else {
+      const groupData: Omit<Group, 'id' | 'lastUpdatedAt'> = {
+        name,
+        participants: finalParticipants,
+        defaultSplit: {
+          mode: splitMode,
+          splitValues,
+        },
+        popularity: 0,
+      };
       onSave(groupData);
     }
     onBack();

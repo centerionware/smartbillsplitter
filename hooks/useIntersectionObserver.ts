@@ -7,13 +7,13 @@ interface ObserverOptions {
   threshold?: number | number[];
 }
 
-export const useIntersectionObserver = ({
+export const useIntersectionObserver = <T extends HTMLElement>({
   onIntersect,
   root = null,
   rootMargin = '0px',
   threshold = 0.1,
 }: ObserverOptions) => {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<T>(null);
 
   const handleIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
     entries.forEach(entry => {

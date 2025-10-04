@@ -11,6 +11,7 @@ import BillPrimaryDetails from './BillPrimaryDetails.tsx';
 import BillSplitMethod from './BillSplitMethod.tsx';
 import BillParticipants from './BillParticipants.tsx';
 import BillExtraDetails from './BillExtraDetails.tsx';
+import SelectGroupModal from './modals/SelectGroupModal.tsx';
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
@@ -49,6 +50,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const { showNotification } = useAppControl();
   
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [isSelectGroupModalOpen, setIsSelectGroupModalOpen] = useState(false);
 
   const setStep = (newStep: number | string) => {
     setStepState(parseFloat(String(newStep)));
@@ -231,25 +233,50 @@ const CreateBill: React.FC<CreateBillProps> = ({
             })));
         }
     }
+    setIsSelectGroupModalOpen(false);
     setStep(1);
   };
 
-  const renderGroupSelectionStep = () => (
-    <div className="text-center">
-      <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-6">Start with a Group?</h3>
-      <div className="space-y-4 mb-6">
-        {groups.map(group => (
-            <button key={group.id} type="button" onClick={() => handleGroupSelect(group.id)} className="w-full text-left p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                <p className="font-bold text-lg">{group.name}</p>
-                <p className="text-sm text-slate-500">{group.participants.length} members</p>
-            </button>
-        ))}
-      </div>
-      <button type="button" onClick={() => setStep(1)} className="w-full px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600">
-        Continue without a Group
-      </button>
-    </div>
-  );
+  const renderGroupSelectionStep = () => {
+    if (groups.length > 5) {
+        return (
+            <div className="text-center">
+                <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-6">Start with a Group?</h3>
+                <button 
+                    type="button" 
+                    onClick={() => setIsSelectGroupModalOpen(true)} 
+                    className="w-full px-6 py-4 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 mb-4 text-lg"
+                >
+                    Select Group
+                </button>
+                <button 
+                    type="button" 
+                    onClick={() => setStep(1)} 
+                    className="w-full px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                >
+                    Continue without a Group
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="text-center">
+          <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-6">Start with a Group?</h3>
+          <div className="space-y-4 mb-6">
+            {groups.map(group => (
+                <button key={group.id} type="button" onClick={() => handleGroupSelect(group.id)} className="w-full text-left p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <p className="font-bold text-lg">{group.name}</p>
+                    <p className="text-sm text-slate-500">{group.participants.length} members</p>
+                </button>
+            ))}
+          </div>
+          <button type="button" onClick={() => setStep(1)} className="w-full px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600">
+            Continue without a Group
+          </button>
+        </div>
+    );
+  };
 
   const renderStartModeStep = () => ( <div className="text-center"> <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-6">How do you want to start?</h3> <div className="flex flex-col sm:flex-row gap-6"> <button type="button" onClick={() => setStep(1.5) } className="flex-1 p-8 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all transform hover:-translate-y-1"> <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}> <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /> </svg> <h4 className="text-xl font-bold mt-4 text-slate-800 dark:text-slate-100">Scan a Receipt</h4> <p className="mt-1 text-slate-500 dark:text-slate-400">Use AI to automatically add items.</p> </button> <button type="button" onClick={() => setStep(2) } className="flex-1 p-8 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all transform hover:-translate-y-1"> <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}> <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /> </svg> <h4 className="text-xl font-bold mt-4 text-slate-800 dark:text-slate-100">Enter Manually</h4> <p className="mt-1 text-slate-500 dark:text-slate-400">Add the bill details yourself.</p> </button> </div> </div> );
   const renderScanStep = () => <ReceiptScanner onItemsScanned={handleItemsScanned} onImageSelected={setReceiptImage} onImageCleared={() => setReceiptImage(undefined)} isForTemplate={isRecurring} />;
@@ -305,6 +332,15 @@ const CreateBill: React.FC<CreateBillProps> = ({
       
       {isItemEditorOpen && <ItemEditor initialItems={items} participants={participants} onSave={(newItems) => { setItems(newItems); setIsItemEditorOpen(false); }} onCancel={() => setIsItemEditorOpen(false)} isRecurring={isRecurring} />}
       {isInfoEditorOpen && <AdditionalInfoEditor initialInfo={additionalInfo} onSave={(newInfo) => { setAdditionalInfo(newInfo); setIsInfoEditorOpen(false); }} onCancel={() => setIsInfoEditorOpen(false)} />}
+      
+      {isSelectGroupModalOpen && (
+        <SelectGroupModal 
+            isOpen={isSelectGroupModalOpen}
+            onClose={() => setIsSelectGroupModalOpen(false)}
+            groups={groups}
+            onSelect={handleGroupSelect}
+        />
+    )}
     </div>
   );
 };
