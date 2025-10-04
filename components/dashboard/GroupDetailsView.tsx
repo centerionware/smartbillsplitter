@@ -125,12 +125,9 @@ const GroupDetailsView: React.FC<GroupDetailsViewProps> = ({ group, participants
                 <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{group.name}</h2>
                 <p className="text-slate-500 dark:text-slate-400 mt-1">{group.participants.length} members</p>
             </div>
-            <div className="flex-shrink-0 flex items-center gap-2">
+            <div className="flex-shrink-0">
                 <button onClick={() => navigate(View.CreateGroup, { groupToEdit: group })} className="px-4 py-2 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600">
                     Edit
-                </button>
-                <button onClick={() => setIsRemindersModalOpen(true)} className="px-4 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600">
-                    Remind Group
                 </button>
             </div>
         </div>
@@ -155,6 +152,12 @@ const GroupDetailsView: React.FC<GroupDetailsViewProps> = ({ group, participants
               );
             })}
           </ul>
+        </div>
+        
+        <div className="mt-8 border-t border-slate-200 dark:border-slate-700 pt-6">
+            <button onClick={() => setIsRemindersModalOpen(true)} className="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors">
+                Remind Group
+            </button>
         </div>
       </div>
       {isRemindersModalOpen && (
