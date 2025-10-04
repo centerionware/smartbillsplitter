@@ -100,18 +100,19 @@ jobs:
         run: |
           FUNCTION_ARN=$(aws lambda get-function --function-name ${{ env.LAMBDA_FUNCTION_NAME }} --query 'Configuration.FunctionArn' --output text)
           API_NAME="${{ env.API_GATEWAY_NAME }}"
-          CORS_CONFIG='{"AllowOrigins":["https://'${{ secrets.PROD_URL }}'"],"AllowMethods":["GET","POST","OPTIONS"],"AllowHeaders":["Content-Type"]}'
+          # Use double quotes for the outer shell variable and escape inner quotes to ensure correct JSON parsing.
+          CORS_CONFIG="{\"AllowOrigins\":[\"https://${{ secrets.PROD_URL }}\"],\"AllowMethods\":[\"GET\",\"POST\",\"OPTIONS\"],\"AllowHeaders\":[\"Content-Type\"]}"
           
           API_ID=$(aws apigatewayv2 get-apis --query "Items[?Name=='${API_NAME}'].ApiId" --output text)
 
           if [ -z "$API_ID" ]; then
             echo "API Gateway '${API_NAME}' not found. Creating it..."
-            API_ID=$(aws apigatewayv2 create-api \
+            aws apigatewayv2 create-api \
               --name "${API_NAME}" \
               --protocol-type HTTP \
               --target "${FUNCTION_ARN}" \
               --cors-configuration "${CORS_CONFIG}" \
-              --query 'ApiId' --output text)
+              --query 'ApiId' --output text
             echo "API Gateway created with ID: ${API_ID}"
           else
             echo "API Gateway '${API_NAME}' already exists with ID: ${API_ID}. Updating CORS..."
