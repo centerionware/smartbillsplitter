@@ -24,10 +24,23 @@ jobs:
     name: Build Frontend Artifact
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (main branch)
         uses: actions/checkout@v4
         with:
           ref: main
+
+      - name: Checkout screenshots branch
+        uses: actions/checkout@v4
+        with:
+          ref: screenshots
+          path: ./screenshots-temp
+
+      - name: Prepare image assets
+        run: |
+          mkdir -p public/images
+          find ./screenshots-temp -maxdepth 1 -type f -not -name '.*' -exec cp {} public/images/ \;
+          echo "Images copied to public/images:"
+          ls -l public/images
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
