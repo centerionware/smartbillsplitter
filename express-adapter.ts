@@ -1,11 +1,11 @@
-// FIX: Changed from a type-only import to a value import to ensure correct type resolution for Express Request and Response objects, which are augmented via declaration merging.
-import { Request, Response, RequestHandler } from 'express';
+// FIX: Use a namespace import for Express to avoid type collisions with global DOM types for Request and Response, which was causing properties like 'method' and 'status' to be missing.
+import * as express from 'express';
 import { HttpRequest, HttpHandler } from './http-types';
 
 /**
  * Transforms an Express request into a framework-agnostic HttpRequest.
  */
-function toHttpRequest(req: Request): HttpRequest {
+function toHttpRequest(req: express.Request): HttpRequest {
   const url = new URL(req.originalUrl, `${req.protocol}://${req.get('host')}`);
   return {
     method: req.method.toUpperCase() as HttpRequest['method'],
@@ -21,8 +21,8 @@ function toHttpRequest(req: Request): HttpRequest {
  * Creates an Express request handler from our generic, framework-agnostic HttpHandler.
  * This acts as an adapter layer, containing the only Express-specific logic.
  */
-export function createExpressAdapter(handler: HttpHandler): RequestHandler {
-  return async (req: Request, res: Response) => {
+export function createExpressAdapter(handler: HttpHandler): express.RequestHandler {
+  return async (req: express.Request, res: express.Response) => {
     try {
       const httpRequest = toHttpRequest(req);
       // Express doesn't use the `env` binding like Cloudflare, configuration comes from process.env.

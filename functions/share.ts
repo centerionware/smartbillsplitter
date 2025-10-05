@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
-import { HttpRequest, HttpResponse } from '../http-types';
-import type { KeyValueStore } from '../services/keyValueStore';
+import { HttpRequest, HttpResponse } from '../http-types.ts';
+import type { KeyValueStore } from '../services/keyValueStore.ts';
 
 const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
@@ -201,3 +201,76 @@ export const shareHandler = async (req: HttpRequest, context: { kv: KeyValueStor
     // Handle the new batch check endpoint: POST /share/batch-check
     if (req.method === "POST" && req.path.endsWith('/batch-check')) {
         const batchPayload = req.body;
+        const result = await retrieveBatchShares(batchPayload, context.kv);
+        return {
+            statusCode: 200,
+            headers: responseHeaders,
+            body: JSON.stringify(result)
+        };
+    }
+      
+    if (req.method === "POST") {
+      const { shareId } = req.params;
+      const { encryptedData, updateToken } = req.body;
+      const result = await createOrUpdateShare(encryptedData, context.kv, shareId, updateToken);
+      const statusCode = shareId ? 200 : 201; // OK for update, Created for new
+      return {
+        statusCode: statusCode,
+        headers: responseHeaders,
+        body: JSON.stringify(result)
+      };
+    }
+  
+    if (req.method === "GET") {
+        const { shareId } = req.params;
+        if (!shareId) {
+            throw new Error("Missing 'shareId' in path.");
+        }
+
+        // Retrieve the full data from the KV store. retrieveShare handles 404s if not found.
+        const serverData = await retrieveShare(shareId, context.kv);
+        
+        // Check if the client sent its last known timestamp.
+        const clientTimestampStr = req.query.lastUpdatedAt as string;
+        if (clientTimestampStr) {
+            const clientTimestamp = parseInt(clientTimestampStr, 10);
+            // If client's data is current, send 304 Not Modified.
+            if (!isNaN(clientTimestamp) && serverData.lastUpdatedAt <= clientTimestamp) {
+                return {
+                    statusCode: 304,
+                    headers: responseHeaders,
+                };
+            }
+        }
+
+        // Otherwise, send the full, updated payload.
+        return {
+            statusCode: 200,
+            headers: responseHeaders,
+            body: JSON.stringify(serverData)
+        };
+    }
+
+    return {
+      statusCode: 405,
+      headers: { ...responseHeaders, 'Allow': 'GET, POST, OPTIONS' },
+      body: JSON.stringify({ error: "Method Not Allowed" })
+    };
+
+  } catch (error: any) {
+    let statusCode = 500;
+    if (error.message.includes("not found or expired") || error.message.includes("Invalid or expired")) {
+        statusCode = 404;
+    } else if (error.message.includes("Invalid payload") || error.message.includes("Missing 'shareId'")) {
+        statusCode = 400;
+    } else if (error.message.includes("Forbidden")) {
+        statusCode = 403;
+    }
+    
+    return {
+      statusCode: statusCode,
+      headers: responseHeaders,
+      body: JSON.stringify({ error: "An internal server error occurred.", details: error.message })
+    };
+  }
+};

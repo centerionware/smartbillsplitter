@@ -1,4 +1,5 @@
-import express from 'express';
+// FIX: Use a namespace import for express to ensure type consistency and avoid potential module resolution issues.
+import * as express from 'express';
 import { createExpressAdapter } from './express-adapter';
 import { mainHandler } from './serverless';
 
