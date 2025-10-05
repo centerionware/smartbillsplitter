@@ -34,7 +34,11 @@ export const ShareLinkMenu: React.FC<ShareLinkMenuProps> = ({ url, billDescripti
   const message = `Here is your unique link for our bill "${billDescription}": ${url}`;
 
   const handleShareSystem = async () => {
-    await navigator.share({ title: `Bill: ${billDescription}`, text: message });
+    // FIX: Added a check for navigator.share to prevent errors on browsers where it's not supported,
+    // which likely caused the linting error.
+    if (navigator.share) {
+      await navigator.share({ title: `Bill: ${billDescription}`, text: message });
+    }
     onClose();
   };
   
