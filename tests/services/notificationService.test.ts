@@ -56,12 +56,25 @@ describe('notificationService', () => {
     expect(mockServiceWorker.controller.postMessage).not.toHaveBeenCalled();
   });
 
-  it('should not schedule notification if date is in the past', async () => {
+  it('should not schedule notification if date is in the past, but should attempt to cancel any existing one', async () => {
     vi.spyOn(Notification, 'permission', 'get').mockReturnValue('granted');
     const pastBill = { ...mockBill, nextDueDate: new Date(Date.now() - 1000).toISOString() };
+    
     await notificationService.scheduleNotification(pastBill, 3);
+    
+    // It should NOT schedule a NEW notification
     expect(mockRegistration.showNotification).not.toHaveBeenCalled();
-    expect(mockServiceWorker.controller.postMessage).not.toHaveBeenCalled();
+    
+    // It SHOULD attempt to CANCEL any existing notifications for this tag.
+    // Our cancelNotification function sends a postMessage for this to clear timeouts.
+    expect(mockServiceWorker.controller.postMessage).toHaveBeenCalledWith({
+      type: 'cancel-notification',
+      tag: 'bill-reminder-rb-1',
+    });
+
+    // We can also be more specific and ensure no 'schedule-notification' message was sent.
+    const scheduleCall = vi.mocked(mockServiceWorker.controller.postMessage).mock.calls.find(call => call[0].type === 'schedule-notification');
+    expect(scheduleCall).toBeUndefined();
   });
 
   it('should use TimestampTrigger if supported', async () => {
