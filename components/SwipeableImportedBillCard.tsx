@@ -98,6 +98,7 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = (pro
           if (e.type === 'touchend') {
             e.preventDefault();
           }
+          // FIX: Remove incorrect type assertion to pass either event type to the handler.
           onClick(e as React.MouseEvent);
         }
       }

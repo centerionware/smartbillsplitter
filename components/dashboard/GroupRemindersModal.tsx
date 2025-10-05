@@ -10,7 +10,7 @@ interface GroupRemindersModalProps {
 }
 
 const GroupRemindersModal: React.FC<GroupRemindersModalProps> = ({ group, participantsWithDebt, onClose, onRemind }) => {
-  const debtMap = new Map(participantsWithDebt.map(p => [p.name, p]));
+  const debtMap = new Map<string, ParticipantData>(participantsWithDebt.map(p => [p.name, p]));
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 backdrop-blur-sm" onClick={onClose}>

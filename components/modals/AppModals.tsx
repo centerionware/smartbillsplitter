@@ -1,10 +1,11 @@
 import React from 'react';
-import type { Settings, Theme, RequestConfirmationFn, SettingsSection, Bill, ImportedBill } from '../../types';
+// FIX: Changed import statement to correctly import `View` as a value (for enums)
+// and other symbols as types, resolving 'cannot be used as a value' error.
+import { View, type Settings, type Theme, type RequestConfirmationFn, type SettingsSection, type Bill, type ImportedBill } from '../../types';
 import ConfirmationDialog from '../ConfirmationDialog';
 import SettingsModal from '../SettingsModal';
 import CsvImporterModal from '../CsvImporterModal';
 import QrImporterModal from '../QrImporterModal';
-import { View } from '../../types';
 
 type AppModalsProps = {
     confirmation: { title: string; message: string; onConfirm: () => void; options?: any } | null;

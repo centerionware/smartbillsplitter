@@ -37,6 +37,11 @@ export default defineConfig(({ mode }) => {
       },
       // Generate source maps for easier debugging in production.
       sourcemap: true,
-    }
+    },
+    test: {
+        globals: true,
+        environment: 'jsdom',
+        setupFiles: './tests/setup.ts',
+    },
   };
 });

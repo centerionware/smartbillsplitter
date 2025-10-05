@@ -4,7 +4,7 @@ import { getSubscriptionStatus, getSubscriptionDetails, saveSubscriptionStatus, 
 export type SubscriptionStatus = 'subscribed' | 'free' | null;
 export type SubscriptionDuration = 'monthly' | 'yearly';
 
-interface AuthContextType {
+export interface AuthContextType {
   subscriptionStatus: SubscriptionStatus;
   subscriptionDetails: SubscriptionDetails | null;
   isLoading: boolean;

@@ -94,7 +94,8 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
           if (e.type === 'touchend') {
             e.preventDefault();
           }
-          onClick(e as React.MouseEvent);
+          // FIX: Remove incorrect type assertion to pass either event type to the handler.
+          onClick(e);
         }
       }
       return;
