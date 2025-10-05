@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import type { Bill, ImportedBill, PaymentDetails, ReceiptItem } from '../types.ts';
-import PaymentMethodsModal from './PaymentMethodsModal.tsx';
+import type { Bill, ImportedBill, PaymentDetails, ReceiptItem } from '../types';
+import PaymentMethodsModal from './PaymentMethodsModal';
 
 interface SummaryBillDetailsModalProps {
   summaryBill: Bill;

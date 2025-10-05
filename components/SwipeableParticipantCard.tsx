@@ -1,7 +1,7 @@
 
 
 import React, { useRef, useState } from 'react';
-import ParticipantCard from './ParticipantCard.tsx';
+import ParticipantCard from './ParticipantCard';
 
 interface SwipeableParticipantCardProps {
   participant: { name: string; amount: number; type: 'owed' | 'paid'; phone?: string; email?: string; };

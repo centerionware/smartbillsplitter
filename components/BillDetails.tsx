@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Bill, Settings, SettingsSection } from '../types';
-import ShareModal from './ShareModal.tsx';
-import { exportData } from '../services/exportService.ts';
+import ShareModal from './ShareModal';
+import { exportData } from '../services/exportService';
 import { View } from '../types';
 import PaymentMethodWarningModal from './PaymentMethodWarningModal';
 

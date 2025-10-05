@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
-import { HttpRequest, HttpResponse } from '../http-types.ts';
-import type { KeyValueStore } from '../services/keyValueStore.ts';
+import { HttpRequest, HttpResponse } from '../http-types';
+import type { KeyValueStore } from '../services/keyValueStore';
 
 const EXPIRATION_SECONDS = 30 * 24 * 60 * 60; // 30 days
 

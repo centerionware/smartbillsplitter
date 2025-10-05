@@ -1,7 +1,8 @@
 
+
 import React, { useRef, useState } from 'react';
 import type { Bill } from '../types';
-import BillCard from './BillCard.tsx';
+import BillCard from './BillCard';
 
 interface SwipeableBillCardProps {
   bill: Bill;

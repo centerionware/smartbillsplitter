@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { getApiUrl, fetchWithRetry } from '../services/api.ts';
-import SubscriptionWarningModal from './SubscriptionWarningModal.tsx';
+import { getApiUrl, fetchWithRetry } from '../services/api';
+import SubscriptionWarningModal from './SubscriptionWarningModal';
 
 interface PaywallProps {
   onSelectFreeTier: () => void;

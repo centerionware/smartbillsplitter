@@ -1,4 +1,4 @@
-// FIX: Use a namespace import for Express to avoid type collisions with global DOM types for Request and Response, which was causing properties like 'method' and 'status' to be missing.
+// FIX: Using a namespace import for express to ensure the full Request and Response types are resolved, fixing "property does not exist" errors.
 import * as express from 'express';
 import { HttpRequest, HttpHandler } from './http-types';
 

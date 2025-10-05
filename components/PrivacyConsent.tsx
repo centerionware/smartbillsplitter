@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { DisclaimerContent } from './DisclaimerContent.tsx';
+import { DisclaimerContent } from './DisclaimerContent';
 
 interface PrivacyConsentProps {
   onAccept: () => void;

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { HttpRequest, HttpHandler, HttpResponse } from './http-types.ts';
+import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
 
 /**
  * Transforms a VercelRequest into a framework-agnostic HttpRequest.

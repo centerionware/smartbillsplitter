@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Bill, Participant, ReceiptItem, SplitMode, Settings, RecurringBill, RecurrenceRule, Group } from '../types';
-import ReceiptScanner from './ReceiptScanner.tsx';
-import ItemEditor from './ItemEditor.tsx';
-import AdditionalInfoEditor from './AdditionalInfoEditor.tsx';
-import RecurrenceSelector from './RecurrenceSelector.tsx';
-import SetupDisplayNameModal from './SetupDisplayNameModal.tsx';
-import { useAppControl } from '../contexts/AppControlContext.tsx';
-import { matchAndAssignItems } from '../services/geminiService.ts';
-import BillPrimaryDetails from './BillPrimaryDetails.tsx';
-import BillSplitMethod from './BillSplitMethod.tsx';
-import BillParticipants from './BillParticipants.tsx';
-import BillExtraDetails from './BillExtraDetails.tsx';
-import SelectGroupModal from './modals/SelectGroupModal.tsx';
+import ReceiptScanner from './ReceiptScanner';
+import ItemEditor from './ItemEditor';
+import AdditionalInfoEditor from './AdditionalInfoEditor';
+import RecurrenceSelector from './RecurrenceSelector';
+import SetupDisplayNameModal from './SetupDisplayNameModal';
+import { useAppControl } from '../contexts/AppControlContext';
+import { matchAndAssignItems } from '../services/geminiService';
+import BillPrimaryDetails from './BillPrimaryDetails';
+import BillSplitMethod from './BillSplitMethod';
+import BillParticipants from './BillParticipants';
+import BillExtraDetails from './BillExtraDetails';
+import SelectGroupModal from './modals/SelectGroupModal';
 
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 

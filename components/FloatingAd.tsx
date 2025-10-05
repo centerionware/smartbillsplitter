@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AD_IFRAME_CONTENT } from '../services/adService.ts';
+import { AD_IFRAME_CONTENT } from '../services/adService';
 
 const FloatingAd: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);

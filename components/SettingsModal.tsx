@@ -9,9 +9,9 @@ import DataManagement from './settings/DataManagement';
 import DataSync from './settings/DataSync';
 import DangerZone from './settings/DangerZone';
 import SubscriptionManagement from './settings/SubscriptionManagement';
-import { useAppControl } from '../contexts/AppControlContext.tsx';
+import { useAppControl } from '../contexts/AppControlContext';
 import AboutSupport from './settings/AboutSupport';
-import { DisclaimerContent } from './DisclaimerContent.tsx';
+import { DisclaimerContent } from './DisclaimerContent';
 
 interface SettingsModalProps {
   activeSection: SettingsSection;

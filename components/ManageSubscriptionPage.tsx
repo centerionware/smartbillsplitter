@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { RequestConfirmationFn, PayPalSubscriptionDetails } from '../types.ts';
-import { useAuth } from '../hooks/useAuth.ts';
-import { useAppControl } from '../contexts/AppControlContext.tsx';
-import { getApiUrl, fetchWithRetry } from '../services/api.ts';
-import { useSubscriptionManager } from '../hooks/useSubscriptionManager.ts';
+import type { RequestConfirmationFn, PayPalSubscriptionDetails } from '../types';
+import { useAuth } from '../hooks/useAuth';
+import { useAppControl } from '../contexts/AppControlContext';
+import { getApiUrl, fetchWithRetry } from '../services/api';
+import { useSubscriptionManager } from '../hooks/useSubscriptionManager';
 
 interface ManageSubscriptionPageProps {
   onBack: () => void;

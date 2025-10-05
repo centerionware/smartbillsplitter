@@ -1,4 +1,4 @@
-import { HttpRequest, HttpHandler, HttpResponse } from './http-types.ts';
+import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
 
 /**
  * Transforms a Cloudflare Worker Request into a framework-agnostic HttpRequest.

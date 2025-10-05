@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import type { ReceiptItem } from '../types.ts';
+import type { ReceiptItem } from '../types';
 
 const MAX_DIMENSION = 1280;
 const JPEG_QUALITY = 0.8;

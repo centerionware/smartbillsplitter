@@ -1,8 +1,8 @@
 import React from 'react';
 import type { RequestConfirmationFn, Bill, ImportedBill } from '../../types';
-import { exportData, importData } from '../../services/db.ts';
-import { exportData as exportDataAsCsv } from '../../services/exportService.ts';
-import { useAppControl } from '../../contexts/AppControlContext.tsx';
+import { exportData, importData } from '../../services/db';
+import { exportData as exportDataAsCsv } from '../../services/exportService';
+import { useAppControl } from '../../contexts/AppControlContext';
 
 interface DataManagementProps {
   requestConfirmation: RequestConfirmationFn;

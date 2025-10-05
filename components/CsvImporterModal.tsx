@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
 // FIX: Changed import to ParsedCsvData, which is now correctly defined and exported.
-import { parseCsv, ParsedCsvData, ParsedBillFromCsv } from '../services/geminiService.ts';
-import type { Settings, ImportedBill } from '../types.ts';
-import { useAppControl } from '../contexts/AppControlContext.tsx';
+import { parseCsv, ParsedCsvData, ParsedBillFromCsv } from '../services/geminiService';
+import type { Settings, ImportedBill } from '../types';
+import { useAppControl } from '../contexts/AppControlContext';
 
 interface CsvImporterModalProps {
   onClose: () => void;

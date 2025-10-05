@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { AD_IFRAME_CONTENT } from '../services/adService.ts';
+import { AD_IFRAME_CONTENT } from '../services/adService';
 
 interface HalfScreenAdModalProps {
   onClose: () => void;

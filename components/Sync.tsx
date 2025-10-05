@@ -5,11 +5,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 // FIX: Updated import path for RequestConfirmationFn to central types file.
 import type { RequestConfirmationFn } from '../types';
-import { exportData, importData } from '../services/db.ts';
-import * as cryptoService from '../services/cryptoService.ts';
-import { useAppControl } from '../contexts/AppControlContext.tsx';
-import { useQrScanner } from '../hooks/useQrScanner.ts';
-import { getApiUrl, fetchWithRetry } from '../services/api.ts';
+import { exportData, importData } from '../services/db';
+import * as cryptoService from '../services/cryptoService';
+import { useAppControl } from '../contexts/AppControlContext';
+import { useQrScanner } from '../hooks/useQrScanner';
+import { getApiUrl, fetchWithRetry } from '../services/api';
 
 // FIX: Added declaration for pako, which is loaded as a global script.
 declare var pako: any;

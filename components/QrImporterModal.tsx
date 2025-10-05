@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useQrScanner } from '../hooks/useQrScanner.ts';
+import { useQrScanner } from '../hooks/useQrScanner';
 
 interface QrImporterModalProps {
   onClose: () => void;

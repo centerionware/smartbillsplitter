@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { ImportedBill } from '../types.ts';
-import { exportData } from '../services/exportService.ts';
-import PaymentMethodsModal from './PaymentMethodsModal.tsx';
-import SummaryBillDetailsModal from './SummaryBillDetailsModal.tsx';
+import type { ImportedBill } from '../types';
+import { exportData } from '../services/exportService';
+import PaymentMethodsModal from './PaymentMethodsModal';
+import SummaryBillDetailsModal from './SummaryBillDetailsModal';
 
 interface ImportedBillDetailsProps {
     bill: ImportedBill;

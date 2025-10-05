@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Bill, Settings, ImportedBill, RecurringBill, RequestConfirmationFn, SettingsSection, SummaryFilter, DashboardView, Group } from '../types';
 import { View } from '../types';
@@ -13,10 +11,10 @@ import { useGroups } from './useGroups';
 import { useSettings } from './useSettings';
 import { useTheme } from './useTheme';
 import { useAuth } from './useAuth';
-import { useAppControl } from '../contexts/AppControlContext.tsx';
+import { useAppControl } from '../contexts/AppControlContext';
 import { syncSharedBillUpdate, pollImportedBills, pollOwnedSharedBills, reactivateShare } from '../services/shareService';
 import * as notificationService from '../services/notificationService';
-import { usePwaInstall } from './usePwaInstall.ts';
+import { usePwaInstall } from './usePwaInstall';
 
 const FREE_TIER_IMAGE_SHARE_LIMIT = 5;
 
@@ -356,5 +354,6 @@ export const useAppLogic = () => {
             }
             setSelectedParticipant(name);
         },
+        onClearParticipant: () => setSelectedParticipant(null)
     };
 };

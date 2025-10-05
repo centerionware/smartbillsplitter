@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Participant } from '../types.ts';
+import type { Participant } from '../types';
 
 interface ShareActionSheetProps {
     participant: Participant;

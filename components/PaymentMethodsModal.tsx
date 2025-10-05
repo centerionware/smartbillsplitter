@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { PaymentDetails } from '../types.ts';
+import type { PaymentDetails } from '../types';
 
 interface PaymentMethodsModalProps {
   paymentDetails: PaymentDetails;

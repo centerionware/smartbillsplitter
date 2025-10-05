@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // FIX: Changed import to ParsedCsvData, which is now correctly defined and exported.
-import { parseReceipt, parseCsv, parseAppCsv } from '../../services/geminiService.ts';
+import { parseReceipt, parseCsv, parseAppCsv } from '../../services/geminiService';
 import { EXPORT_HEADER_V2 } from '../../services/exportService';
-import { fetchWithRetry } from '../../services/api.ts';
+import { fetchWithRetry } from '../../services/api';
 
 // Mock the global fetch and getApiUrl
-vi.mock('../../services/api.ts', () => ({
+vi.mock('../../services/api', () => ({
     getApiUrl: vi.fn().mockImplementation(async (path: string) => `http://api.test${path}`),
     fetchWithRetry: vi.fn(),
 }));

@@ -1,4 +1,4 @@
-// FIX: Use a namespace import for express to ensure type consistency and avoid potential module resolution issues.
+// FIX: Changed to a namespace import to resolve type issues with express middleware.
 import * as express from 'express';
 import { createExpressAdapter } from './express-adapter';
 import { mainHandler } from './serverless';
@@ -6,7 +6,8 @@ import { mainHandler } from './serverless';
 // This is the entrypoint for the Express.js server when running locally
 // or in a traditional Node.js container environment.
 
-const app = express();
+// FIX: Cast express to any to call it as a function. This is a workaround for CJS/ESM interop issues.
+const app = (express as any)();
 const port = process.env.PORT || 3000;
 
 // Middleware to parse JSON bodies.

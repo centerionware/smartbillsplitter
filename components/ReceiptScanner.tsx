@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { parseReceipt } from '../services/geminiService.ts';
+import { parseReceipt } from '../services/geminiService';
 
 interface ScannedData {
   description: string;

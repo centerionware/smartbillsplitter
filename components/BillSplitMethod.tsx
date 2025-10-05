@@ -1,5 +1,5 @@
 import React from 'react';
-import type { SplitMode } from '../types.ts';
+import type { SplitMode } from '../types';
 
 interface BillSplitMethodProps {
   splitMode: SplitMode;

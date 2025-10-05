@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import type { Participant } from '../types.ts';
+import type { Participant } from '../types';
 
 interface ShareLinkMenuProps {
   url: string;

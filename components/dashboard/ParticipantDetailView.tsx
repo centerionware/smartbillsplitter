@@ -1,7 +1,7 @@
 import React from 'react';
-import type { Bill } from '../../types.ts';
-import SwipeableBillCard from '../SwipeableBillCard.tsx';
-import EmptyState from './EmptyState.tsx';
+import type { Bill } from '../../types';
+import SwipeableBillCard from '../SwipeableBillCard';
+import EmptyState from './EmptyState';
 
 interface ParticipantDetailViewProps {
   participantBills: {

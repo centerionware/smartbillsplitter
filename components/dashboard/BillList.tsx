@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import type { Bill, ImportedBill } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
-import SwipeableBillCard from '../SwipeableBillCard.tsx';
-import SwipeableImportedBillCard from '../SwipeableImportedBillCard.tsx';
-import AdBillCard from '../AdBillCard.tsx';
+import SwipeableBillCard from '../SwipeableBillCard';
+import SwipeableImportedBillCard from '../SwipeableImportedBillCard';
+import AdBillCard from '../AdBillCard';
 
 const AD_INTERVAL = 10; // Show an ad after every 10 bills
 

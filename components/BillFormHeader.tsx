@@ -1,4 +1,5 @@
 import React from 'react';
+import type { SplitMode } from '../types';
 
 interface BillFormHeaderProps {
   isEditing: boolean;

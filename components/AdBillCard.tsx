@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AD_IFRAME_CONTENT } from '../services/adService.ts';
+import { AD_IFRAME_CONTENT } from '../services/adService';
 
 const AdBillCard: React.FC = () => {
   const [loadAd, setLoadAd] = useState(false);

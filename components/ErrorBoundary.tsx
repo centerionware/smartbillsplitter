@@ -1,5 +1,5 @@
 import React, { ErrorInfo, ReactNode } from 'react';
-import { closeDB } from '../services/db.ts';
+import { closeDB } from '../services/db';
 
 interface Props {
   children: ReactNode;

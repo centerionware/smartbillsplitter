@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { Participant, SplitMode } from '../types.ts';
+import type { Participant, SplitMode } from '../types';
 
 interface BillParticipantsProps {
   participants: Participant[];

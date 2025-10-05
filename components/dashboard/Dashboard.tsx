@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View } from '../../types';
 import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group } from '../../types';
@@ -264,7 +261,6 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     if (hasMore) setVisibleCount(prev => prev + BILLS_PER_PAGE);
   }, [hasMore]);
   
-  // FIX: Explicitly typed the `useIntersectionObserver` hook with `HTMLDivElement` to ensure the returned ref is of the correct, specific type (`RefObject<HTMLDivElement>`) rather than the default `RefObject<HTMLElement>`. This resolves type errors when assigning the ref to a div element or passing it to child components expecting a div ref.
   const { ref: loadMoreRef } = useIntersectionObserver<HTMLDivElement>({ onIntersect: loadMore });
 
   const getShareTextForParticipant = useCallback((participantName: string): string => {

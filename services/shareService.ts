@@ -1,8 +1,8 @@
-import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload, ConstituentShareInfo, ImportedBill } from '../types.ts';
-import type { SubscriptionStatus } from '../hooks/useAuth.ts';
-import * as cryptoService from './cryptoService.ts';
-import { getBillSigningKey, saveBillSigningKey, deleteBillSigningKeyDB } from './db.ts';
-import { getApiUrl, fetchWithRetry } from './api.ts';
+import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload, ConstituentShareInfo, ImportedBill } from '../types';
+import type { SubscriptionStatus } from '../hooks/useAuth';
+import * as cryptoService from './cryptoService';
+import { getBillSigningKey, saveBillSigningKey, deleteBillSigningKeyDB } from './db';
+import { getApiUrl, fetchWithRetry } from './api';
 
 // FIX: Added declaration for pako, which is loaded as a global script.
 declare var pako: any;
@@ -13,6 +13,164 @@ interface ShareBillInfo {
     description: string;
     amountOwed: number;
 }
+
+// FIX: Add missing functions that were being imported in useAppLogic.ts
+export const pollImportedBills = async (
+  importedBills: ImportedBill[]
+): Promise<ImportedBill[]> => {
+  if (importedBills.length === 0) return [];
+
+  console.log("Polling for updates on imported bills...");
+  const checkPayload = importedBills.map(b => ({
+    shareId: b.shareId,
+    lastUpdatedAt: b.lastUpdatedAt
+  }));
+
+  try {
+    const response = await fetchWithRetry(await getApiUrl('/share/batch-check'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkPayload)
+    });
+
+    if (!response.ok) {
+      console.error('Failed to poll for imported bill updates:', response.statusText);
+      return [];
+    }
+
+    const updatedBillPayloads: { shareId: string; encryptedData: string; lastUpdatedAt: number }[] = await response.json();
+    if (updatedBillPayloads.length === 0) {
+      console.log("No imported bills have been updated.");
+      return [];
+    }
+    
+    console.log(`${updatedBillPayloads.length} imported bills have updates.`);
+    const updatedBills: ImportedBill[] = [];
+
+    for (const payload of updatedBillPayloads) {
+      const originalBill = importedBills.find(b => b.shareId === payload.shareId);
+      if (!originalBill) continue;
+
+      try {
+        const encryptionKey = await cryptoService.importEncryptionKey(originalBill.shareEncryptionKey);
+        const decryptedBytes = await cryptoService.decrypt(payload.encryptedData, encryptionKey);
+        const decryptedJson = pako.inflate(decryptedBytes, { to: 'string' });
+        const data: SharedBillPayload = JSON.parse(decryptedJson);
+
+        const publicKey = await cryptoService.importPublicKey(data.publicKey);
+        const isVerified = await cryptoService.verify(JSON.stringify(data.bill), data.signature, publicKey);
+        if (!isVerified) {
+          console.warn(`Signature verification failed for updated imported bill ${originalBill.id}. Skipping update.`);
+          continue;
+        }
+
+        const updatedImportedBill: ImportedBill = {
+          ...originalBill,
+          sharedData: {
+            bill: data.bill,
+            creatorPublicKey: data.publicKey,
+            signature: data.signature,
+            paymentDetails: data.paymentDetails
+          },
+          lastUpdatedAt: payload.lastUpdatedAt,
+          liveStatus: 'live'
+        };
+        updatedBills.push(updatedImportedBill);
+      } catch (e) {
+        console.error(`Failed to decrypt or verify update for imported bill ${originalBill.id}`, e);
+        const billWithError: ImportedBill = { ...originalBill, liveStatus: 'error' };
+        updatedBills.push(billWithError);
+      }
+    }
+    return updatedBills;
+  } catch (error) {
+    console.error("Polling for imported bills failed:", error);
+    return importedBills.map(b => ({ ...b, liveStatus: 'stale' }));
+  }
+};
+
+export const pollOwnedSharedBills = async (
+  ownedBills: Bill[]
+): Promise<Bill[]> => {
+  if (ownedBills.length === 0) return [];
+  console.log("Polling for status of owned shared bills...");
+
+  const shareIds = ownedBills.map(b => b.shareInfo?.shareId).filter(Boolean) as string[];
+
+  try {
+    const response = await fetchWithRetry(await getApiUrl('/share/batch-status'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shareIds })
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to poll for owned bill status:', response.statusText);
+      return [];
+    }
+
+    const statuses: { shareId: string; status: 'live' | 'expired' }[] = await response.json();
+    const billsToUpdate: Bill[] = [];
+    
+    for (const statusInfo of statuses) {
+      const bill = ownedBills.find(b => b.shareInfo?.shareId === statusInfo.shareId);
+      if (bill && bill.shareStatus !== statusInfo.status) {
+        billsToUpdate.push({ ...bill, shareStatus: statusInfo.status });
+      }
+    }
+
+    if (billsToUpdate.length > 0) {
+      console.log(`${billsToUpdate.length} owned shared bills have status changes.`);
+    }
+
+    return billsToUpdate;
+
+  } catch (error) {
+    console.error("Polling for owned shared bills failed:", error);
+    return ownedBills.map(b => ({ ...b, shareStatus: 'error' }));
+  }
+};
+
+export const reactivateShare = async (
+    bill: Bill,
+    settings: Settings,
+): Promise<{ lastUpdatedAt: number, updateToken: string }> => {
+    let updatedBill = JSON.parse(JSON.stringify(bill));
+
+    const existingShareInfo = updatedBill.shareInfo;
+    const keyRecord = await getBillSigningKey(updatedBill.id);
+
+    if (!existingShareInfo?.shareId || !existingShareInfo.encryptionKey || !existingShareInfo.signingPublicKey || !keyRecord) {
+        console.error("Cannot reactivate share: Existing keys or shareId are missing.", { billId: updatedBill.id });
+        throw new Error("Cannot re-sync bill because its original sharing keys or ID are missing.");
+    }
+    
+    const { shareId, encryptionKey: encryptionKeyJwk, signingPublicKey: signingPublicKeyJwk } = existingShareInfo;
+    const { privateKey } = keyRecord;
+
+    const billEncryptionKey = await cryptoService.importEncryptionKey(encryptionKeyJwk);
+    delete updatedBill.participantShareInfo;
+
+    const encryptedData = await encryptAndSignPayload(updatedBill, settings, privateKey, signingPublicKeyJwk, billEncryptionKey);
+
+    const shareResponse = await fetchWithRetry(await getApiUrl(`/share/${shareId}`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ encryptedData, updateToken: existingShareInfo.updateToken }),
+    });
+
+    const shareResult = await shareResponse.json();
+    if (!shareResponse.ok) {
+        throw new Error(shareResult.error || `Failed to revive the share session on the server for shareId: ${shareId}.`);
+    }
+
+    if (!shareResult.updateToken || !shareResult.lastUpdatedAt) {
+        throw new Error("Server did not return expected update token and timestamp on reactivation.");
+    }
+    
+    return { lastUpdatedAt: shareResult.lastUpdatedAt, updateToken: shareResult.updateToken };
+};
+
 
 /**
  * Converts a UTF-8 string to a "binary string" (where each character's char code is a byte value),
@@ -571,190 +729,3 @@ export async function syncSharedBillUpdate(
 
   {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
   const response = await fetchWithRetry(await getApiUrl(`/share/${bill.shareInfo.shareId}`), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ encryptedData, updateToken }),
-  });
-  
-  const result = await response.json();
-
-  if (!response.ok) {
-    if (response.status === 403) {
-      throw new Error(result.details || 'Update forbidden. This bill may have been updated from another device. Please refresh.');
-    }
-    throw new Error(result.error || 'Failed to sync bill update to the server.');
-  }
-
-  // Handle migration: server sends back a new token for legacy bills
-  if (result.updateToken) {
-    console.log(`Received new update token for bill ${bill.id}. Migrating.`);
-    const migratedBill: Bill = {
-      ...bill,
-      shareInfo: {
-        ...bill.shareInfo,
-        updateToken: result.updateToken,
-      },
-      lastUpdatedAt: result.lastUpdatedAt
-    };
-    // Silently update the bill in the DB with the new token
-    await updateBillCallback(migratedBill);
-  }
-
-  console.log(`Successfully synced update for bill ${bill.id}`);
-}
-
-/**
- * Polls the server for updates on a list of imported bills using an efficient batch request.
- * @param bills An array of imported bills to check.
- * @returns A promise that resolves to an array of bill objects that need to be updated locally.
- */
-export async function pollImportedBills(bills: ImportedBill[]): Promise<ImportedBill[]> {
-    if (bills.length === 0) return [];
-
-    const checkPayload = bills.map(b => ({ shareId: b.shareId, lastUpdatedAt: b.lastUpdatedAt }));
-    const billsNeedingUpdate: ImportedBill[] = [];
-
-    try {
-        {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
-        const response = await fetchWithRetry(await getApiUrl('/share/batch-check'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(checkPayload),
-            signal: AbortSignal.timeout(20000)
-        });
-        
-        if (response.ok) {
-            const updatedShares: { shareId: string, encryptedData: string, lastUpdatedAt: number }[] = await response.json();
-            const updatedIds = new Set(updatedShares.map(s => s.shareId));
-
-            for (const bill of bills) {
-                if (!updatedIds.has(bill.shareId) && bill.liveStatus === 'stale') {
-                    billsNeedingUpdate.push({ ...bill, liveStatus: 'live' });
-                }
-            }
-
-            for (const share of updatedShares) {
-                const originalBill = bills.find(b => b.shareId === share.shareId);
-                if (!originalBill) continue;
-                try {
-                    const symmetricKey = await cryptoService.importEncryptionKey(originalBill.shareEncryptionKey);
-                    const decryptedBytes = await cryptoService.decrypt(share.encryptedData, symmetricKey);
-                    const decryptedJson = pako.inflate(decryptedBytes, { to: 'string' });
-                    const data: SharedBillPayload = JSON.parse(decryptedJson);
-                    const publicKey = await cryptoService.importPublicKey(data.publicKey);
-                    if (!(await cryptoService.verify(JSON.stringify(data.bill), data.signature, publicKey))) {
-                        throw new Error("Signature verification failed.");
-                    }
-                    billsNeedingUpdate.push({ ...originalBill, sharedData: { ...originalBill.sharedData, bill: data.bill }, lastUpdatedAt: share.lastUpdatedAt, liveStatus: 'live' });
-                } catch (decryptionError) {
-                    console.error(`Processing updated bill ${share.shareId} failed:`, decryptionError);
-                    if (originalBill.liveStatus !== 'stale') billsNeedingUpdate.push({ ...originalBill, liveStatus: 'stale' });
-                }
-            }
-        } else {
-             throw new Error(`Batch check failed with status ${response.status}`);
-        }
-    } catch (error) {
-        console.error("Polling for imported bills failed:", error);
-        for (const bill of bills) {
-            if (bill.liveStatus !== 'stale') billsNeedingUpdate.push({ ...bill, liveStatus: 'stale' as const });
-        }
-    }
-    
-    return billsNeedingUpdate;
-}
-
-
-/**
- * Polls the server to check the status of bills the user has shared.
- * @param bills An array of the user's bills that have shareInfo.
- * @returns A promise that resolves to an array of bill objects that need their status updated locally.
- */
-export async function pollOwnedSharedBills(bills: Bill[]): Promise<Bill[]> {
-    const billsToUpdate: Bill[] = [];
-    const billsToCheck = bills.filter(b => b.shareInfo?.shareId);
-    if (billsToCheck.length === 0) return [];
-
-    const shareIds = billsToCheck.map(b => b.shareInfo!.shareId);
-
-    try {
-        const response = await fetchWithRetry(await getApiUrl('/share/batch-status'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ shareIds }),
-            signal: AbortSignal.timeout(15000)
-        });
-
-        if (response.ok) {
-            const statuses: { shareId: string, status: 'live' | 'expired' }[] = await response.json();
-            const statusMap = new Map(statuses.map(s => [s.shareId, s.status]));
-
-            for (const bill of billsToCheck) {
-                const newStatus = statusMap.get(bill.shareInfo!.shareId);
-                // If a status was returned and it's different from the current one, mark for update.
-                if (newStatus && bill.shareStatus !== newStatus) {
-                    billsToUpdate.push({ ...bill, shareStatus: newStatus });
-                } else if (!newStatus && bill.shareStatus !== 'error') {
-                    // If the server didn't return a status for a known shareId, it's an anomaly/error.
-                    billsToUpdate.push({ ...bill, shareStatus: 'error' as const });
-                }
-            }
-        } else {
-             throw new Error(`Batch status check failed with status ${response.status}`);
-        }
-    } catch (error) {
-        console.error(`Polling failed for owned bills:`, error);
-        // If the entire request fails, mark all polled bills as having an error status if they aren't already.
-        for (const bill of billsToCheck) {
-            if (bill.shareStatus !== 'error') {
-                 billsToUpdate.push({ ...bill, shareStatus: 'error' as const });
-            }
-        }
-    }
-    
-    return billsToUpdate;
-}
-
-/**
- * Reactivates an expired share on the server by re-uploading the encrypted bill data.
- * @param bill The bill with an expired share.
- * @param settings The user's settings.
- * @returns An object containing the new `lastUpdatedAt` timestamp and the new `updateToken`.
- */
-export async function reactivateShare(bill: Bill, settings: Settings): Promise<{ lastUpdatedAt: number; updateToken: string; }> {
-  if (!bill.shareInfo?.shareId) {
-    throw new Error("Cannot reactivate a bill that was never shared.");
-  }
-
-  const keyRecord = await getBillSigningKey(bill.id);
-  if (!keyRecord || !keyRecord.privateKey) {
-    throw new Error(`Could not find signing key for shared bill ${bill.id}. Cannot reactivate.`);
-  }
-
-  const billEncryptionKey = await cryptoService.importEncryptionKey(bill.shareInfo.encryptionKey);
-  const signingPublicKeyJwk = bill.shareInfo.signingPublicKey;
-  const encryptedData = await encryptAndSignPayload(bill, settings, keyRecord.privateKey, signingPublicKeyJwk, billEncryptionKey);
-  
-  // FIX: Send the update token to handle updates to non-expired shares correctly.
-  const updateToken = bill.shareInfo.updateToken;
-  
-  {/* FIX: Await getApiUrl to resolve the URL promise before passing to fetch. */}
-  const response = await fetchWithRetry(await getApiUrl(`/share/${bill.shareInfo.shareId}`), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ encryptedData, updateToken }),
-  });
-  
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(result.error || 'Failed to reactivate share on the server.');
-  }
-  
-  // The server now consistently returns a token.
-  if (!result.updateToken) {
-    throw new Error('Server did not return an update token on reactivation.');
-  }
-
-  console.log(`Successfully reactivated share for bill ${bill.id}`);
-  return { lastUpdatedAt: result.lastUpdatedAt, updateToken: result.updateToken };
-}

@@ -1,7 +1,7 @@
 import React from 'react';
 import type { RequestConfirmationFn } from '../../types';
-import { useAppControl } from '../../contexts/AppControlContext.tsx';
-import { closeDB } from '../../services/db.ts';
+import { useAppControl } from '../../contexts/AppControlContext';
+import { closeDB } from '../../services/db';
 
 interface DangerZoneProps {
   requestConfirmation: RequestConfirmationFn;

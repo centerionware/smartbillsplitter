@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { SharedBillPayload, ImportedBill, Settings, PaymentDetails, Bill, RequestConfirmationFn } from '../types.ts';
-import * as cryptoService from '../services/cryptoService.ts';
-import PrivacyConsent from './PrivacyConsent.tsx';
-import { getApiUrl, fetchWithRetry } from '../services/api.ts';
-import PaymentMethodsModal from './PaymentMethodsModal.tsx';
-import SummaryBillDetailsModal from './SummaryBillDetailsModal.tsx';
+import type { SharedBillPayload, ImportedBill, Settings, PaymentDetails, Bill, RequestConfirmationFn } from '../types';
+import * as cryptoService from '../services/cryptoService';
+import PrivacyConsent from './PrivacyConsent';
+import { getApiUrl, fetchWithRetry } from '../services/api';
+import PaymentMethodsModal from './PaymentMethodsModal';
+import SummaryBillDetailsModal from './SummaryBillDetailsModal';
 
 // FIX: Added declaration for pako, which is loaded as a global script.
 declare var pako: any;

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import type { Bill, Settings, Participant } from '../types';
-import { generateShareLink } from '../services/shareService.ts';
-import { useAppControl } from '../contexts/AppControlContext.tsx';
+import { generateShareLink } from '../services/shareService';
+import { useAppControl } from '../contexts/AppControlContext';
 
 interface ShareModalProps {
   bill: Bill;
