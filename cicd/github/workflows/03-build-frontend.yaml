@@ -29,6 +29,15 @@ jobs:
         with:
           ref: main
 
+      - name: Get lockfile from package-lock branch
+        run: |
+          git fetch origin package-lock --depth=1
+          git checkout origin/package-lock -- package.json package-lock.json
+          if [ ! -f "package-lock.json" ]; then
+            echo "::error::package-lock.json not found on package-lock branch."
+            exit 1
+          fi
+
       - name: Checkout screenshots branch
         uses: actions/checkout@v4
         with:
@@ -44,9 +53,10 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install dependencies from lockfile
+        run: npm ci
 
       - name: Create .env file for build
         run: echo "VITE_API_BASE_URLS=${{ inputs.api_urls }}" > .env.production

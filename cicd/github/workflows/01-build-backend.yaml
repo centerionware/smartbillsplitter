@@ -14,14 +14,24 @@ jobs:
         with:
           ref: main
 
+      - name: Get lockfile from package-lock branch
+        run: |
+          git fetch origin package-lock --depth=1
+          git checkout origin/package-lock -- package.json package-lock.json
+          if [ ! -f "package-lock.json" ]; then
+            echo "::error::package-lock.json not found on package-lock branch."
+            exit 1
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install dependencies from lockfile
+        run: npm ci
 
       - name: Build backend application
         run: npm run build:backend

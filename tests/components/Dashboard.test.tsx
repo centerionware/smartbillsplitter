@@ -90,7 +90,8 @@ describe('Dashboard', () => {
   });
 
   it('renders the groups view when dashboardView is "groups"', () => {
-    const groups = [{ id: '1', name: 'Test Group', participants: [], defaultSplit: { mode: 'equally' }, lastUpdatedAt: Date.now(), popularity: 1 }];
+    // FIX: Add 'as const' to the 'mode' property to ensure its type is 'equally' and not the wider 'string' type, satisfying the 'SplitMode' type requirement.
+    const groups = [{ id: '1', name: 'Test Group', participants: [], defaultSplit: { mode: 'equally' as const }, lastUpdatedAt: Date.now(), popularity: 1 }];
     render(<Dashboard {...mockDashboardProps} dashboardView="groups" groups={groups} />);
     // Don't have a specific testid for group list, so check for a key part of that view
     expect(screen.getByText('Add New Group')).toBeInTheDocument();

@@ -16,27 +16,32 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout repository
+      - name: Checkout main repository
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Generate package-lock.json
-        run: npm install
+        run: npm install --package-lock-only
 
-      - name: Commit and push package-lock.json
+      - name: Commit and push to package-lock branch
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          
-          if git diff --exit-code package-lock.json; then
-            echo "No changes to package-lock.json. Nothing to commit."
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to package.json or package-lock.json."
           else
-            echo "package-lock.json has been updated. Committing changes..."
-            git add package-lock.json
-            git commit -m "chore: generate package-lock.json [ci skip]"
-            git push
+            echo "Committing updates to the 'package-lock' branch..."
+            git commit -m "chore: generate package-lock.json from main [ci skip]"
+            # Force push the current commit to the 'package-lock' branch
+            git push -f origin HEAD:refs/heads/package-lock
           fi

@@ -121,7 +121,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const value = { subscriptionStatus, subscriptionDetails, isLoading, login, selectFreeTier, logout, startTrial };
 
-  return React.createElement(AuthContext.Provider, { value: value }, children);
+  // FIX: Replaced React.createElement with standard JSX for better readability and to resolve a potential type inference issue in test files.
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {
