@@ -102,9 +102,9 @@ describe('CreateBill', () => {
     await userEvent.click(screen.getByText('Next'));
     
     // Step 3: Add a participant
-    const nameInput = screen.getByPlaceholderText('Participant 2');
     await userEvent.click(screen.getByText(/Add Manually/i));
-    await userEvent.type(screen.getByPlaceholderText('Participant 2'), 'Bob');
+    const nameInput = screen.getByPlaceholderText('Participant 2');
+    await userEvent.type(nameInput, 'Bob');
     await userEvent.click(screen.getByText('Next'));
     
     // Step 4: Final save

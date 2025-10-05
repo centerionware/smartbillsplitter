@@ -3,10 +3,11 @@ import type { Group } from '../../types';
 
 interface GroupCardProps {
   group: Group;
+  onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onEdit: () => void;
 }
 
-const GroupCard: React.FC<GroupCardProps> = ({ group, onEdit }) => {
+const GroupCard: React.FC<GroupCardProps> = ({ group, onClick, onEdit }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +37,10 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, onEdit }) => {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl dark:hover:shadow-teal-900/40 transition-shadow duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1 h-full flex flex-col">
+    <div
+      onClick={onClick}
+      className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl dark:hover:shadow-teal-900/40 transition-shadow duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1 h-full flex flex-col"
+    >
       <div className="p-5 flex-grow">
         <div className="flex justify-between items-start gap-2">
             <div className="flex-grow">

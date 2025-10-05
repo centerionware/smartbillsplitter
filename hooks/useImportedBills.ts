@@ -99,17 +99,16 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX: Use a for...of loop to ensure the `bill` variable is correctly typed from the `billsToMerge` array. This resolves errors where the loop variable was being inferred as 'unknown'.
       for (const bill of billsToMerge) {
-          // By casting `bill` here, we provide TypeScript with the correct type information,
-          // resolving the 'unknown' type inference issue.
+          // FIX: By casting `bill` here, we provide TypeScript with the correct type information,
+          // resolving the 'unknown' type inference issue that can occur in some environments.
           const billToProcess = bill as Omit<ImportedBill, 'status' | 'liveStatus'>;
           const existingBill = existingBillMap.get(billToProcess.id);
 
           if (existingBill) {
-// FIX: Access properties on the correctly-typed `billToProcess` object instead of the `bill` variable of type 'unknown'. This resolves type errors for `lastUpdatedAt` and spread syntax.
+              // FIX: Access properties on the correctly-typed `billToProcess` object instead of the `bill` variable of type 'unknown'. This resolves type errors for `lastUpdatedAt` and spread syntax.
               if ((billToProcess.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
-// FIX: Access properties on the correctly-typed `billToProcess` object instead of the `bill` variable of type 'unknown'. This resolves type errors for `lastUpdatedAt` and spread syntax.
+                  // FIX: Access properties on the correctly-typed `billToProcess` object instead of the `bill` variable of type 'unknown'. This resolves type errors for `lastUpdatedAt` and spread syntax.
                   billsToUpdate.push({ ...existingBill, ...billToProcess, status: existingBill.status, liveStatus: 'live' });
               } else {
                   skippedCount++;

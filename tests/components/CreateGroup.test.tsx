@@ -1,7 +1,5 @@
 import React from 'react';
-// FIX: Changed import for `screen` and `fireEvent`. In some test setups with module resolution issues, these may not be correctly resolved from `@testing-library/react`. Importing directly from `@testing-library/dom` is a workaround.
-import { render } from '@testing-library/react';
-import { screen, fireEvent } from '@testing-library/dom';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CreateGroup from '../../components/CreateGroup';
@@ -45,15 +43,21 @@ describe('CreateGroup', () => {
   it('allows adding and removing participants', async () => {
     render(<CreateGroup onSave={onSaveMock} onUpdate={onUpdateMock} onBack={onBackMock} />);
     
+    // Starts with group name input + 1 participant input = 2
+    expect(screen.getAllByRole('textbox')).toHaveLength(2);
+    
     // Add a participant
     await userEvent.click(screen.getByText(/Add Manually/i));
-    const inputs = screen.getAllByRole('textbox');
-    expect(inputs).toHaveLength(2); // Group name + 2 participants
+    // Now has group name + 2 participant inputs = 3
+    expect(screen.getAllByRole('textbox')).toHaveLength(3);
 
-    // Remove a participant
-    const removeButtons = screen.getAllByRole('button', { name: /remove participant/i });
+    // Remove the first participant
+    const removeButtons = screen.getAllByLabelText(/Remove participant/i);
+    expect(removeButtons).toHaveLength(2);
     await userEvent.click(removeButtons[0]);
-    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+
+    // Back to group name + 1 participant input = 2
+    expect(screen.getAllByRole('textbox')).toHaveLength(2);
   });
 
   it('validates group name is not empty on save', async () => {
