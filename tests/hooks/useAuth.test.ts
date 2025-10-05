@@ -22,7 +22,8 @@ const {
 } = vi.mocked(vi.requireMock('../../services/db'));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
+  // FIX: Replaced JSX with React.createElement to avoid parsing errors in a .ts test file.
+  React.createElement(AuthProvider, null, children)
 );
 
 describe('useAuth hook', () => {

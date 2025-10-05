@@ -36,10 +36,10 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           # Temporarily stage only the files we want in the commit
-          git add package.json package-lock.json
+          git add package-lock.json
           # Check if there are any changes to be committed
           if git diff --staged --quiet; then
-            echo "No changes to package.json or package-lock.json. Nothing to commit."
+            echo "No changes to package-lock.json. Nothing to commit."
             exit 0
           fi
           # Create a tree object from the staged files

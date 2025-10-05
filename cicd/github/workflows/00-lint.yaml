@@ -20,11 +20,11 @@ jobs:
         with:
           ref: ${{ inputs.branch_to_lint }}
 
-      - name: Get lockfile and package.json from package-lock branch
+      - name: Get lockfile from package-lock branch
         run: |
           git fetch origin package-lock --depth=1
-          # Overwrite local package.json and package-lock.json with versions from package-lock
-          git checkout origin/package-lock -- package.json package-lock.json
+          # Overwrite local package-lock.json with version from package-lock branch
+          git checkout origin/package-lock -- package-lock.json
           if [ ! -f "package-lock.json" ]; then
             echo "::error::package-lock.json not found on package-lock branch. The 'Generate package-lock.json' workflow might have failed or not run yet."
             exit 1

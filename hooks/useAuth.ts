@@ -121,8 +121,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const value = { subscriptionStatus, subscriptionDetails, isLoading, login, selectFreeTier, logout, startTrial };
 
-  // FIX: Replaced React.createElement with standard JSX for better readability and to resolve a potential type inference issue in test files.
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // FIX: Reverted to React.createElement to resolve JSX parsing errors in a .ts file. The previous use of JSX was causing build errors because the file extension is .ts, not .tsx.
+  return React.createElement(AuthContext.Provider, { value }, children);
 };
 
 export const useAuth = (): AuthContextType => {

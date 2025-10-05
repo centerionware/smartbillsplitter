@@ -32,7 +32,7 @@ jobs:
       - name: Get lockfile from package-lock branch
         run: |
           git fetch origin package-lock --depth=1
-          git checkout origin/package-lock -- package.json package-lock.json
+          git checkout origin/package-lock -- package-lock.json
           if [ ! -f "package-lock.json" ]; then
             echo "::error::package-lock.json not found on package-lock branch."
             exit 1
