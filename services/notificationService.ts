@@ -1,4 +1,3 @@
-
 import type { RecurringBill } from '../types';
 
 /**

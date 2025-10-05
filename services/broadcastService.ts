@@ -1,7 +1,6 @@
-
 import { useEffect, useRef } from 'react';
-import { getCommunicationKeyPair } from './db.ts';
-import { sign, verify } from './cryptoService.ts';
+import { getCommunicationKeyPair } from './db';
+import { sign, verify } from './cryptoService';
 
 
 const CHANNEL_NAME = 'smart-bill-splitter-sync';

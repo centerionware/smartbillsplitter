@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { RecurringBill, RecurrenceRule } from '../types';
-import { getRecurringBills, addRecurringBill as addDB, updateRecurringBill as updateDB, deleteRecurringBillDB } from '../services/db.ts';
+import { getRecurringBills, addRecurringBill as addDB, updateRecurringBill as updateDB, deleteRecurringBillDB } from '../services/db';
 import { postMessage, useBroadcastListener } from '../services/broadcastService';
 
 /**

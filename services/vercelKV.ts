@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import type { KeyValueStore } from './keyValueStore.ts';
+import type { KeyValueStore } from './keyValueStore';
 
 let vercelKvClient: Redis | null = null;
 

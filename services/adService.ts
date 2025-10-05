@@ -1,4 +1,4 @@
-import { getAdConfig } from './adProviderService.ts';
+import { getAdConfig } from './adProviderService';
 
 const adConfig = getAdConfig();
 

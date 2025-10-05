@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Theme } from '../types';
-import { getTheme, saveTheme } from '../services/db.ts';
+import { getTheme, saveTheme } from '../services/db';
 import { postMessage, useBroadcastListener } from '../services/broadcastService';
 
 export const useTheme = () => {

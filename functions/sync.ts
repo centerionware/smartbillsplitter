@@ -1,5 +1,5 @@
-import { HttpRequest, HttpResponse } from '../http-types.ts';
-import type { KeyValueStore } from '../services/keyValueStore.ts';
+import { HttpRequest, HttpResponse } from '../http-types';
+import type { KeyValueStore } from '../services/keyValueStore';
 
 const EXPIRATION_SECONDS = 5 * 60; // 5 minutes
 

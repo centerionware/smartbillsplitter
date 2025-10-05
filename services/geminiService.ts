@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { getApiUrl, fetchWithRetry } from './api.ts';
-import type { Bill, ImportedBill, Participant, ReceiptItem } from '../types.ts';
+import { getApiUrl, fetchWithRetry } from './api';
+import type { Bill, ImportedBill, Participant, ReceiptItem } from '../types';
 
 // The expected structure of the response from our serverless function.
 interface ScannedReceiptData {

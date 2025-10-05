@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
-import { HttpRequest, HttpHandler, HttpResponse } from './http-types.ts';
+import { HttpRequest, HttpHandler, HttpResponse } from './http-types';
 
 /**
  * Transforms an AWS Lambda Function URL event (APIGatewayProxyEventV2)

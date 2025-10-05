@@ -1,7 +1,7 @@
-import { HttpRequest, HttpResponse } from '../http-types.ts';
+import { HttpRequest, HttpResponse } from '../http-types';
 
-import * as stripe from './stripe.ts';
-import * as paypal from './paypal.ts';
+import * as stripe from './stripe';
+import * as paypal from './paypal';
 
 const getProvider = () => process.env.PAYMENT_PROVIDER === 'stripe' ? 'stripe' : 'paypal';
 

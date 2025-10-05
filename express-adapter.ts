@@ -1,5 +1,5 @@
-// FIX: Changed to a type-only import to resolve type resolution issues.
-import type { Request, Response, RequestHandler } from 'express';
+// FIX: Changed from a type-only import to a value import to ensure correct type resolution for Express Request and Response objects, which are augmented via declaration merging.
+import { Request, Response, RequestHandler } from 'express';
 import { HttpRequest, HttpHandler } from './http-types';
 
 /**

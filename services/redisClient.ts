@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import type { KeyValueStore } from './keyValueStore.ts';
+import type { KeyValueStore } from './keyValueStore';
 
 const redisHost = process.env.REDIS_HOST || '127.0.0.1';
 const redisPort = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379;

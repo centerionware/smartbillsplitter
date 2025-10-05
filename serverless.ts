@@ -1,13 +1,13 @@
-import { HttpRequest, HttpResponse, HttpHandler } from './http-types.ts';
-import { scanReceiptHandler } from './functions/scan-receipt.ts';
-import { parseCsvHandler } from './functions/parse-csv.ts';
-import { matchItemsHandler } from './functions/match-items.ts';
-import { syncHandler } from './functions/sync.ts';
-import { createCheckoutSessionHandler, verifyPaymentHandler, manageSubscriptionHandler, updateCustomerMetadataHandler, cancelSubscriptionHandler, getPayPalSubscriptionDetailsHandler } from './functions/payment.ts';
-import { shareHandler } from './functions/share.ts';
-import { onetimeKeyHandler } from './functions/onetime-key.ts';
-import { MultiCloudKVStore } from './services/multiCloudKV.ts';
-import type { KeyValueStore } from './services/keyValueStore.ts';
+import { HttpRequest, HttpResponse, HttpHandler } from './http-types';
+import { scanReceiptHandler } from './functions/scan-receipt';
+import { parseCsvHandler } from './functions/parse-csv';
+import { matchItemsHandler } from './functions/match-items';
+import { syncHandler } from './functions/sync';
+import { createCheckoutSessionHandler, verifyPaymentHandler, manageSubscriptionHandler, updateCustomerMetadataHandler, cancelSubscriptionHandler, getPayPalSubscriptionDetailsHandler } from './functions/payment';
+import { shareHandler } from './functions/share';
+import { onetimeKeyHandler } from './functions/onetime-key';
+import { MultiCloudKVStore } from './services/multiCloudKV';
+import type { KeyValueStore } from './services/keyValueStore';
 
 export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Promise<HttpResponse> => {
   // --- Centralized CORS Handling ---
@@ -46,7 +46,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
 
       if (process.env.KV_URL) {
         try {
-          const { createVercelKVStore } = await import('./services/vercelKV.ts');
+          const { createVercelKVStore } = await import('./services/vercelKV');
           stores.push(createVercelKVStore());
           console.log('Vercel KV store initialized.');
         } catch (e: any) {
@@ -56,7 +56,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
 
       if (env && env.KV_NAMESPACE) {
         try {
-          const { createCloudflareKVStore } = await import('./services/cloudflareKV.ts');
+          const { createCloudflareKVStore } = await import('./services/cloudflareKV');
           stores.push(createCloudflareKVStore(env.KV_NAMESPACE));
           console.log('Cloudflare KV store initialized.');
         } catch (e: any) {
@@ -66,7 +66,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
 
       if (process.env.AWS_REGION && process.env.DYNAMODB_TABLE_NAME) {
         try {
-          const { createAwsDynamoDBStore } = await import('./services/awsDynamoDB.ts');
+          const { createAwsDynamoDBStore } = await import('./services/awsDynamoDB');
           stores.push(createAwsDynamoDBStore());
           console.log('AWS DynamoDB store initialized.');
         } catch (e: any) {
@@ -76,7 +76,7 @@ export const mainHandler: HttpHandler = async (req: HttpRequest, env?: any): Pro
 
       if (process.env.REDIS_HOST && !process.env.KV_URL) {
          try {
-          const { createRedisKVStore } = await import('./services/redisClient.ts');
+          const { createRedisKVStore } = await import('./services/redisClient');
           stores.push(createRedisKVStore());
           console.log('Redis KV store initialized for local development.');
         } catch (e: any) {

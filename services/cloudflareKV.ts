@@ -1,4 +1,4 @@
-import type { KeyValueStore } from './keyValueStore.ts';
+import type { KeyValueStore } from './keyValueStore';
 
 // Cloudflare's KVNamespace is provided by the runtime environment.
 // We declare its type here for TypeScript.

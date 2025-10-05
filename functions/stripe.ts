@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { HttpRequest, HttpResponse } from '../http-types.ts';
+import { HttpRequest, HttpResponse } from '../http-types';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_PRICE_ID_MONTHLY = process.env.STRIPE_PRICE_ID_MONTHLY;

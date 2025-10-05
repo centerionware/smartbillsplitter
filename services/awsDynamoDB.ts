@@ -1,5 +1,5 @@
 import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
-import type { KeyValueStore } from './keyValueStore.ts';
+import type { KeyValueStore } from './keyValueStore';
 
 const region = process.env.AWS_REGION;
 const tableName = process.env.DYNAMODB_TABLE_NAME;

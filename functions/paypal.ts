@@ -1,4 +1,4 @@
-import { HttpRequest, HttpResponse } from '../http-types.ts';
+import { HttpRequest, HttpResponse } from '../http-types';
 import type { PayPalSubscriptionDetails } from '../types';
 
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;

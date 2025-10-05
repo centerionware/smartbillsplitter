@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ImportedBill } from '../types.ts';
+import type { ImportedBill } from '../types';
 import { 
     getImportedBills, 
     addImportedBill as addDB, 

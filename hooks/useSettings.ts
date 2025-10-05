@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Settings } from '../types';
-import { getSettings, saveSettings, getCommunicationKeyPair, saveCommunicationKeyPair } from '../services/db.ts';
-import { generateSigningKeyPair } from '../services/cryptoService.ts';
+import { getSettings, saveSettings, getCommunicationKeyPair, saveCommunicationKeyPair } from '../services/db';
+import { generateSigningKeyPair } from '../services/cryptoService';
 import { postMessage, useBroadcastListener } from '../services/broadcastService';
 
 const initialSettings: Settings = {

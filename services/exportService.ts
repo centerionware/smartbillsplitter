@@ -1,6 +1,6 @@
-import type { Bill, ImportedBill } from '../types.ts';
-import { getBillSigningKey } from './db.ts';
-import * as cryptoService from './cryptoService.ts';
+import type { Bill, ImportedBill } from '../types';
+import { getBillSigningKey } from './db';
+import * as cryptoService from './cryptoService';
 
 // New header to identify our own CSV format
 export const EXPORT_HEADER_V2 = '# SharedBills CSV Export v2';

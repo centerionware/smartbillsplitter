@@ -14,6 +14,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "allowImportingTsExtensions": false,
     "types": ["vitest/globals", "node"]
   },
   "include": [

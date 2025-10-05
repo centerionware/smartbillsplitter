@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useAppLogic } from './hooks/useAppLogic.ts';
-import { View } from './types.ts';
-import { getDiscoveredApiBaseUrl } from './services/api.ts';
+import { useAppLogic } from './hooks/useAppLogic';
+import { View } from './types';
+import { getDiscoveredApiBaseUrl } from './services/api';
 
 // Components
-import Header from './components/Header.tsx';
-import { AppRouter } from './components/routing/AppRouter.tsx';
-import { AppModals } from './components/modals/AppModals.tsx';
-import PwaInstallBanner from './components/PwaInstallBanner.tsx';
-import DebugConsole from './components/DebugConsole.tsx';
-import TutorialManager from './components/TutorialManager.tsx';
+import Header from './components/Header';
+import { AppRouter } from './components/routing/AppRouter';
+import { AppModals } from './components/modals/AppModals';
+import PwaInstallBanner from './components/PwaInstallBanner';
+import DebugConsole from './components/DebugConsole';
+import TutorialManager from './components/TutorialManager';
 
 const App: React.FC = () => {
     const appLogic = useAppLogic();

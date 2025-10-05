@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { HttpRequest, HttpResponse } from '../http-types.ts';
+import { HttpRequest, HttpResponse } from '../http-types';
 
 // --- Schemas for Gemini API ---
 const billSchema = {

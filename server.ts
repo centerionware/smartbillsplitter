@@ -1,6 +1,6 @@
 import express from 'express';
-import { createExpressAdapter } from './express-adapter.ts';
-import { mainHandler } from './serverless.ts';
+import { createExpressAdapter } from './express-adapter';
+import { mainHandler } from './serverless';
 
 // This is the entrypoint for the Express.js server when running locally
 // or in a traditional Node.js container environment.

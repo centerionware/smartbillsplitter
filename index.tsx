@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
-import AppGate from './AppGate.tsx';
-import { AuthProvider } from './hooks/useAuth.ts';
-import { AppControlContext } from './contexts/AppControlContext.tsx';
-import { initDB, closeDB } from './services/db.ts';
-import { useBroadcastListener, BroadcastMessage } from './services/broadcastService.ts';
-import { ErrorBoundary } from './components/ErrorBoundary.tsx';
-import { initializeApi } from './services/api.ts';
+import AppGate from './AppGate';
+import { AuthProvider } from './hooks/useAuth';
+import { AppControlContext } from './contexts/AppControlContext';
+import { initDB, closeDB } from './services/db';
+import { useBroadcastListener, BroadcastMessage } from './services/broadcastService';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { initializeApi } from './services/api';
 
 const DB_NAME = 'SmartBillSplitterDB'; // Must match db.ts for the hard reset
 
@@ -217,7 +217,9 @@ try {
                      <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M4 18v-5h5m10-4h5v5h-5M14 18h5v-5h-5" />
                      </svg>
+{/* FIX: Replaced `class` with `className` because `class` is a reserved keyword in JavaScript and JSX uses `className` for CSS classes. */}
                     <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-4">{title}</h1>
+{/* FIX: Replaced `class` with `className` because `class` is a reserved keyword in JavaScript and JSX uses `className` for CSS classes. */}
                     <p className="text-slate-500 dark:text-slate-400 mt-2 mb-6">{message}</p>
                     {showSpinner && <div className="flex justify-center items-center">
                         <svg className="animate-spin h-6 w-6 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

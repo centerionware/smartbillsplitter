@@ -1,11 +1,9 @@
-
-
 import React, { useEffect, useState } from 'react';
-import { useAuth } from './hooks/useAuth.ts';
-import App from './App.tsx';
-import Paywall from './components/Paywall.tsx';
-import PrivacyConsent from './components/PrivacyConsent.tsx';
-import { getApiUrl, fetchWithRetry } from './services/api.ts';
+import { useAuth } from './hooks/useAuth';
+import App from './App';
+import Paywall from './components/Paywall';
+import PrivacyConsent from './components/PrivacyConsent';
+import { getApiUrl, fetchWithRetry } from './services/api';
 
 const AppGate: React.FC = () => {
   const { subscriptionStatus, login, selectFreeTier, isLoading: isAuthLoading, startTrial } = useAuth();
