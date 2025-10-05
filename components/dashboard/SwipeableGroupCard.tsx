@@ -74,18 +74,20 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
     const dragDuration = Date.now() - dragStartTime.current;
     const dragDistance = Math.abs(translateX - dragInitialTranslateX.current);
     
+    // Treat as a click if the drag was short and quick
     if (dragDuration < 250 && dragDistance < 10) {
       if (translateX !== 0) {
         setTranslateX(0); // Close actions on tap
       } else {
         if (e) {
           if (e.type === 'touchend') e.preventDefault();
-          onClick(e as React.MouseEvent);
+          onClick(e);
         }
       }
       return;
     }
     
+    // Snap to the open or closed position
     if (translateX < maxTranslateX / 2) {
       setTranslateX(maxTranslateX);
     } else {
@@ -118,9 +120,7 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
         onMouseUp={e => handleDragEnd(e)} 
         onMouseLeave={() => isDragging.current && handleDragEnd()}
       >
-        <div onClick={onClick}>
-          <GroupCard group={group} onEdit={onEdit} />
-        </div>
+        <GroupCard group={group} onEdit={onEdit} onClick={onClick} />
       </div>
     </div>
   );

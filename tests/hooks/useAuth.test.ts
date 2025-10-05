@@ -15,7 +15,7 @@ describe('useAuth hook', () => {
     // FIX: Reset mocks before each test to prevent state leakage between tests.
     vi.clearAllMocks();
     vi.mocked(getSubscriptionStatus).mockResolvedValue(null);
-    vi.mocked(getSubscriptionDetails).mockResolvedValue(null);
+    vi.mocked(getSubscriptionDetails).mockResolvedValue(undefined);
   });
 
   it('should start with isLoading true and status null', async () => {
