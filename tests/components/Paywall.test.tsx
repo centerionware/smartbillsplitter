@@ -1,22 +1,39 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+// FIX: Changed import for `screen`. In some test setups with module resolution issues, `screen` may not be correctly resolved from `@testing-library/react`. Importing it directly from `@testing-library/dom` is a workaround.
+import { render, act } from '@testing-library/react';
+import { screen } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Paywall from '../../components/Paywall';
+import { fetchWithRetry } from '../../services/api';
 
 // Mock the API service
 vi.mock('../../services/api.ts', () => ({
   getApiUrl: vi.fn().mockResolvedValue('http://localhost/api'),
   fetchWithRetry: vi.fn(),
 }));
-const fetchWithRetry = vi.mocked(vi.requireMock('../../services/api.ts').fetchWithRetry);
 
 describe('Paywall', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Stub the environment variable
-    vi.stubEnv('VITE_PAYMENT_PROVIDER', 'paypal');
-  });
+    const originalLocation = window.location;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.stubEnv('VITE_PAYMENT_PROVIDER', 'paypal');
+        // Mock window.location.href setter
+        Object.defineProperty(window, 'location', {
+            writable: true,
+            value: { ...originalLocation, href: '' },
+        });
+    });
+
+    afterEach(() => {
+        // Restore window.location
+        Object.defineProperty(window, 'location', {
+            writable: true,
+            value: originalLocation,
+        });
+        vi.useRealTimers();
+    });
   
   it('renders the title and subscription options', () => {
     render(<Paywall onSelectFreeTier={vi.fn()} />);
@@ -44,22 +61,22 @@ describe('Paywall', () => {
 
   it('attempts to create a checkout session when a plan is selected', async () => {
     // Mock a successful response from the checkout endpoint
-    fetchWithRetry.mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://paypal.com/checkout' }), {
+    vi.mocked(fetchWithRetry).mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://paypal.com/checkout' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
     }));
-    
-    // Mock window.location.href
-    const originalLocation = window.location;
-    // @ts-ignore
-    delete window.location;
-    window.location = { ...originalLocation, href: '' };
 
     render(<Paywall onSelectFreeTier={vi.fn()} />);
 
     // Click through the warning modal first
     const monthlyPlan = screen.getByText(/Monthly Plan/i);
     await userEvent.click(monthlyPlan);
+    
+    // Fast-forward timers to enable the continue button
+    vi.useFakeTimers();
+    await act(async () => {
+        vi.advanceTimersByTime(7000);
+    });
     
     // Now click the continue button in the modal
     const continueButton = await screen.findByRole('button', { name: /Continue to Checkout/i });
@@ -72,8 +89,5 @@ describe('Paywall', () => {
     
     // We expect the page to be redirected
     expect(window.location.href).toBe('https://paypal.com/checkout');
-
-    // Restore original window.location
-    window.location = originalLocation;
   });
 });

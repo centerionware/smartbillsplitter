@@ -3,6 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useBills } from '../../hooks/useBills';
 import type { Bill } from '../../types';
 
+// FIX: Added direct imports for mocked functions. `vi.mock` hoists and replaces these modules, so the imports will refer to the mocks.
+import { getBills, addBill, updateBill, deleteBillDB, addMultipleBillsDB } from '../../services/db';
+import { postMessage } from '../../services/broadcastService';
+
 // Mock dependencies
 vi.mock('../../services/db', () => ({
   getBills: vi.fn(),
@@ -16,9 +20,6 @@ vi.mock('../../services/broadcastService', () => ({
   useBroadcastListener: vi.fn(),
 }));
 
-const { getBills, addBill, updateBill, deleteBillDB, addMultipleBillsDB } = vi.mocked(vi.requireMock('../../services/db'));
-const { postMessage } = vi.mocked(vi.requireMock('../../services/broadcastService'));
-
 const mockBills: Bill[] = [
   { id: '1', description: 'Groceries', totalAmount: 100, date: new Date().toISOString(), participants: [], status: 'active' },
   { id: '2', description: 'Dinner', totalAmount: 50, date: new Date().toISOString(), participants: [], status: 'active' },
@@ -30,7 +31,7 @@ describe('useBills hook', () => {
   });
 
   it('should load bills on initial render', async () => {
-    getBills.mockResolvedValue([...mockBills]);
+    vi.mocked(getBills).mockResolvedValue([...mockBills]);
     const { result } = renderHook(() => useBills());
 
     expect(result.current.isLoading).toBe(true);
@@ -43,7 +44,7 @@ describe('useBills hook', () => {
   });
 
   it('should create default bills on first launch if DB is empty', async () => {
-    getBills.mockResolvedValue([]);
+    vi.mocked(getBills).mockResolvedValue([]);
     localStorage.removeItem('sharedbills.defaultDataLoaded');
     
     const { result } = renderHook(() => useBills());
@@ -56,13 +57,13 @@ describe('useBills hook', () => {
   });
 
   it('should add a new bill', async () => {
-    getBills.mockResolvedValue([...mockBills]);
+    vi.mocked(getBills).mockResolvedValue([...mockBills]);
     const { result } = renderHook(() => useBills());
     await act(async () => {}); // Initial load
 
     const newBillData = { description: 'Movies', totalAmount: 30, date: new Date().toISOString(), participants: [] };
     
-    getBills.mockResolvedValue([...mockBills, { ...newBillData, id: '3', status: 'active' }]);
+    vi.mocked(getBills).mockResolvedValue([...mockBills, { ...newBillData, id: '3', status: 'active' }]);
 
     await act(async () => {
       await result.current.addBill(newBillData);
@@ -74,7 +75,7 @@ describe('useBills hook', () => {
   });
 
   it('should update an existing bill', async () => {
-    getBills.mockResolvedValue([...mockBills]);
+    vi.mocked(getBills).mockResolvedValue([...mockBills]);
     const { result } = renderHook(() => useBills());
     await act(async () => {});
 
@@ -89,11 +90,11 @@ describe('useBills hook', () => {
   });
 
   it('should delete a bill', async () => {
-    getBills.mockResolvedValue([...mockBills]);
+    vi.mocked(getBills).mockResolvedValue([...mockBills]);
     const { result } = renderHook(() => useBills());
     await act(async () => {});
     
-    getBills.mockResolvedValue([mockBills[1]]);
+    vi.mocked(getBills).mockResolvedValue([mockBills[1]]);
 
     await act(async () => {
       await result.current.deleteBill('1');

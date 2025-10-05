@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAuth, AuthProvider } from '../../hooks/useAuth';
-import { SubscriptionDetails } from '../../services/db';
+import { getSubscriptionStatus, getSubscriptionDetails, saveSubscriptionStatus, saveSubscriptionDetails, deleteSubscriptionDetails, SubscriptionDetails } from '../../services/db.ts';
 
 // Mock the db service
 vi.mock('../../services/db', () => ({
@@ -13,16 +13,8 @@ vi.mock('../../services/db', () => ({
   deleteSubscriptionDetails: vi.fn(),
 }));
 
-const {
-  getSubscriptionStatus,
-  getSubscriptionDetails,
-  saveSubscriptionStatus,
-  saveSubscriptionDetails,
-  deleteSubscriptionDetails,
-} = vi.mocked(vi.requireMock('../../services/db'));
-
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  // FIX: Replaced JSX with React.createElement to avoid parsing errors in a .ts test file.
+  // FIX: The AuthProvider component does not accept a `value` prop; it creates its own value internally. The wrapper should simply render AuthProvider with children.
   React.createElement(AuthProvider, null, children)
 );
 
@@ -32,14 +24,14 @@ describe('useAuth hook', () => {
   });
 
   it('should start with isLoading true and status null', () => {
-    getSubscriptionStatus.mockResolvedValue(null);
+    vi.mocked(getSubscriptionStatus).mockResolvedValue(null);
     const { result } = renderHook(() => useAuth(), { wrapper });
     expect(result.current.isLoading).toBe(true);
     expect(result.current.subscriptionStatus).toBe(null);
   });
 
   it('should load free status from db', async () => {
-    getSubscriptionStatus.mockResolvedValue('free');
+    vi.mocked(getSubscriptionStatus).mockResolvedValue('free');
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     await act(async () => {}); // Let promises resolve
@@ -57,8 +49,8 @@ describe('useAuth hook', () => {
       startDate: new Date().toISOString(),
       duration: 'monthly',
     };
-    getSubscriptionStatus.mockResolvedValue('subscribed');
-    getSubscriptionDetails.mockResolvedValue(mockDetails);
+    vi.mocked(getSubscriptionStatus).mockResolvedValue('subscribed');
+    vi.mocked(getSubscriptionDetails).mockResolvedValue(mockDetails);
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -102,7 +94,7 @@ describe('useAuth hook', () => {
   });
 
   it('should logout and clear status and details', async () => {
-    getSubscriptionStatus.mockResolvedValue('subscribed');
+    vi.mocked(getSubscriptionStatus).mockResolvedValue('subscribed');
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     await act(async () => {}); // initial load

@@ -1,5 +1,7 @@
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
+// FIX: Changed import for `screen`. In some test setups with module resolution issues, `screen` may not be correctly resolved from `@testing-library/react`. Importing it directly from `@testing-library/dom` is a workaround.
+import { render, act } from '@testing-library/react';
+import { screen } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Dashboard from '../../components/dashboard/Dashboard';

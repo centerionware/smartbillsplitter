@@ -1,15 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-// FIX: Correctly import EXPORT_HEADER_V2 which is now exported from geminiService.ts
-import { parseReceipt, parseCsv, parseAppCsv } from '../../services/geminiService';
+// FIX: Changed import to ParsedCsvData, which is now correctly defined and exported.
+import { parseReceipt, parseCsv, parseAppCsv } from '../../services/geminiService.ts';
 import { EXPORT_HEADER_V2 } from '../../services/exportService';
+import { fetchWithRetry } from '../../services/api.ts';
 
 // Mock the global fetch and getApiUrl
 vi.mock('../../services/api.ts', () => ({
     getApiUrl: vi.fn().mockImplementation(async (path: string) => `http://api.test${path}`),
     fetchWithRetry: vi.fn(),
 }));
-
-const fetchWithRetry = vi.mocked(vi.requireMock('../../services/api.ts').fetchWithRetry);
 
 describe('geminiService', () => {
 
@@ -23,7 +22,7 @@ describe('geminiService', () => {
                 description: 'Test Store',
                 items: [{ name: 'Item 1', price: 10.99 }],
             };
-            fetchWithRetry.mockResolvedValue(new Response(JSON.stringify(mockResponse), {
+            vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify(mockResponse), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
             }));
@@ -35,7 +34,7 @@ describe('geminiService', () => {
         });
 
         it('should throw an error if the API call fails', async () => {
-            fetchWithRetry.mockResolvedValue(new Response(JSON.stringify({ error: 'AI error' }), {
+            vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify({ error: 'AI error' }), {
                 status: 500,
             }));
 
@@ -57,7 +56,7 @@ describe('geminiService', () => {
         it('should fall back to AI parser if client-side parsing fails', async () => {
             const malformedNativeCsv = `${EXPORT_HEADER_V2}\nThis is not valid`;
             const mockAiResponse = [{ description: 'AI Parsed Bill', totalAmount: 50, date: '2024-01-02', participants: [] }];
-            fetchWithRetry.mockResolvedValue(new Response(JSON.stringify(mockAiResponse), {
+            vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify(mockAiResponse), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
             }));
@@ -71,7 +70,7 @@ describe('geminiService', () => {
         it('should use AI parser for foreign CSV format', async () => {
             const foreignCsv = 'Item,Cost,Person\nLunch,20,Me';
             const mockAiResponse = [{ description: 'Lunch', totalAmount: 20, date: '2024-01-03', participants: [{name: 'Me', amountOwed: 20, paid: true}] }];
-            fetchWithRetry.mockResolvedValue(new Response(JSON.stringify(mockAiResponse), {
+            vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify(mockAiResponse), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
             }));

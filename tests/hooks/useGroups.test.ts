@@ -3,6 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useGroups } from '../../hooks/useGroups';
 import type { Group } from '../../types';
 
+// FIX: Added direct imports for mocked functions. `vi.mock` hoists and replaces these modules, so the imports will refer to the mocks.
+import { getGroups, addGroup, updateGroup, deleteGroupDB } from '../../services/db';
+import { postMessage } from '../../services/broadcastService';
+
 // Mock dependencies
 vi.mock('../../services/db', () => ({
   getGroups: vi.fn(),
@@ -15,9 +19,6 @@ vi.mock('../../services/broadcastService', () => ({
   useBroadcastListener: vi.fn(),
 }));
 
-const { getGroups, addGroup, updateGroup, deleteGroupDB } = vi.mocked(vi.requireMock('../../services/db'));
-const { postMessage } = vi.mocked(vi.requireMock('../../services/broadcastService'));
-
 const mockGroups: Group[] = [
   { id: 'g1', name: 'Roomies', participants: [], defaultSplit: { mode: 'equally' }, lastUpdatedAt: Date.now(), popularity: 10 },
   { id: 'g2', name: 'Work Lunch', participants: [], defaultSplit: { mode: 'equally' }, lastUpdatedAt: Date.now(), popularity: 5 },
@@ -29,7 +30,7 @@ describe('useGroups hook', () => {
   });
 
   it('should load groups on initial render', async () => {
-    getGroups.mockResolvedValue([...mockGroups]);
+    vi.mocked(getGroups).mockResolvedValue([...mockGroups]);
     const { result } = renderHook(() => useGroups());
     
     expect(result.current.isLoading).toBe(true);
@@ -41,12 +42,12 @@ describe('useGroups hook', () => {
   });
 
   it('should add a new group', async () => {
-    getGroups.mockResolvedValue([]);
+    vi.mocked(getGroups).mockResolvedValue([]);
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
 
     const newGroupData = { name: 'Trip Friends', participants: [], defaultSplit: { mode: 'item' as const }, popularity: 0 };
-    getGroups.mockResolvedValueOnce([{...newGroupData, id: 'g3', lastUpdatedAt: Date.now()}]);
+    vi.mocked(getGroups).mockResolvedValueOnce([{...newGroupData, id: 'g3', lastUpdatedAt: Date.now()}]);
 
     await act(async () => {
       await result.current.addGroup(newGroupData);
@@ -59,7 +60,7 @@ describe('useGroups hook', () => {
   });
 
   it('should update an existing group', async () => {
-    getGroups.mockResolvedValue([...mockGroups]);
+    vi.mocked(getGroups).mockResolvedValue([...mockGroups]);
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
 
@@ -74,11 +75,11 @@ describe('useGroups hook', () => {
   });
 
   it('should delete a group', async () => {
-    getGroups.mockResolvedValue([...mockGroups]);
+    vi.mocked(getGroups).mockResolvedValue([...mockGroups]);
     const { result } = renderHook(() => useGroups());
     await act(async () => {});
 
-    getGroups.mockResolvedValueOnce([mockGroups[1]]);
+    vi.mocked(getGroups).mockResolvedValueOnce([mockGroups[1]]);
 
     await act(async () => {
       await result.current.deleteGroup('g1');

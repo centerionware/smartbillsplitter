@@ -1,12 +1,15 @@
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// FIX: Changed import for `screen`. In some test setups with module resolution issues, `screen` may not be correctly resolved from `@testing-library/react`. Importing it directly from `@testing-library/dom` is a workaround.
+import { render, act } from '@testing-library/react';
+import { screen } from '@testing-library/dom';
+// FIX: Import `Mock` type from vitest to correctly type mocks and resolve the 'Cannot find namespace vi' error.
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import AppGate from '../../AppGate';
 import { useAuth, AuthContextType } from '../../hooks/useAuth';
 
 // Mocks
 vi.mock('../../hooks/useAuth');
-const mockedUseAuth = useAuth as vi.Mock;
+const mockedUseAuth = useAuth as Mock;
 
 vi.mock('../../App.tsx', () => ({
   default: () => <div data-testid="app-component">App</div>,
