@@ -1,6 +1,5 @@
-
 import React from 'react';
-import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView, SettingsSection, Group } from '../../types';
+import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView, SettingsSection, Group, RequestConfirmationFn } from '../../types';
 import { View } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
 import type { ParticipantData } from '../ParticipantList';
@@ -43,7 +42,7 @@ type AppLogicProps = {
     navigate: (view: View, params?: any) => void;
     setSettingsSection: (section: SettingsSection) => void;
     updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
-    requestConfirmation: any;
+    requestConfirmation: RequestConfirmationFn;
     // Dashboard State
     dashboardView: DashboardView;
     selectedParticipant: string | null;
