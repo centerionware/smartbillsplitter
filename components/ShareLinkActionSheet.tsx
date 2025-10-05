@@ -32,9 +32,7 @@ export const ShareLinkActionSheet: React.FC<ShareLinkActionSheetProps> = ({ part
     const message = `Here is your unique link for our bill "${billDescription}": ${url}`;
 
     const handleShareSystem = async () => {
-        if (navigator.share) {
-            await navigator.share({ title: `Bill: ${billDescription}`, text: message });
-        }
+        await navigator.share({ title: `Bill: ${billDescription}`, text: message });
         onClose();
     };
     

@@ -82,7 +82,7 @@ describe('notificationService', () => {
       expect.objectContaining({
         body: expect.stringContaining('Rent'),
         tag: 'bill-reminder-rb-1',
-        showTrigger: expect.any(globalThis.TimestampTrigger),
+        showTrigger: expect.any((globalThis as any).TimestampTrigger),
       })
     );
     expect(mockServiceWorker.controller.postMessage).not.toHaveBeenCalled();

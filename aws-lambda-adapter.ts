@@ -41,7 +41,7 @@ function toHttpRequest(event: APIGatewayProxyEventV2): HttpRequest {
     method: (event.requestContext.http.method || 'GET').toUpperCase() as HttpRequest['method'],
     path: event.rawPath || '/',
     headers: headers,
-    params: event.pathParameters || {}, // For potential future use if routing changes
+    params: (event.pathParameters as Record<string, string>) || {}, // For potential future use if routing changes
     query: query,
     body: body,
   };

@@ -108,7 +108,7 @@ const AppGate: React.FC = () => {
 
   // If status is null, user hasn't made a choice or subscription expired. Show paywall.
   if (!subscriptionStatus) {
-    return <Paywall onSelectFreeTier={selectFreeTier} initialError={verificationError} />;
+    return <Paywall onSelectFreeTier={selectFreeTier} initialError={verificationError ?? undefined} />;
   }
 
   // If status is 'subscribed' or 'free', show the app.

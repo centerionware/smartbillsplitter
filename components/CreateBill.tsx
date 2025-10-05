@@ -157,9 +157,12 @@ const CreateBill: React.FC<CreateBillProps> = ({
         return acc;
     }, {} as Record<string, string>);
     if (isRecurring) {
-        const data = { description, totalAmount, participants: finalParticipants, items, receiptImage, additionalInfo: additionalInfoRecord, splitMode, recurrenceRule, groupId: selectedGroupId || undefined };
-        if (isEditingTemplate && recurringBillToEdit) onUpdateRecurringBill({ ...recurringBillToEdit, ...data });
-        else onSaveRecurringBill(data);
+        const recurringData = { description, totalAmount: totalAmount || 0, participants: finalParticipants, items, receiptImage, additionalInfo: additionalInfoRecord, splitMode, recurrenceRule, groupId: selectedGroupId || undefined };
+        if (isEditingTemplate && recurringBillToEdit) {
+            onUpdateRecurringBill({ ...recurringBillToEdit, ...recurringData });
+        } else {
+            onSaveRecurringBill(recurringData);
+        }
     } else {
         const data = { description, totalAmount: totalAmount || 0, date, participants: finalParticipants, items, receiptImage, additionalInfo: additionalInfoRecord, groupId: selectedGroupId || undefined };
         onSaveBill(data, fromTemplate?.id);

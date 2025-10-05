@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Dashboard from '../../components/dashboard/Dashboard';
 import { View } from '../../types';
-import type { Bill, ImportedBill, Settings } from '../../types';
+import type { Bill, ImportedBill, RecurringBill, Settings } from '../../types';
 
 // Mock child components to isolate Dashboard logic
 vi.mock('../../components/dashboard/DashboardSummary', () => ({ default: () => <div data-testid="summary" /> }));
@@ -21,7 +21,7 @@ const mockBills: Bill[] = [
 ];
 
 const mockImportedBills: ImportedBill[] = [];
-const mockRecurringBills = [];
+const mockRecurringBills: RecurringBill[] = [];
 const mockSettings: Settings = { myDisplayName: 'Me' } as Settings;
 
 const mockDashboardProps = {
