@@ -60,6 +60,7 @@ describe('Paywall', () => {
 
   it('attempts to create a checkout session when a plan is selected', async () => {
     vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
     vi.mocked(fetchWithRetry).mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://paypal.com/checkout' }), {
         status: 200,
@@ -70,34 +71,36 @@ describe('Paywall', () => {
 
     // Click to open the warning modal
     const monthlyPlan = screen.getByText(/Monthly Plan/i);
-    await userEvent.click(monthlyPlan);
+    await user.click(monthlyPlan);
     
     // The modal is now open. Find the button, which is initially disabled.
     const continueButton = await screen.findByRole('button', { name: /Please Read.../i });
     expect(continueButton).toBeDisabled();
 
-    // Fast-forward all timers synchronously inside act
-    act(() => {
-      vi.runAllTimers();
+    // Asynchronously run all timers to complete the countdown
+    // This will trigger the state updates in the modal
+    await act(async () => {
+      await vi.runAllTimersAsync();
     });
     
-    // Explicitly wait for the DOM to update after the timers have run
-    await waitFor(() => {
-        expect(continueButton).not.toBeDisabled();
-    });
-    
-    // Verify the button text has updated as expected
+    // Assert the button is now enabled and has the correct text
+    expect(continueButton).not.toBeDisabled();
     expect(continueButton).toHaveTextContent(/Continue to Checkout/i);
     
     // Now click the enabled button to proceed
-    await userEvent.click(continueButton);
+    await user.click(continueButton);
 
-    expect(fetchWithRetry).toHaveBeenCalledWith('http://localhost/api/create-checkout-session', expect.objectContaining({
-      method: 'POST',
-      body: expect.stringContaining('"plan":"monthly"'),
-    }));
+    // Wait for the async checkout process to complete and assert fetch was called
+    await waitFor(() => {
+      expect(fetchWithRetry).toHaveBeenCalledWith('http://localhost/api/create-checkout-session', expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"plan":"monthly"'),
+      }));
+    });
     
-    // We expect the page to have been redirected
-    expect(window.location.href).toBe('https://paypal.com/checkout');
+    // Assert the page was redirected
+    await waitFor(() => {
+      expect(window.location.href).toBe('https://paypal.com/checkout');
+    });
   });
 });
