@@ -8,6 +8,7 @@ import Dashboard from '../../components/dashboard/Dashboard';
 import { View } from '../../types';
 import type { Bill, ImportedBill, RecurringBill, Settings } from '../../types';
 import type { ParticipantData } from '../../components/ParticipantList';
+import type { BudgetData } from '../../components/dashboard/BudgetView';
 
 // Mock child components to isolate Dashboard logic
 vi.mock('../../components/dashboard/DashboardSummary', () => ({ default: () => <div data-testid="summary" /> }));
@@ -61,6 +62,12 @@ const mockDashboardProps = {
   onSetDashboardSummaryFilter: vi.fn(),
   onSelectParticipant: vi.fn(),
   onClearParticipant: vi.fn(),
+
+  // Budget props
+  budgetData: { totalBudget: 0, totalSpending: 0, spendingByCategory: {}, hasBudgetData: false } as BudgetData,
+  budgetDate: 'last30days' as const,
+  setBudgetDate: vi.fn(),
+  handleSelectBillFromBudget: vi.fn(),
 };
 
 // Mock AppControl context

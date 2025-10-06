@@ -35,7 +35,7 @@ const BudgetingSettings: React.FC<BudgetingSettingsProps> = ({ settings, onSetti
                 <label htmlFor="totalBudget" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Total Monthly Budget (Optional)</label>
                 <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">$</span>
-                    <input id="totalBudget" name="totalBudget" type="number" step="0.01" value={settings.totalBudget === undefined ? '' : settings.totalBudget} onChange={e => onSettingsChange({ totalBudget: e.target.value === '' ? undefined : parseFloat(e.target.value) })} placeholder="e.g., 2000" className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
+                    <input id="totalBudget" name="totalBudget" type="number" step="0.01" value={settings.totalBudget ?? ''} onChange={e => onSettingsChange({ totalBudget: e.target.value === '' ? undefined : parseFloat(e.target.value) })} placeholder="e.g., 2000" className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100" />
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Set an overall budget. If left empty, your total budget will be the sum of individual category budgets.
