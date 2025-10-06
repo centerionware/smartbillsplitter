@@ -14,7 +14,7 @@ vi.mock('../../hooks/useSettings');
 vi.mock('../../contexts/AppControlContext', () => ({
   useAppControl: vi.fn(),
 }));
-vi.mock('../../hooks/useImportedBills', () => ({ useImportedBills: () => ({ importedBills: [], isLoading: false }) }));
+vi.mock('../../hooks/useImportedBills', () => ({ useImportedBills: () => ({ importedBills: [], isLoading: false, updateMultipleImportedBills: vi.fn() }) }));
 vi.mock('../../hooks/useRecurringBills', () => ({ useRecurringBills: () => ({ recurringBills: [], isLoading: false }) }));
 vi.mock('../../hooks/useGroups', () => ({ useGroups: () => ({ groups: [], isLoading: false }) }));
 vi.mock('../../hooks/useTheme', () => ({ useTheme: () => ({ theme: 'light', setTheme: vi.fn() }) }));
@@ -68,6 +68,10 @@ describe('useAppLogic hook - Share Sync Regression Test', () => {
     mockOriginalUpdateBill.mockImplementation(async (bill: Bill) => ({ ...bill, lastUpdatedAt: Date.now() }));
     mockUpdateMultipleBills.mockImplementation(async (bills: Bill[]) => bills.map(b => ({ ...b, lastUpdatedAt: Date.now() })));
 
+    // Mock functions called in useEffect to prevent them from running during the test
+    mockedShareService.pollImportedBills.mockResolvedValue([]);
+    mockedShareService.pollOwnedSharedBills.mockResolvedValue([]);
+
     mockedUseSettings.mockReturnValue({
       settings: mockSettings,
       updateSettings: vi.fn().mockResolvedValue(undefined),
@@ -82,7 +86,6 @@ describe('useAppLogic hook - Share Sync Regression Test', () => {
     mockedApi.getApiUrl.mockImplementation(async (path: string) => `http://api.test${path}`);
     mockedApi.fetchWithRetry.mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
     
-    // Set up the return value for the useBills mock for every test
     mockedUseBills.mockReturnValue({
       bills: [mockSharedBill],
       updateBill: mockOriginalUpdateBill,
@@ -107,30 +110,27 @@ describe('useAppLogic hook - Share Sync Regression Test', () => {
     };
     
     await act(async () => {
+      // The refactored updateBill now returns a promise that waits for the whole process
       await result.current.updateBill(updatedBillForAction);
     });
 
     // 3. ASSERTIONS
-    await waitFor(() => {
-      expect(mockOriginalUpdateBill).toHaveBeenCalledWith(updatedBillForAction);
-    });
+    // Check that the local DB update was called first
+    expect(mockOriginalUpdateBill).toHaveBeenCalledWith(updatedBillForAction);
 
-    await waitFor(() => {
-      expect(mockedApi.fetchWithRetry).toHaveBeenCalledWith(
-        'http://api.test/share/a-real-share-id',
-        expect.objectContaining({ method: 'GET' })
-      );
-    });
+    // Check that the pre-flight GET request to check the share status was made
+    expect(mockedApi.fetchWithRetry).toHaveBeenCalledWith(
+      'http://api.test/share/a-real-share-id',
+      expect.objectContaining({ method: 'GET' })
+    );
     
-    await waitFor(() => {
-      expect(mockedShareService.syncSharedBillUpdate).toHaveBeenCalledTimes(1);
-      
-      const callArgs = mockedShareService.syncSharedBillUpdate.mock.calls[0];
-      const billPassedToSync = callArgs[0] as Bill;
-      
-      expect(billPassedToSync.id).toBe('shared-bill-1');
-      expect(billPassedToSync.shareInfo?.shareId).toBe('a-real-share-id');
-      expect(billPassedToSync.participants[0].paid).toBe(true);
-    });
+    // Check that the final sync function was called with the correct data
+    expect(mockedShareService.syncSharedBillUpdate).toHaveBeenCalledTimes(1);
+    const callArgs = mockedShareService.syncSharedBillUpdate.mock.calls[0];
+    const billPassedToSync = callArgs[0] as Bill;
+    
+    expect(billPassedToSync.id).toBe('shared-bill-1');
+    expect(billPassedToSync.shareInfo?.shareId).toBe('a-real-share-id');
+    expect(billPassedToSync.participants[0].paid).toBe(true);
   });
 });

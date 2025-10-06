@@ -168,6 +168,7 @@ export const useAppLogic = () => {
         }
     }, [bills, dashboardStatusFilter, settings.myDisplayName]);
 
+    // This internal function handles syncing a single bill, avoiding loops.
     const syncSingleBill = useCallback(async (billToSync: Bill) => {
         if (!billToSync.shareInfo?.shareId) {
             console.log(`[Sync] Skipped for bill ${billToSync.id}: not a shared bill.`);
@@ -206,33 +207,28 @@ export const useAppLogic = () => {
         }
     }, [originalUpdateBill, settings, showNotification]);
 
-    const updateBill = useCallback((bill: Bill): Promise<Bill> => {
-        (async () => {
-            try {
-                const updatedBillFromDB = await originalUpdateBill(bill);
-                await syncSingleBill(updatedBillFromDB);
-            } catch (e: any) {
-                console.error("[Sync] The entire update/sync process failed:", e);
-                showNotification(e.message || "A critical error occurred while saving and syncing.", 'error');
-            }
-        })();
-        return Promise.resolve(bill);
+    const updateBill = useCallback(async (bill: Bill): Promise<Bill> => {
+        try {
+            const updatedBillFromDB = await originalUpdateBill(bill);
+            await syncSingleBill(updatedBillFromDB);
+            return updatedBillFromDB;
+        } catch (e: any) {
+            console.error("[Sync] The entire update/sync process failed:", e);
+            showNotification(e.message || "A critical error occurred while saving and syncing.", 'error');
+            throw e; // Re-throw to allow caller to handle if needed
+        }
     }, [originalUpdateBill, syncSingleBill, showNotification]);
 
-    const updateMultipleBills = useCallback((billsToUpdate: Bill[]): Promise<void> => {
-        (async () => {
-            try {
-                const updatedBillsFromDB = await originalUpdateMultipleBills(billsToUpdate);
-                for (const bill of updatedBillsFromDB) {
-                    // Don't await here, let them run in parallel in the background
-                    syncSingleBill(bill);
-                }
-            } catch (e: any) {
-                console.error("[Sync] The entire multiple bill update/sync process failed:", e);
-                showNotification(e.message || "A critical error occurred while saving and syncing multiple bills.", 'error');
-            }
-        })();
-        return Promise.resolve();
+    const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<void> => {
+        try {
+            const updatedBillsFromDB = await originalUpdateMultipleBills(billsToUpdate);
+            // Use Promise.all to run syncs in parallel and wait for all to complete.
+            await Promise.all(updatedBillsFromDB.map(bill => syncSingleBill(bill)));
+        } catch (e: any) {
+            console.error("[Sync] The entire multiple bill update/sync process failed:", e);
+            showNotification(e.message || "A critical error occurred while saving and syncing multiple bills.", 'error');
+            throw e; // Re-throw to allow caller to handle if needed
+        }
     }, [originalUpdateMultipleBills, syncSingleBill, showNotification]);
     
     const checkAndMakeSpaceForImageShare = useCallback(async (billToShare: Bill): Promise<boolean> => {
