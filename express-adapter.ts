@@ -1,5 +1,4 @@
-// FIX: Using a namespace import for express to ensure the full Request and Response types are resolved, fixing "property does not exist" errors.
-import * as express from 'express';
+import express from 'express';
 import { HttpRequest, HttpHandler } from './http-types';
 
 /**
