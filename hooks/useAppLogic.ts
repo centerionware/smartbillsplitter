@@ -167,70 +167,74 @@ export const useAppLogic = () => {
                 .sort((a, b) => b.amount - a.amount);
         }
     }, [bills, dashboardStatusFilter, settings.myDisplayName]);
-
-    // This internal function handles syncing a single bill, avoiding loops.
-    const syncSingleBill = useCallback(async (billToSync: Bill) => {
-        if (!billToSync.shareInfo?.shareId) {
-            console.log(`[Sync] Skipped for bill ${billToSync.id}: not a shared bill.`);
-            return;
-        }
-
-        console.log(`[Sync] Initiating update for shared bill: ${billToSync.id}`);
-        try {
-            const res = await fetchWithRetry(await getApiUrl(`/share/${billToSync.shareInfo.shareId}`), { 
-                method: 'GET', 
-                signal: AbortSignal.timeout(4000) 
-            });
-
-            if (res.status === 404) {
-                console.log(`[Sync] Share for bill ${billToSync.id} not found on server. Re-creating...`);
-                const { lastUpdatedAt, updateToken } = await reactivateShare(billToSync, settings);
-                await originalUpdateBill({ 
-                    ...billToSync, 
-                    shareStatus: 'live',
-                    lastUpdatedAt, 
-                    shareInfo: { ...billToSync.shareInfo!, updateToken } 
-                });
-                console.log(`[Sync] Successfully re-created share for bill ${billToSync.id}.`);
-            } else if (res.ok) {
-                console.log(`[Sync] Share for bill ${billToSync.id} is live. Pushing update...`);
-                await syncSharedBillUpdate(billToSync, settings, originalUpdateBill);
-                console.log(`[Sync] Successfully synced update for bill ${billToSync.id}.`);
+    
+    const updateBill = useCallback(async (bill: Bill): Promise<Bill> => {
+        const updatedBill = await originalUpdateBill(bill);
+        (async () => {
+            if (updatedBill.shareInfo?.shareId) {
+                console.log(`[Sync] Initiating update for shared bill: ${updatedBill.id}`);
+                try {
+                    const res = await fetchWithRetry(await getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { 
+                        method: 'GET', 
+                        signal: AbortSignal.timeout(4000) 
+                    });
+                    
+                    if (res.status === 404) {
+                        console.log(`[Sync] Share for bill ${updatedBill.id} not found on server. Re-creating...`);
+                        const { lastUpdatedAt, updateToken } = await reactivateShare(updatedBill, settings);
+                        await originalUpdateBill({ ...updatedBill, shareStatus: 'live', lastUpdatedAt, shareInfo: { ...updatedBill.shareInfo!, updateToken } });
+                        console.log(`[Sync] Successfully re-created share for bill ${updatedBill.id}.`);
+                    } else if (res.ok) {
+                        console.log(`[Sync] Share for bill ${updatedBill.id} is live. Pushing update...`);
+                        await syncSharedBillUpdate(updatedBill, settings, originalUpdateBill);
+                        console.log(`[Sync] Successfully synced update for bill ${updatedBill.id}.`);
+                    } else {
+                        const errorData = await res.json().catch(() => ({}));
+                        throw new Error(errorData.error || `Server returned status ${res.status} during share check.`);
+                    }
+                } catch (e: any) {
+                    console.error(`[Sync] Failed to sync shared bill update for bill ID ${updatedBill.id}:`, e);
+                    showNotification(e.message || `Failed to sync update for "${updatedBill.description}"`, 'error');
+                    await originalUpdateBill({ ...updatedBill, shareStatus: 'error' });
+                }
             } else {
-                const errorData = await res.json().catch(() => ({}));
-                throw new Error(errorData.error || `Server returned status ${res.status} during share check.`);
+                console.log(`[Sync] Skipped for bill ${updatedBill.id}: not a shared bill.`);
             }
-        } catch (e: any) {
-            console.error(`[Sync] Failed to sync shared bill update for bill ID ${billToSync.id}:`, e);
-            showNotification(e.message || `Failed to sync update for "${billToSync.description}"`, 'error');
-            await originalUpdateBill({ ...billToSync, shareStatus: 'error' });
-        }
+        })();
+        return updatedBill;
     }, [originalUpdateBill, settings, showNotification]);
 
-    const updateBill = useCallback(async (bill: Bill): Promise<Bill> => {
-        try {
-            const updatedBillFromDB = await originalUpdateBill(bill);
-            await syncSingleBill(updatedBillFromDB);
-            return updatedBillFromDB;
-        } catch (e: any) {
-            console.error("[Sync] The entire update/sync process failed:", e);
-            showNotification(e.message || "A critical error occurred while saving and syncing.", 'error');
-            throw e; // Re-throw to allow caller to handle if needed
-        }
-    }, [originalUpdateBill, syncSingleBill, showNotification]);
-
     const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<void> => {
-        try {
-            const updatedBillsFromDB = await originalUpdateMultipleBills(billsToUpdate);
-            // Use Promise.all to run syncs in parallel and wait for all to complete.
-            await Promise.all(updatedBillsFromDB.map(bill => syncSingleBill(bill)));
-        } catch (e: any) {
-            console.error("[Sync] The entire multiple bill update/sync process failed:", e);
-            showNotification(e.message || "A critical error occurred while saving and syncing multiple bills.", 'error');
-            throw e; // Re-throw to allow caller to handle if needed
-        }
-    }, [originalUpdateMultipleBills, syncSingleBill, showNotification]);
-    
+        const updatedBills = await originalUpdateMultipleBills(billsToUpdate);
+        (async () => {
+            for (const bill of updatedBills) {
+                if (bill.shareInfo?.shareId) {
+                    console.log(`[Sync] Initiating update for shared bill in batch: ${bill.id}`);
+                    try {
+                        const res = await fetchWithRetry(await getApiUrl(`/share/${bill.shareInfo.shareId}`), { 
+                            method: 'GET', 
+                            signal: AbortSignal.timeout(4000) 
+                        });
+
+                        if (res.status === 404) {
+                             console.log(`[Sync] Share for bill ${bill.id} not found on server. Re-creating...`);
+                            const { lastUpdatedAt, updateToken } = await reactivateShare(bill, settings);
+                            await originalUpdateBill({ ...bill, shareStatus: 'live', lastUpdatedAt, shareInfo: { ...bill.shareInfo!, updateToken } });
+                        } else if (res.ok) {
+                            await syncSharedBillUpdate(bill, settings, originalUpdateBill);
+                        } else {
+                           throw new Error(`Server returned status ${res.status} during share check.`);
+                        }
+                    } catch (e: any) {
+                        console.error(`[Sync] Failed to sync shared bill update for bill ID ${bill.id}:`, e);
+                        showNotification(e.message || `Failed to sync update for "${bill.description}"`, 'error');
+                        await originalUpdateBill({ ...bill, shareStatus: 'error' });
+                    }
+                }
+            }
+        })();
+    }, [originalUpdateMultipleBills, settings, showNotification, originalUpdateBill]);
+
     const checkAndMakeSpaceForImageShare = useCallback(async (billToShare: Bill): Promise<boolean> => {
         if (subscriptionStatus !== 'free' || !billToShare.receiptImage) {
             return true;
