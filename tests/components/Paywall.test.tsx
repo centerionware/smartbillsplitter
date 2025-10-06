@@ -60,6 +60,11 @@ describe('Paywall', () => {
   });
 
   it('attempts to create a checkout session when a plan is selected', async () => {
+    // FIX: Moved vi.useFakeTimers() to the top of the test.
+    // This ensures that when the component renders and its useEffect schedules
+    // a setTimeout, it uses the mocked timer system from the start, preventing a timeout.
+    vi.useFakeTimers();
+
     // Mock a successful response from the checkout endpoint
     vi.mocked(fetchWithRetry).mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://paypal.com/checkout' }), {
         status: 200,
@@ -73,7 +78,6 @@ describe('Paywall', () => {
     await userEvent.click(monthlyPlan);
     
     // Fast-forward timers to enable the continue button
-    vi.useFakeTimers();
     await act(async () => {
         vi.advanceTimersByTime(7000);
     });
