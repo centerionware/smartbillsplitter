@@ -1,7 +1,6 @@
 import React from 'react';
-// FIX: Changed import for `screen`. In some test setups with module resolution issues, `screen` may not be correctly resolved from `@testing-library/react`. Importing it directly from `@testing-library/dom` is a workaround.
 import { render, act } from '@testing-library/react';
-import { screen } from '@testing-library/dom';
+import { screen, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Paywall from '../../components/Paywall';
@@ -62,7 +61,6 @@ describe('Paywall', () => {
   it('attempts to create a checkout session when a plan is selected', async () => {
     vi.useFakeTimers();
 
-    // Mock a successful response from the checkout endpoint
     vi.mocked(fetchWithRetry).mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://paypal.com/checkout' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -70,24 +68,28 @@ describe('Paywall', () => {
 
     render(<Paywall onSelectFreeTier={vi.fn()} />);
 
-    // Click through the warning modal first
+    // Click to open the warning modal
     const monthlyPlan = screen.getByText(/Monthly Plan/i);
     await userEvent.click(monthlyPlan);
     
-    // The modal is now open. Find the button (it will be disabled initially)
+    // The modal is now open. Find the button, which is initially disabled.
     const continueButton = await screen.findByRole('button', { name: /Please Read.../i });
     expect(continueButton).toBeDisabled();
 
-    // Fast-forward all timers to enable the continue button
-    await act(async () => {
-        vi.runAllTimers();
+    // Fast-forward all timers synchronously inside act
+    act(() => {
+      vi.runAllTimers();
     });
     
-    // The button text and state should have changed.
-    expect(continueButton).not.toBeDisabled();
+    // Explicitly wait for the DOM to update after the timers have run
+    await waitFor(() => {
+        expect(continueButton).not.toBeDisabled();
+    });
+    
+    // Verify the button text has updated as expected
     expect(continueButton).toHaveTextContent(/Continue to Checkout/i);
     
-    // Now click the enabled continue button in the modal
+    // Now click the enabled button to proceed
     await userEvent.click(continueButton);
 
     expect(fetchWithRetry).toHaveBeenCalledWith('http://localhost/api/create-checkout-session', expect.objectContaining({
@@ -95,7 +97,7 @@ describe('Paywall', () => {
       body: expect.stringContaining('"plan":"monthly"'),
     }));
     
-    // We expect the page to be redirected
+    // We expect the page to have been redirected
     expect(window.location.href).toBe('https://paypal.com/checkout');
   });
 });
