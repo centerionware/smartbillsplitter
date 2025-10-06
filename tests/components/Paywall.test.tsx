@@ -60,9 +60,6 @@ describe('Paywall', () => {
   });
 
   it('attempts to create a checkout session when a plan is selected', async () => {
-    // FIX: Moved vi.useFakeTimers() to the top of the test.
-    // This ensures that when the component renders and its useEffect schedules
-    // a setTimeout, it uses the mocked timer system from the start, preventing a timeout.
     vi.useFakeTimers();
 
     // Mock a successful response from the checkout endpoint
@@ -77,16 +74,23 @@ describe('Paywall', () => {
     const monthlyPlan = screen.getByText(/Monthly Plan/i);
     await userEvent.click(monthlyPlan);
     
-    // Fast-forward timers to enable the continue button
+    // The modal is now open. Find the button (it will be disabled initially)
+    const continueButton = await screen.findByRole('button', { name: /Please Read.../i });
+    expect(continueButton).toBeDisabled();
+
+    // Fast-forward all timers to enable the continue button
     await act(async () => {
-        vi.advanceTimersByTime(7000);
+        vi.runAllTimers();
     });
     
-    // Now click the continue button in the modal
-    const continueButton = await screen.findByRole('button', { name: /Continue to Checkout/i });
+    // The button text and state should have changed.
+    expect(continueButton).not.toBeDisabled();
+    expect(continueButton).toHaveTextContent(/Continue to Checkout/i);
+    
+    // Now click the enabled continue button in the modal
     await userEvent.click(continueButton);
 
-    expect(fetchWithRetry).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+    expect(fetchWithRetry).toHaveBeenCalledWith('http://localhost/api/create-checkout-session', expect.objectContaining({
       method: 'POST',
       body: expect.stringContaining('"plan":"monthly"'),
     }));

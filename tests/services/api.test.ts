@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchWithRetry } from '../../services/api';
 
 describe('api.fetchWithRetry', () => {
+  const TEST_URL = 'http://localhost/api/test-endpoint';
+
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
   });
@@ -14,7 +16,7 @@ describe('api.fetchWithRetry', () => {
     const mockResponse = new Response('OK', { status: 200 });
     vi.mocked(fetch).mockResolvedValueOnce(mockResponse);
 
-    const response = await fetchWithRetry('http://test.com');
+    const response = await fetchWithRetry(TEST_URL);
     
     expect(response.status).toBe(200);
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -24,7 +26,7 @@ describe('api.fetchWithRetry', () => {
     const mockResponse = new Response('Not Found', { status: 404 });
     vi.mocked(fetch).mockResolvedValueOnce(mockResponse);
 
-    const response = await fetchWithRetry('http://test.com');
+    const response = await fetchWithRetry(TEST_URL);
 
     expect(response.status).toBe(404);
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -40,7 +42,7 @@ describe('api.fetchWithRetry', () => {
       .mockResolvedValueOnce(failResponse2)
       .mockResolvedValueOnce(successResponse);
     
-    const response = await fetchWithRetry('http://test.com', {}, 4, 10); // 4 retries, 10ms backoff
+    const response = await fetchWithRetry(TEST_URL, {}, 4, 10); // 4 retries, 10ms backoff
 
     expect(response.status).toBe(200);
     expect(fetch).toHaveBeenCalledTimes(3);
@@ -53,7 +55,7 @@ describe('api.fetchWithRetry', () => {
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
       .mockResolvedValueOnce(successResponse);
 
-    const response = await fetchWithRetry('http://test.com', {}, 3, 10);
+    const response = await fetchWithRetry(TEST_URL, {}, 3, 10);
 
     expect(response.status).toBe(200);
     expect(fetch).toHaveBeenCalledTimes(2);
@@ -63,7 +65,7 @@ describe('api.fetchWithRetry', () => {
     const failResponse = new Response('Server Error', { status: 500 });
     vi.mocked(fetch).mockResolvedValue(failResponse);
 
-    await expect(fetchWithRetry('http://test.com', {}, 3, 10))
+    await expect(fetchWithRetry(TEST_URL, {}, 3, 10))
       .rejects
       .toThrow('All fetch attempts failed');
       
