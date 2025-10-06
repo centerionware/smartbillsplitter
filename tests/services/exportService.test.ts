@@ -38,8 +38,9 @@ describe('exportService', () => {
             click: vi.fn(),
         };
         vi.spyOn(document, 'createElement').mockReturnValue(mockLink as any);
-        vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
-        vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
+        // FIX: Corrected mock implementation to match the expected function signature of `appendChild` and `removeChild`, resolving the TypeScript error.
+        vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+        vi.spyOn(document.body, 'removeChild').mockImplementation((child) => child);
     });
 
     afterEach(() => {
