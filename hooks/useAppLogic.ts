@@ -154,7 +154,6 @@ export const useAppLogic = () => {
         } else {
             const participantStats = new Map<string, { outstandingDebt: number; totalBilled: number }>();
             bills.forEach(bill => {
-                // FIX: Added a nested loop to iterate through bill participants, resolving an issue where the participant variable 'p' was not defined.
                 bill.participants.forEach(p => {
                     const stats = participantStats.get(p.name) || { outstandingDebt: 0, totalBilled: 0 };
                     stats.totalBilled += p.amountOwed;
@@ -170,48 +169,47 @@ export const useAppLogic = () => {
     }, [bills, dashboardStatusFilter, settings.myDisplayName]);
 
 
-    const updateBill = useCallback(async (bill: Bill) => {
+    const updateBill = useCallback(async (bill: Bill): Promise<Bill> => {
         // 1. Update locally first to get the bill with the new timestamp.
-        let billToSync = await originalUpdateBill(bill);
+        const billToSync = await originalUpdateBill(bill);
     
-        // 2. If it's a shared bill, perform the sync logic asynchronously.
+        // 2. If it's a shared bill, perform the sync logic sequentially.
         if (billToSync.shareInfo?.shareId) {
-            (async () => {
-                try {
-                    // Pre-flight check: See if the share session still exists on the server.
-                    const res = await fetchWithRetry(await getApiUrl(`/share/${billToSync.shareInfo.shareId}`), { 
-                        method: 'GET', 
-                        signal: AbortSignal.timeout(4000) 
-                    });
+            try {
+                // Pre-flight GET check to see if the share session is live.
+                const res = await fetchWithRetry(await getApiUrl(`/share/${billToSync.shareInfo.shareId}`), { 
+                    method: 'GET', 
+                    signal: AbortSignal.timeout(4000) 
+                });
     
-                    if (res.status === 404) {
-                        // Not live. Recreate the share session. This function handles POSTing the data
-                        // and returns the new token/timestamp.
-                        console.log(`Share for bill ${billToSync.id} not found on server. Re-creating...`);
-                        const { lastUpdatedAt, updateToken } = await reactivateShare(billToSync, settings);
-                        
-                        // Now, update the bill in the local DB again with the new info from the server.
-                        await originalUpdateBill({ 
-                            ...billToSync, 
-                            shareStatus: 'live',
-                            lastUpdatedAt, 
-                            shareInfo: { ...billToSync.shareInfo!, updateToken } 
-                        });
-                        console.log(`Successfully re-created share for bill ${billToSync.id}.`);
+                if (res.status === 404) {
+                    // If it's not live (404), recreate the share session.
+                    console.log(`Share for bill ${billToSync.id} not found on server. Re-creating...`);
+                    const { lastUpdatedAt, updateToken } = await reactivateShare(billToSync, settings);
+                    
+                    // Update the local DB again with the new token/timestamp from the server.
+                    await originalUpdateBill({ 
+                        ...billToSync, 
+                        shareStatus: 'live',
+                        lastUpdatedAt, 
+                        shareInfo: { ...billToSync.shareInfo!, updateToken } 
+                    });
+                    console.log(`Successfully re-created share for bill ${billToSync.id}.`);
 
-                    } else if (res.ok) {
-                        // It's live, so just push the update.
-                        await syncSharedBillUpdate(billToSync, settings, originalUpdateBill);
-                    } else {
-                        // Another server error occurred during the check.
-                        const errorData = await res.json().catch(() => ({}));
-                        throw new Error(errorData.error || `Server returned status ${res.status} during share check.`);
-                    }
-                } catch (e: any) {
-                    console.error("Failed to sync shared bill update:", e);
-                    showNotification(e.message || "Failed to sync bill update to server", 'error');
+                } else if (res.ok) {
+                    // If it is live, just push the update via POST.
+                    console.log(`Share for bill ${billToSync.id} is live. Pushing update...`);
+                    await syncSharedBillUpdate(billToSync, settings, originalUpdateBill);
+                    console.log(`Successfully synced update for bill ${billToSync.id}.`);
+                } else {
+                    // Handle other server errors during the check.
+                    const errorData = await res.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Server returned status ${res.status} during share check.`);
                 }
-            })();
+            } catch (e: any) {
+                console.error("Failed to sync shared bill update:", e);
+                showNotification(e.message || "Failed to sync bill update to server", 'error');
+            }
         }
         
         return billToSync;
@@ -219,9 +217,9 @@ export const useAppLogic = () => {
 
     const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<void> => {
         const updatedBillsFromDB = await originalUpdateMultipleBills(billsToUpdate);
+        // Fire and forget sync updates for each bill. The updated updateBill function is robust.
         for (const bill of updatedBillsFromDB) {
             if (bill.shareInfo?.shareId) {
-                // We can use the same robust update logic for batch updates too.
                 updateBill(bill).catch(e => {
                     console.error(`Failed to sync shared bill update for batch bill ID ${bill.id}:`, e);
                     showNotification(`Failed to sync update for "${bill.description}"`, 'error');

@@ -137,9 +137,9 @@ export const useBills = () => {
       const billsToUpdate: Bill[] = [];
       let skippedCount = 0;
 
-      // FIX: Renamed loop variable `bill` to `billToProcess` and used it consistently
-      // to resolve a TypeScript inference issue where it was being treated as 'unknown'.
-      for (const billToProcess of billsToMerge) {
+      // FIX: Replaced for...of loop with forEach to help TypeScript's type inference,
+      // resolving an issue where the loop variable was being treated as 'unknown'.
+      billsToMerge.forEach(billToProcess => {
           const existingBill = existingBillMap.get(billToProcess.id);
 
           if (existingBill) {
@@ -151,7 +151,7 @@ export const useBills = () => {
           } else {
               billsToAdd.push({ ...billToProcess, status: 'active' });
           }
-      }
+      });
 
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeBillsDB(billsToAdd, billsToUpdate);
