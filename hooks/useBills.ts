@@ -83,32 +83,39 @@ export const useBills = () => {
       lastUpdatedAt: Date.now(),
     };
     await addBillDB(newBill);
+    setBills(prev => [...prev, newBill].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     postMessage({ type: 'bills-updated' });
-    await loadBills(false);
-  }, [loadBills]);
+  }, []);
 
   const updateBill = useCallback(async (updatedBill: Bill): Promise<Bill> => {
     const billWithTimestamp = { ...updatedBill, lastUpdatedAt: Date.now() };
     await updateBillDB(billWithTimestamp);
+    setBills(prev => 
+        prev.map(b => b.id === billWithTimestamp.id ? billWithTimestamp : b)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    );
     postMessage({ type: 'bills-updated' });
-    await loadBills(false);
     return billWithTimestamp;
-  }, [loadBills]);
+  }, []);
   
   const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<Bill[]> => {
       const now = Date.now();
       const billsWithTimestamp = billsToUpdate.map(b => ({ ...b, lastUpdatedAt: now }));
       await mergeBillsDB([], billsWithTimestamp);
+      setBills(prev => {
+          const updatedMap = new Map(billsWithTimestamp.map(b => [b.id, b]));
+          return prev.map(b => updatedMap.get(b.id) || b)
+                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      });
       postMessage({ type: 'bills-updated' });
-      await loadBills(false);
       return billsWithTimestamp;
-  }, [loadBills]);
+  }, []);
 
   const deleteBill = useCallback(async (billId: string) => {
     await deleteBillDB(billId);
+    setBills(prev => prev.filter(b => b.id !== billId));
     postMessage({ type: 'bills-updated' });
-    await loadBills(false);
-  }, [loadBills]);
+  }, []);
 
   const archiveBill = useCallback(async (billId: string) => {
     const billToUpdate = bills.find(b => b.id === billId);
@@ -130,15 +137,12 @@ export const useBills = () => {
       const billsToUpdate: Bill[] = [];
       let skippedCount = 0;
 
-      for (const bill of billsToMerge) {
-          // FIX: Explicitly cast `bill` to its correct type to resolve a TypeScript
-          // inference issue where it was being treated as 'unknown' inside the loop.
-          const billToProcess = bill as Omit<Bill, 'status'>;
+      // FIX: Renamed loop variable `bill` to `billToProcess` and used it consistently
+      // to resolve a TypeScript inference issue where it was being treated as 'unknown'.
+      for (const billToProcess of billsToMerge) {
           const existingBill = existingBillMap.get(billToProcess.id);
 
           if (existingBill) {
-              // FIX: Use the correctly-typed `billToProcess` object to access properties
-              // like `lastUpdatedAt` and to use the spread operator.
               if ((billToProcess.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
                   billsToUpdate.push({ ...existingBill, ...billToProcess, status: existingBill.status });
               } else {
@@ -151,12 +155,18 @@ export const useBills = () => {
 
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeBillsDB(billsToAdd, billsToUpdate);
+          setBills(prev => {
+              const updatedMap = new Map(billsToUpdate.map(b => [b.id, b]));
+              const currentBillsMap = new Map(prev.map(b => [b.id, b]));
+              updatedMap.forEach((value, key) => currentBillsMap.set(key, value));
+              billsToAdd.forEach(b => currentBillsMap.set(b.id, b));
+              return Array.from(currentBillsMap.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          });
           postMessage({ type: 'bills-updated' });
-          await loadBills(false);
       }
 
       return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };
-  }, [bills, loadBills]);
+  }, [bills]);
 
   return { bills, isLoading, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills };
 };

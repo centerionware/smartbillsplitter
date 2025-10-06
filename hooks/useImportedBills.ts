@@ -99,15 +99,12 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      for (const bill of billsToMerge) {
-          // FIX: Explicitly cast `bill` to its correct type to resolve a TypeScript
-          // inference issue where it was being treated as 'unknown' inside the loop.
-          const billToProcess = bill as Omit<ImportedBill, 'status' | 'liveStatus'>;
+      // FIX: Renamed loop variable `bill` to `billToProcess` and used it consistently
+      // to resolve a TypeScript inference issue where it was being treated as 'unknown'.
+      for (const billToProcess of billsToMerge) {
           const existingBill = existingBillMap.get(billToProcess.id);
 
           if (existingBill) {
-              // FIX: Use the correctly-typed `billToProcess` object to access properties
-              // like `lastUpdatedAt` and to use the spread operator.
               if ((billToProcess.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
                   billsToUpdate.push({ ...existingBill, ...billToProcess, status: existingBill.status, liveStatus: 'live' });
               } else {

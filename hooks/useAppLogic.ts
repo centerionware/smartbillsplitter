@@ -15,6 +15,7 @@ import { useAppControl } from '../contexts/AppControlContext';
 import { syncSharedBillUpdate, pollImportedBills, pollOwnedSharedBills, reactivateShare } from '../services/shareService';
 import * as notificationService from '../services/notificationService';
 import { usePwaInstall } from './usePwaInstall';
+import { getApiUrl, fetchWithRetry } from '../services/api';
 
 const FREE_TIER_IMAGE_SHARE_LIMIT = 5;
 
@@ -170,27 +171,64 @@ export const useAppLogic = () => {
 
 
     const updateBill = useCallback(async (bill: Bill) => {
-        const updatedBillFromDB = await originalUpdateBill(bill);
-        if (updatedBillFromDB.shareInfo?.shareId) {
-            syncSharedBillUpdate(updatedBillFromDB, settings, originalUpdateBill).catch(e => {
-                console.error("Failed to sync shared bill update:", e);
-                showNotification(e.message || "Failed to sync bill update to server", 'error');
-            });
+        // 1. Update locally first to get the bill with the new timestamp.
+        let billToSync = await originalUpdateBill(bill);
+    
+        // 2. If it's a shared bill, perform the sync logic asynchronously.
+        if (billToSync.shareInfo?.shareId) {
+            (async () => {
+                try {
+                    // Pre-flight check: See if the share session still exists on the server.
+                    const res = await fetchWithRetry(await getApiUrl(`/share/${billToSync.shareInfo.shareId}`), { 
+                        method: 'GET', 
+                        signal: AbortSignal.timeout(4000) 
+                    });
+    
+                    if (res.status === 404) {
+                        // Not live. Recreate the share session. This function handles POSTing the data
+                        // and returns the new token/timestamp.
+                        console.log(`Share for bill ${billToSync.id} not found on server. Re-creating...`);
+                        const { lastUpdatedAt, updateToken } = await reactivateShare(billToSync, settings);
+                        
+                        // Now, update the bill in the local DB again with the new info from the server.
+                        await originalUpdateBill({ 
+                            ...billToSync, 
+                            shareStatus: 'live',
+                            lastUpdatedAt, 
+                            shareInfo: { ...billToSync.shareInfo!, updateToken } 
+                        });
+                        console.log(`Successfully re-created share for bill ${billToSync.id}.`);
+
+                    } else if (res.ok) {
+                        // It's live, so just push the update.
+                        await syncSharedBillUpdate(billToSync, settings, originalUpdateBill);
+                    } else {
+                        // Another server error occurred during the check.
+                        const errorData = await res.json().catch(() => ({}));
+                        throw new Error(errorData.error || `Server returned status ${res.status} during share check.`);
+                    }
+                } catch (e: any) {
+                    console.error("Failed to sync shared bill update:", e);
+                    showNotification(e.message || "Failed to sync bill update to server", 'error');
+                }
+            })();
         }
-        return updatedBillFromDB;
+        
+        return billToSync;
     }, [originalUpdateBill, settings, showNotification]);
 
-    const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {
+    const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<void> => {
         const updatedBillsFromDB = await originalUpdateMultipleBills(billsToUpdate);
         for (const bill of updatedBillsFromDB) {
             if (bill.shareInfo?.shareId) {
-                syncSharedBillUpdate(bill, settings, originalUpdateBill).catch(e => {
-                    console.error(`Failed to sync shared bill update for bill ID ${bill.id}:`, e);
+                // We can use the same robust update logic for batch updates too.
+                updateBill(bill).catch(e => {
+                    console.error(`Failed to sync shared bill update for batch bill ID ${bill.id}:`, e);
                     showNotification(`Failed to sync update for "${bill.description}"`, 'error');
                 });
             }
         }
-    }, [originalUpdateMultipleBills, originalUpdateBill, settings, showNotification]);
+    }, [originalUpdateMultipleBills, updateBill, showNotification]);
 
     const checkAndMakeSpaceForImageShare = useCallback(async (billToShare: Bill): Promise<boolean> => {
         if (subscriptionStatus !== 'free' || !billToShare.receiptImage) {
