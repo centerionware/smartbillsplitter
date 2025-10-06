@@ -128,7 +128,8 @@ describe('exportService', () => {
         expect(billRow).toContain('30.00');
         expect(billRow).toContain('IMPORTED');
         expect(billRow).toContain('"Charlie"');
-        expect(billRow).toContain('"shareId":"share-123"'); // Check if ShareInfo is stringified
+        // FIX: The test must check for the double-quoted (escaped) version of the JSON substring.
+        expect(billRow).toContain('""shareId"":""share-123""');
 
         // PARTICIPANT rows
         const charlieRow = lines.find((line: string) => line.includes('p3-charlie,"Charlie"'));
