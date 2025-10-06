@@ -38,6 +38,7 @@ const createDefaultBills = (): Bill[] => {
     return defaultBills;
 };
 
+const sortBills = (b: Bill[]) => b.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 export const useBills = () => {
   const [bills, setBills] = useState<Bill[]>([]);
@@ -46,7 +47,7 @@ export const useBills = () => {
   const loadBills = useCallback(async (isInitialLoad: boolean = false) => {
     if (isInitialLoad) setIsLoading(true);
     try {
-      const dbBills = await getBills();
+      let dbBills = await getBills();
 
       if (isInitialLoad && dbBills.length === 0 && !localStorage.getItem('sharedbills.defaultDataLoaded')) {
           console.log("First launch: creating default example bills.");
@@ -56,8 +57,7 @@ export const useBills = () => {
           localStorage.setItem('sharedbills.defaultDataLoaded', 'true');
       }
       
-      dbBills.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setBills(dbBills);
+      setBills(sortBills(dbBills));
     } catch (error) {
       console.error("Failed to load bills from IndexedDB:", error);
     } finally {
@@ -83,32 +83,33 @@ export const useBills = () => {
       lastUpdatedAt: Date.now(),
     };
     await addBillDB(newBill);
-    await loadBills(false);
+    setBills(prev => sortBills([newBill, ...prev]));
     postMessage({ type: 'bills-updated' });
-  }, [loadBills]);
+  }, []);
 
   const updateBill = useCallback(async (updatedBill: Bill): Promise<Bill> => {
     const billWithTimestamp = { ...updatedBill, lastUpdatedAt: Date.now() };
     await updateBillDB(billWithTimestamp);
-    await loadBills(false);
+    setBills(prev => sortBills(prev.map(b => b.id === billWithTimestamp.id ? billWithTimestamp : b)));
     postMessage({ type: 'bills-updated' });
     return billWithTimestamp;
-  }, [loadBills]);
+  }, []);
   
   const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<Bill[]> => {
       const now = Date.now();
       const billsWithTimestamp = billsToUpdate.map(b => ({ ...b, lastUpdatedAt: now }));
       await mergeBillsDB([], billsWithTimestamp);
-      await loadBills(false);
+      const updatedMap = new Map(billsWithTimestamp.map(b => [b.id, b]));
+      setBills(prev => sortBills(prev.map(b => updatedMap.get(b.id) || b)));
       postMessage({ type: 'bills-updated' });
       return billsWithTimestamp;
-  }, [loadBills]);
+  }, []);
 
   const deleteBill = useCallback(async (billId: string) => {
     await deleteBillDB(billId);
-    await loadBills(false);
+    setBills(prev => prev.filter(b => b.id !== billId));
     postMessage({ type: 'bills-updated' });
-  }, [loadBills]);
+  }, []);
 
   const archiveBill = useCallback(async (billId: string) => {
     const billToUpdate = bills.find(b => b.id === billId);
@@ -130,7 +131,8 @@ export const useBills = () => {
       const billsToUpdate: Bill[] = [];
       let skippedCount = 0;
 
-      billsToMerge.forEach(billToProcess => {
+      // FIX: Explicitly type `billToProcess` because type inference was failing, causing it to be `unknown`.
+      billsToMerge.forEach((billToProcess: Omit<Bill, 'status'>) => {
           const existingBill = existingBillMap.get(billToProcess.id);
 
           if (existingBill) {
@@ -146,12 +148,17 @@ export const useBills = () => {
 
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeBillsDB(billsToAdd, billsToUpdate);
-          await loadBills(false);
+          setBills(prev => {
+              const prevMap = new Map(prev.map(b => [b.id, b]));
+              billsToUpdate.forEach(b => prevMap.set(b.id, b));
+              billsToAdd.forEach(b => prevMap.set(b.id, b));
+              return sortBills(Array.from(prevMap.values()));
+          });
           postMessage({ type: 'bills-updated' });
       }
 
       return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };
-  }, [bills, loadBills]);
+  }, [bills]);
 
   return { bills, isLoading, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills };
 };

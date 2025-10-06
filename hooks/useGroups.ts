@@ -1,9 +1,9 @@
-
-
 import { useState, useEffect, useCallback } from 'react';
 import type { Group } from '../types';
 import { getGroups, addGroup as addDB, updateGroup as updateDB, deleteGroupDB } from '../services/db';
 import { postMessage, useBroadcastListener } from '../services/broadcastService';
+
+const sortGroups = (groups: Group[]) => groups.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt);
 
 export const useGroups = () => {
     const [groups, setGroups] = useState<Group[]>([]);
@@ -13,8 +13,7 @@ export const useGroups = () => {
         if (isInitialLoad) setIsLoading(true);
         try {
             const dbGroups = await getGroups();
-            dbGroups.sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt);
-            setGroups(dbGroups);
+            setGroups(sortGroups(dbGroups));
         } catch (err) {
             console.error("Failed to load groups:", err);
         } finally {
@@ -40,33 +39,33 @@ export const useGroups = () => {
             popularity: 0,
         };
         await addDB(newGroup);
-        await loadGroups(false);
+        setGroups(prev => sortGroups([newGroup, ...prev]));
         postMessage({ type: 'groups-updated' });
         return newGroup;
-    }, [loadGroups]);
+    }, []);
 
     const updateGroup = useCallback(async (updatedGroup: Group) => {
         const groupWithTimestamp = { ...updatedGroup, lastUpdatedAt: Date.now() };
         await updateDB(groupWithTimestamp);
-        await loadGroups(false);
+        setGroups(prev => sortGroups(prev.map(g => g.id === groupWithTimestamp.id ? groupWithTimestamp : g)));
         postMessage({ type: 'groups-updated' });
-    }, [loadGroups]);
+    }, []);
 
     const deleteGroup = useCallback(async (groupId: string) => {
         await deleteGroupDB(groupId);
-        await loadGroups(false);
+        setGroups(prev => prev.filter(g => g.id !== groupId));
         postMessage({ type: 'groups-updated' });
-    }, [loadGroups]);
+    }, []);
     
     const incrementGroupPopularity = useCallback(async (groupId: string) => {
         const groupToUpdate = groups.find(g => g.id === groupId);
         if (groupToUpdate) {
             const updatedGroup = { ...groupToUpdate, popularity: (groupToUpdate.popularity || 0) + 1 };
             await updateDB(updatedGroup);
-            await loadGroups(false);
+            setGroups(prev => sortGroups(prev.map(g => g.id === groupId ? updatedGroup : g)));
             postMessage({ type: 'groups-updated' });
         }
-    }, [groups, loadGroups]);
+    }, [groups]);
 
     return { groups, addGroup, updateGroup, deleteGroup, incrementGroupPopularity, isLoading };
 };

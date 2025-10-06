@@ -85,6 +85,7 @@ export const calculateNextDueDate = (rule: RecurrenceRule, fromDate: string | Da
     return dt.toISOString();
 };
 
+const sortRecurringBills = (bills: RecurringBill[]) => bills.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
 
 export const useRecurringBills = () => {
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
@@ -94,8 +95,7 @@ export const useRecurringBills = () => {
       if (isInitialLoad) setIsLoading(true);
       try {
         let dbBills = await getRecurringBills();
-        dbBills.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
-        setRecurringBills(dbBills);
+        setRecurringBills(sortRecurringBills(dbBills));
       } catch (err) {
         console.error("Failed to load recurring bills:", err);
       } finally {
@@ -121,10 +121,10 @@ export const useRecurringBills = () => {
       nextDueDate: calculateFirstDueDate(newBillData.recurrenceRule, new Date()),
     };
     await addDB(newBill);
-    await loadRecurringBills(false);
+    setRecurringBills(prev => sortRecurringBills([newBill, ...prev]));
     postMessage({ type: 'recurring-bills-updated' });
     return newBill;
-  }, [loadRecurringBills]);
+  }, []);
 
   const updateRecurringBill = useCallback(async (updatedBill: RecurringBill) => {
     const originalBill = recurringBills.find(b => b.id === updatedBill.id);
@@ -132,9 +132,9 @@ export const useRecurringBills = () => {
         updatedBill.nextDueDate = calculateFirstDueDate(updatedBill.recurrenceRule, new Date());
     }
     await updateDB(updatedBill);
-    await loadRecurringBills(false);
+    setRecurringBills(prev => sortRecurringBills(prev.map(b => b.id === updatedBill.id ? updatedBill : b)));
     postMessage({ type: 'recurring-bills-updated' });
-  }, [recurringBills, loadRecurringBills]);
+  }, [recurringBills]);
   
   const updateRecurringBillDueDate = useCallback(async (billId: string) => {
     const billToUpdate = recurringBills.find(b => b.id === billId);
@@ -144,36 +144,36 @@ export const useRecurringBills = () => {
             nextDueDate: calculateNextDueDate(billToUpdate.recurrenceRule, billToUpdate.nextDueDate)
         };
         await updateDB(updatedBill);
-        await loadRecurringBills(false);
+        setRecurringBills(prev => sortRecurringBills(prev.map(b => b.id === billId ? updatedBill : b)));
         postMessage({ type: 'recurring-bills-updated' });
     }
-  }, [recurringBills, loadRecurringBills]);
+  }, [recurringBills]);
 
   const archiveRecurringBill = useCallback(async (billId: string) => {
     const billToUpdate = recurringBills.find(b => b.id === billId);
     if (billToUpdate) {
       const updatedBill = { ...billToUpdate, status: 'archived' as const };
       await updateDB(updatedBill);
-      await loadRecurringBills(false);
+      setRecurringBills(prev => sortRecurringBills(prev.map(b => b.id === billId ? updatedBill : b)));
       postMessage({ type: 'recurring-bills-updated' });
     }
-  }, [recurringBills, loadRecurringBills]);
+  }, [recurringBills]);
   
   const unarchiveRecurringBill = useCallback(async (billId: string) => {
     const billToUpdate = recurringBills.find(b => b.id === billId);
     if (billToUpdate) {
       const updatedBill = { ...billToUpdate, status: 'active' as const, nextDueDate: calculateFirstDueDate(billToUpdate.recurrenceRule, new Date()) };
       await updateDB(updatedBill);
-      await loadRecurringBills(false);
+      setRecurringBills(prev => sortRecurringBills(prev.map(b => b.id === billId ? updatedBill : b)));
       postMessage({ type: 'recurring-bills-updated' });
     }
-  }, [recurringBills, loadRecurringBills]);
+  }, [recurringBills]);
 
   const deleteRecurringBill = useCallback(async (billId: string) => {
     await deleteRecurringBillDB(billId);
-    await loadRecurringBills(false);
+    setRecurringBills(prev => prev.filter(b => b.id !== billId));
     postMessage({ type: 'recurring-bills-updated' });
-  }, [loadRecurringBills]);
+  }, []);
 
   return { recurringBills, addRecurringBill, updateRecurringBill, archiveRecurringBill, unarchiveRecurringBill, deleteRecurringBill, updateRecurringBillDueDate, isLoading };
 };
