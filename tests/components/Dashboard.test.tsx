@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Dashboard from '../../components/dashboard/Dashboard';
 import { View } from '../../types';
 import type { Bill, ImportedBill, RecurringBill, Settings } from '../../types';
+import type { ParticipantData } from '../../components/ParticipantList';
 
 // Mock child components to isolate Dashboard logic
 vi.mock('../../components/dashboard/DashboardSummary', () => ({ default: () => <div data-testid="summary" /> }));
@@ -81,14 +82,22 @@ describe('Dashboard', () => {
   });
 
   it('renders the ParticipantList when dashboardView is "participants"', () => {
-    render(<Dashboard {...mockDashboardProps} dashboardView="participants" />);
+    const mockParticipantsData: ParticipantData[] = [{ name: 'Bob', amount: 50, type: 'owed' as const }];
+    render(<Dashboard {...mockDashboardProps} dashboardView="participants" participantsData={mockParticipantsData}/>);
     expect(screen.getByTestId('participant-list')).toBeInTheDocument();
     expect(screen.queryByTestId('bill-list')).not.toBeInTheDocument();
   });
 
-  it('renders an EmptyState when there are no bills to show', () => {
-    render(<Dashboard {...mockDashboardProps} bills={[]} />);
+  it('renders the BillList (for the ad) when there are no bills and user is in free mode', () => {
+    render(<Dashboard {...mockDashboardProps} bills={[]} importedBills={[]} subscriptionStatus="free" />);
+    expect(screen.getByTestId('bill-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+  });
+
+  it('renders an EmptyState when there are no bills and user is subscribed', () => {
+    render(<Dashboard {...mockDashboardProps} bills={[]} importedBills={[]} subscriptionStatus="subscribed" />);
     expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+    expect(screen.queryByTestId('bill-list')).not.toBeInTheDocument();
   });
 
   it('renders the groups view when dashboardView is "groups"', () => {

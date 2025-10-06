@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View } from '../../types';
 import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group } from '../../types';
@@ -476,7 +475,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             </div>
           );
         }
-    } else if (dashboardView === 'bills' && (filteredBills.length > 0 || filteredImportedBills.length > 0 || (subscriptionStatus === 'free' && dashboardStatusFilter === 'active'))) {
+    } else if (dashboardView === 'bills' && (filteredBills.length > 0 || filteredImportedBills.length > 0 || subscriptionStatus === 'free')) {
         return <BillList 
             filteredBills={filteredBills} 
             filteredImportedBills={filteredImportedBills} 

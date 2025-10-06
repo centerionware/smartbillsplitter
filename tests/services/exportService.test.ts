@@ -1,19 +1,8 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { exportData, EXPORT_HEADER_V2 } from '../../services/exportService';
 import type { Bill, ImportedBill } from '../../types';
 
-// Mock the download helper and cryptoService
-const mockDownloadFile = vi.fn();
-vi.mock('../../services/exportService', async (importOriginal) => {
-    const original = await importOriginal() as any;
-    return {
-      ...original,
-      // We can't actually test the download, so we mock the helper
-      // and inspect what it *would* have downloaded.
-      downloadFile: mockDownloadFile,
-    };
-});
-
+// Mock dependencies
 vi.mock('../../services/db', () => ({
     getBillSigningKey: vi.fn().mockResolvedValue(null),
 }));
@@ -21,9 +10,41 @@ vi.mock('../../services/cryptoService', () => ({
     exportKey: vi.fn().mockResolvedValue({ kty: 'EC' }),
 }));
 
+// This variable will hold the content passed to the Blob constructor.
+let capturedBlobContent = '';
+
 describe('exportService', () => {
+    beforeEach(() => {
+        // Reset content before each test
+        capturedBlobContent = '';
+
+        // Mock Blob to capture its content
+        // FIX: Replaced `global` with `globalThis` for compatibility with browser-like test environments.
+        vi.spyOn(globalThis, 'Blob').mockImplementation((contentParts, options) => {
+            capturedBlobContent = (contentParts as string[]).join('');
+            // Return a real blob so the rest of the code doesn't fail
+            return new Blob(contentParts, options);
+        });
+
+        // Mock the rest of the download mechanism to prevent errors in JSDOM
+        vi.stubGlobal('URL', {
+            createObjectURL: vi.fn(() => 'blob:mock-url'),
+            revokeObjectURL: vi.fn(),
+        });
+
+        const mockLink = {
+            href: '',
+            download: '',
+            click: vi.fn(),
+        };
+        vi.spyOn(document, 'createElement').mockReturnValue(mockLink as any);
+        vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
+        vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
+    });
+
     afterEach(() => {
-        vi.clearAllMocks();
+        // Restore all mocks
+        vi.restoreAllMocks();
     });
 
     const mockOwnedBill: Bill = {
@@ -68,16 +89,12 @@ describe('exportService', () => {
 
     it('should generate a CSV with the correct V2 header', async () => {
         await exportData({ owned: [mockOwnedBill] }, 'test.csv');
-        
-        expect(mockDownloadFile).toHaveBeenCalledOnce();
-        const csvContent = mockDownloadFile.mock.calls[0][1];
-        expect(csvContent.startsWith(EXPORT_HEADER_V2)).toBe(true);
+        expect(capturedBlobContent.startsWith(EXPORT_HEADER_V2)).toBe(true);
     });
     
     it('should correctly format an owned bill into BILL and PARTICIPANT rows', async () => {
         await exportData({ owned: [mockOwnedBill] }, 'test.csv');
-        const csvContent = mockDownloadFile.mock.calls[0][1];
-        const lines = csvContent.split('\n');
+        const lines = capturedBlobContent.split('\n');
         
         // Find the BILL row for our mock bill
         const billRow = lines.find((line: string) => line.startsWith('BILL,bill-1'));
@@ -101,8 +118,7 @@ describe('exportService', () => {
 
     it('should correctly format an imported bill into BILL and PARTICIPANT rows', async () => {
         await exportData({ imported: [mockImportedBill] }, 'test.csv');
-        const csvContent = mockDownloadFile.mock.calls[0][1];
-        const lines = csvContent.split('\n');
+        const lines = capturedBlobContent.split('\n');
 
         // BILL row
         const billRow = lines.find((line: string) => line.startsWith('BILL,imported-1'));
