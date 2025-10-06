@@ -1,5 +1,3 @@
-
-
 import React, { ErrorInfo, ReactNode } from 'react';
 import { closeDB } from '../services/db';
 
@@ -61,8 +59,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                 </svg>
-                <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-4">Something went wrong.</h1>
-                <p class="text-slate-500 dark:text-slate-400 mt-2 mb-6">
+                <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-4">Something went wrong.</h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-2 mb-6">
                   The application has encountered an unexpected error. You can try to recover or reset the application data if the problem persists.
                 </p>
                 <div className="space-y-4">

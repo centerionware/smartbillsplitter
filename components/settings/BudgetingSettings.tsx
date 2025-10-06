@@ -60,7 +60,7 @@ const BudgetingSettings: React.FC<BudgetingSettingsProps> = ({ settings, onSetti
                                 type="number"
                                 step="0.01"
                                 value={cat.budget === undefined ? '' : cat.budget}
-                                onChange={e => handleCategoryChange(cat.id, 'budget', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                                onChange={e => handleCategoryChange(cat.id, 'budget', (e.target.value === '' ? undefined : parseFloat(e.target.value)) as number | undefined)}
                                 placeholder="Budget"
                                 className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-md focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600"
                             />

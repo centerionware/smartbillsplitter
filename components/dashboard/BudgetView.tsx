@@ -89,7 +89,8 @@ const BudgetView: React.FC<BudgetViewProps> = ({ budgetData, date, setDate, onSe
         }
     };
     
-    const sortedCategories = Object.values(spendingByCategory).sort((a, b) => b.spent - a.spent);
+    // FIX: Explicitly type the sort parameters to resolve 'property does not exist on type unknown' errors.
+    const sortedCategories = Object.values(spendingByCategory).sort((a: BudgetData['spendingByCategory'][string], b: BudgetData['spendingByCategory'][string]) => b.spent - a.spent);
 
     const getDateLabel = () => {
         if (date === 'last30days') return "Last 30 Days";

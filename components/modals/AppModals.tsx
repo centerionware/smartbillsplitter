@@ -1,6 +1,6 @@
 import React from 'react';
-import { View } from '../types';
-import type { Settings, Theme, RequestConfirmationFn, SettingsSection, Bill, ImportedBill, Category } from '../types';
+import { View } from '../../types';
+import type { Settings, Theme, RequestConfirmationFn, SettingsSection, Bill, ImportedBill, Category } from '../../types';
 import ConfirmationDialog from '../ConfirmationDialog';
 import SettingsModal from '../SettingsModal';
 import CsvImporterModal from '../CsvImporterModal';
