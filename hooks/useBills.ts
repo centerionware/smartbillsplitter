@@ -95,12 +95,13 @@ export const useBills = () => {
     return billWithTimestamp;
   }, [loadBills]);
   
-  const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {
+  const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<Bill[]> => {
       const now = Date.now();
       const billsWithTimestamp = billsToUpdate.map(b => ({ ...b, lastUpdatedAt: now }));
       await mergeBillsDB([], billsWithTimestamp);
       postMessage({ type: 'bills-updated' });
       await loadBills(false);
+      return billsWithTimestamp;
   }, [loadBills]);
 
   const deleteBill = useCallback(async (billId: string) => {

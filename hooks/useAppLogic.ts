@@ -181,18 +181,11 @@ export const useAppLogic = () => {
     }, [originalUpdateBill, settings, showNotification]);
 
     const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {
-        // First, update all bills in the local DB.
-        await originalUpdateMultipleBills(billsToUpdate);
-
-        // Then, for each bill that was updated, if it's a shared bill,
-        // trigger a sync to the server.
-        for (const bill of billsToUpdate) {
+        const updatedBillsFromDB = await originalUpdateMultipleBills(billsToUpdate);
+        for (const bill of updatedBillsFromDB) {
             if (bill.shareInfo?.shareId) {
-                // The `bill` object here has the correct `participants` state, which is what's
-                // important for the payload. The timestamp will be updated inside syncSharedBillUpdate if needed.
                 syncSharedBillUpdate(bill, settings, originalUpdateBill).catch(e => {
                     console.error(`Failed to sync shared bill update for bill ID ${bill.id}:`, e);
-                    // Provide a more specific notification to the user.
                     showNotification(`Failed to sync update for "${bill.description}"`, 'error');
                 });
             }
