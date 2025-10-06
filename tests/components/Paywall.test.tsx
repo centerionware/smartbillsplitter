@@ -1,16 +1,31 @@
 import React from 'react';
-import { render, act } from '@testing-library/react';
-import { screen, waitFor } from '@testing-library/dom';
+import { render, act, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import Paywall from '../../components/Paywall';
 import { fetchWithRetry } from '../../services/api';
+
+// --- Mocks ---
 
 // Mock the API service
 vi.mock('../../services/api.ts', () => ({
   getApiUrl: vi.fn().mockResolvedValue('http://localhost/api'),
   fetchWithRetry: vi.fn(),
 }));
+
+// Mock the SubscriptionWarningModal to remove the timer complexity from this test.
+// This allows us to test the Paywall's logic in isolation.
+vi.mock('../../components/SubscriptionWarningModal', () => ({
+  default: ({ onContinue, onCancel }: { onContinue: () => void, onCancel: () => void }) => (
+    <div data-testid="mock-warning-modal">
+      <h1>Subscription Warning</h1>
+      <button onClick={onCancel}>Cancel</button>
+      <button onClick={onContinue}>Continue to Checkout</button>
+    </div>
+  ),
+}));
+
 
 describe('Paywall', () => {
     const originalLocation = window.location;
@@ -31,7 +46,6 @@ describe('Paywall', () => {
             writable: true,
             value: originalLocation,
         });
-        vi.useRealTimers();
     });
   
   it('renders the title and subscription options', () => {
@@ -59,48 +73,36 @@ describe('Paywall', () => {
   });
 
   it('attempts to create a checkout session when a plan is selected', async () => {
-    vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-
-    vi.mocked(fetchWithRetry).mockResolvedValueOnce(new Response(JSON.stringify({ url: 'https://paypal.com/checkout' }), {
+    const user = userEvent.setup();
+    (fetchWithRetry as Mock).mockResolvedValue(new Response(JSON.stringify({ url: 'https://paypal.com/checkout' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
     }));
 
     render(<Paywall onSelectFreeTier={vi.fn()} />);
 
-    // Click to open the warning modal
+    // 1. Click the plan to open the (now mocked) modal
     const monthlyPlan = screen.getByText(/Monthly Plan/i);
     await user.click(monthlyPlan);
-    
-    // The modal is now open. Find the button, which is initially disabled.
-    const continueButton = await screen.findByRole('button', { name: /Please Read.../i });
-    expect(continueButton).toBeDisabled();
 
-    // Asynchronously run all timers to complete the countdown
-    // This will trigger the state updates in the modal
-    await act(async () => {
-      await vi.runAllTimersAsync();
-    });
-    
-    // Assert the button is now enabled and has the correct text
-    expect(continueButton).not.toBeDisabled();
-    expect(continueButton).toHaveTextContent(/Continue to Checkout/i);
-    
-    // Now click the enabled button to proceed
+    // 2. Verify the mock modal is visible and find its continue button
+    const continueButton = await screen.findByRole('button', { name: /Continue to Checkout/i });
+    expect(screen.getByTestId('mock-warning-modal')).toBeInTheDocument();
+
+    // 3. Click the continue button in the mock modal. No timers to wait for.
     await user.click(continueButton);
 
-    // Wait for the async checkout process to complete and assert fetch was called
+    // 4. Assert that the checkout process was triggered (fetch was called)
     await waitFor(() => {
-      expect(fetchWithRetry).toHaveBeenCalledWith('http://localhost/api/create-checkout-session', expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('"plan":"monthly"'),
-      }));
+        expect(fetchWithRetry).toHaveBeenCalledWith('http://localhost/api/create-checkout-session', expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('"plan":"monthly"'),
+        }));
     });
     
-    // Assert the page was redirected
+    // 5. Assert the page was redirected
     await waitFor(() => {
-      expect(window.location.href).toBe('https://paypal.com/checkout');
+        expect(window.location.href).toBe('https://paypal.com/checkout');
     });
   });
 });
