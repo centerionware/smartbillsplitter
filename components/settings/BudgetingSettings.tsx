@@ -14,8 +14,8 @@ const BudgetingSettings: React.FC<BudgetingSettingsProps> = ({ settings, onSetti
         onCategoriesChange(categories.map(cat => {
             if (cat.id === id) {
                 if (field === 'budget') {
-                    // Treat NaN (from empty input) as an undefined budget
-                    return { ...cat, budget: Number.isNaN(value as number) ? undefined : value as number };
+                    const parsedValue = parseFloat(value as string);
+                    return { ...cat, budget: isNaN(parsedValue) ? undefined : parsedValue };
                 }
                 // This assumes value is a string if field is 'name'
                 return { ...cat, name: value as string };
@@ -70,7 +70,7 @@ const BudgetingSettings: React.FC<BudgetingSettingsProps> = ({ settings, onSetti
                                 type="number"
                                 step="0.01"
                                 value={cat.budget === undefined ? '' : cat.budget}
-                                onChange={e => handleCategoryChange(cat.id, 'budget', parseFloat(e.target.value))}
+                                onChange={e => handleCategoryChange(cat.id, 'budget', e.target.value)}
                                 placeholder="Budget"
                                 className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-md focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600"
                             />

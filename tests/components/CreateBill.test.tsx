@@ -36,6 +36,7 @@ const renderComponent = (props = {}) => {
     <CreateBill
       settings={mockSettings}
       groups={[]}
+      categories={[]}
       {...mockHandlers}
       {...props}
     />
