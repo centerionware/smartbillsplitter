@@ -1,16 +1,16 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { View } from '../types';
-import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group } from '../types';
-import type { SubscriptionStatus } from '../hooks/useAuth';
+import { View } from '../../types';
+import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group } from '../../types';
+import type { SubscriptionStatus } from '../../hooks/useAuth';
 import type { ParticipantData } from './dashboard/ParticipantList';
-import ShareActionSheet from './ShareActionSheet';
-import { generateShareText, generateOneTimeShareLink } from '../services/shareService';
-import { useAppControl } from '../contexts/AppControlContext';
-import HalfScreenAdModal from './HalfScreenAdModal';
-import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
-import PaymentMethodsModal from './PaymentMethodsModal';
-import PaymentMethodWarningModal from './PaymentMethodWarningModal';
-import { exportData } from '../services/exportService';
+import ShareActionSheet from '../ShareActionSheet';
+import { generateShareText, generateOneTimeShareLink } from '../../services/shareService';
+import { useAppControl } from '../../contexts/AppControlContext';
+import HalfScreenAdModal from '../HalfScreenAdModal';
+import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
+import PaymentMethodsModal from '../PaymentMethodsModal';
+import PaymentMethodWarningModal from '../PaymentMethodWarningModal';
+import { exportData } from '../../services/exportService';
 
 // New Child Components
 import DashboardSummary from './dashboard/DashboardSummary';
@@ -24,7 +24,7 @@ import SwipeableGroupCard from './dashboard/SwipeableGroupCard';
 import BudgetView, { BudgetData } from './dashboard/BudgetView';
 
 // Import the ad error message
-import { AD_ERROR_MESSAGE } from '../services/adService';
+import { AD_ERROR_MESSAGE } from '../../services/adService';
 
 
 interface DashboardProps {
