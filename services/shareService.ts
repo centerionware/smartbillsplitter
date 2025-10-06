@@ -277,14 +277,14 @@ export const generateOneTimeShareLink = async (
  * @param participantId The ID of the participant to generate the link for.
  * @param settings The current app settings.
  * @param updateBillCallback A function to persist the updated bill object.
- * @returns A promise resolving to the shareable URL string.
+ * @returns A promise resolving to the shareable URL string and the potentially updated bill.
  */
 export const generateShareLink = async (
     bill: Bill,
     participantId: string,
     settings: Settings,
     updateBillCallback: (updatedBill: Bill) => Promise<void>
-): Promise<string> => {
+): Promise<{ url: string; billWithNewShareInfo: Bill }> => {
     let updatedBill = JSON.parse(JSON.stringify(bill));
     let needsDBUpdate = false;
 
@@ -396,7 +396,7 @@ export const generateShareLink = async (
     const url = new URL(window.location.href);
     url.hash = `#/view-bill?shareId=${updatedBill.shareInfo.shareId}&keyId=${finalShareInfo.keyId}&fragmentKey=${encodedFragmentKey}&p=${urlSafeEncryptedParticipantId}`;
 
-    return url.toString();
+    return { url: url.toString(), billWithNewShareInfo: updatedBill };
 };
 
 

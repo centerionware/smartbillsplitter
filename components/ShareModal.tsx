@@ -49,9 +49,8 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
         if (!canProceed) {
             return; // Abort if space could not be made. Notification is shown by the check function.
         }
-
-        // FIX: Wrapped the 'onUpdateBill' callback to match the expected 'Promise<void>' return type required by 'generateShareLink', resolving a TypeScript type mismatch.
-        const url = await generateShareLink(bill, participant.id, settings, async (updatedBill) => { await onUpdateBill(updatedBill); });
+        
+        const { url, billWithNewShareInfo } = await generateShareLink(bill, participant.id, settings, async (updatedBill) => { await onUpdateBill(updatedBill); });
         if (!url) {
             throw new Error('Failed to generate share link.');
         }
@@ -88,13 +87,13 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
 
         const now = Date.now();
         const updatedHistory = {
-            ...(bill.shareHistory || {}),
+            ...(billWithNewShareInfo.shareHistory || {}),
             [participant.id]: {
-                ...(bill.shareHistory?.[participant.id] || {}),
+                ...(billWithNewShareInfo.shareHistory?.[participant.id] || {}),
                 [method]: now,
             },
         };
-        await onUpdateBill({ ...bill, shareHistory: updatedHistory });
+        await onUpdateBill({ ...billWithNewShareInfo, shareHistory: updatedHistory });
 
     } catch (e: any) {
         if (e.name !== 'AbortError') {
