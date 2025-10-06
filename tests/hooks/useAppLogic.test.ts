@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAppLogic } from '../../hooks/useAppLogic';
 import { useBills } from '../../hooks/useBills';
 import { useSettings } from '../../hooks/useSettings';
@@ -56,20 +56,16 @@ describe('useAppLogic hook - Share Sync Regression Test', () => {
     notificationDays: 3,
   };
 
-  // Define mock functions at the describe level for stability across re-renders
   const mockOriginalUpdateBill = vi.fn();
   const mockUpdateMultipleBills = vi.fn();
   const mockShowNotification = vi.fn();
 
   beforeEach(() => {
+    vi.useFakeTimers(); // Enable fake timers to control setInterval/setTimeout
     vi.clearAllMocks();
 
-    // --- MOCK SETUP ---
-    // **THE FIX**: Mock functions called in useEffect to prevent them from running
-    // and causing an infinite loop in the test environment.
     mockedShareService.pollImportedBills.mockResolvedValue([]);
     mockedShareService.pollOwnedSharedBills.mockResolvedValue([]);
-
     mockOriginalUpdateBill.mockImplementation(async (bill: Bill) => ({ ...bill, lastUpdatedAt: Date.now() }));
     mockUpdateMultipleBills.mockImplementation(async (bills: Bill[]) => bills.map(b => ({ ...b, lastUpdatedAt: Date.now() })));
     
@@ -100,10 +96,19 @@ describe('useAppLogic hook - Share Sync Regression Test', () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers(); // Restore real timers after each test
+  });
+
   it('should trigger a sync when a shared bill is updated', async () => {
     // 1. RENDER HOOK
     const { result } = renderHook(() => useAppLogic());
 
+    // Run any timers queued by the initial render's useEffects (like the polling intervals)
+    await act(async () => {
+      vi.runOnlyPendingTimers();
+    });
+    
     // 2. ACTION: Simulate user marking a participant as paid
     const updatedBillForAction: Bill = {
       ...mockSharedBill,
