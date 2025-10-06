@@ -121,8 +121,8 @@ export const useRecurringBills = () => {
       nextDueDate: calculateFirstDueDate(newBillData.recurrenceRule, new Date()),
     };
     await addDB(newBill);
-    postMessage({ type: 'recurring-bills-updated' });
     await loadRecurringBills(false);
+    postMessage({ type: 'recurring-bills-updated' });
     return newBill;
   }, [loadRecurringBills]);
 
@@ -132,8 +132,8 @@ export const useRecurringBills = () => {
         updatedBill.nextDueDate = calculateFirstDueDate(updatedBill.recurrenceRule, new Date());
     }
     await updateDB(updatedBill);
-    postMessage({ type: 'recurring-bills-updated' });
     await loadRecurringBills(false);
+    postMessage({ type: 'recurring-bills-updated' });
   }, [recurringBills, loadRecurringBills]);
   
   const updateRecurringBillDueDate = useCallback(async (billId: string) => {
@@ -144,8 +144,8 @@ export const useRecurringBills = () => {
             nextDueDate: calculateNextDueDate(billToUpdate.recurrenceRule, billToUpdate.nextDueDate)
         };
         await updateDB(updatedBill);
-        postMessage({ type: 'recurring-bills-updated' });
         await loadRecurringBills(false);
+        postMessage({ type: 'recurring-bills-updated' });
     }
   }, [recurringBills, loadRecurringBills]);
 
@@ -154,8 +154,8 @@ export const useRecurringBills = () => {
     if (billToUpdate) {
       const updatedBill = { ...billToUpdate, status: 'archived' as const };
       await updateDB(updatedBill);
-      postMessage({ type: 'recurring-bills-updated' });
       await loadRecurringBills(false);
+      postMessage({ type: 'recurring-bills-updated' });
     }
   }, [recurringBills, loadRecurringBills]);
   
@@ -164,15 +164,15 @@ export const useRecurringBills = () => {
     if (billToUpdate) {
       const updatedBill = { ...billToUpdate, status: 'active' as const, nextDueDate: calculateFirstDueDate(billToUpdate.recurrenceRule, new Date()) };
       await updateDB(updatedBill);
-      postMessage({ type: 'recurring-bills-updated' });
       await loadRecurringBills(false);
+      postMessage({ type: 'recurring-bills-updated' });
     }
   }, [recurringBills, loadRecurringBills]);
 
   const deleteRecurringBill = useCallback(async (billId: string) => {
     await deleteRecurringBillDB(billId);
-    postMessage({ type: 'recurring-bills-updated' });
     await loadRecurringBills(false);
+    postMessage({ type: 'recurring-bills-updated' });
   }, [loadRecurringBills]);
 
   return { recurringBills, addRecurringBill, updateRecurringBill, archiveRecurringBill, unarchiveRecurringBill, deleteRecurringBill, updateRecurringBillDueDate, isLoading };

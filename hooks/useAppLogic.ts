@@ -168,66 +168,79 @@ export const useAppLogic = () => {
         }
     }, [bills, dashboardStatusFilter, settings.myDisplayName]);
 
-
-    const updateBill = useCallback(async (bill: Bill): Promise<Bill> => {
-        // 1. Update locally first to get the bill with the new timestamp.
-        const billToSync = await originalUpdateBill(bill);
-    
-        // 2. If it's a shared bill, perform the sync logic sequentially.
-        if (billToSync.shareInfo?.shareId) {
+    const updateBill = useCallback((bill: Bill): Promise<Bill> => {
+        // This is a fire-and-forget pattern to prevent re-renders from interrupting the async flow.
+        (async () => {
             try {
-                // Pre-flight GET check to see if the share session is live.
-                const res = await fetchWithRetry(await getApiUrl(`/share/${billToSync.shareInfo.shareId}`), { 
-                    method: 'GET', 
-                    signal: AbortSignal.timeout(4000) 
-                });
+                // This call will update the DB and trigger a UI re-render via loadBills()
+                const billToSync = await originalUpdateBill(bill);
     
-                if (res.status === 404) {
-                    // If it's not live (404), recreate the share session.
-                    console.log(`Share for bill ${billToSync.id} not found on server. Re-creating...`);
-                    const { lastUpdatedAt, updateToken } = await reactivateShare(billToSync, settings);
-                    
-                    // Update the local DB again with the new token/timestamp from the server.
-                    await originalUpdateBill({ 
-                        ...billToSync, 
-                        shareStatus: 'live',
-                        lastUpdatedAt, 
-                        shareInfo: { ...billToSync.shareInfo!, updateToken } 
-                    });
-                    console.log(`Successfully re-created share for bill ${billToSync.id}.`);
-
-                } else if (res.ok) {
-                    // If it is live, just push the update via POST.
-                    console.log(`Share for bill ${billToSync.id} is live. Pushing update...`);
-                    await syncSharedBillUpdate(billToSync, settings, originalUpdateBill);
-                    console.log(`Successfully synced update for bill ${billToSync.id}.`);
+                if (billToSync.shareInfo?.shareId) {
+                    console.log(`[Sync] Initiating update for shared bill: ${billToSync.id}`);
+                    try {
+                        // Pre-flight GET check to see if the share session is live.
+                        const res = await fetchWithRetry(await getApiUrl(`/share/${billToSync.shareInfo.shareId}`), { 
+                            method: 'GET', 
+                            signal: AbortSignal.timeout(4000) 
+                        });
+            
+                        if (res.status === 404) {
+                            console.log(`[Sync] Share for bill ${billToSync.id} not found on server. Re-creating...`);
+                            const { lastUpdatedAt, updateToken } = await reactivateShare(billToSync, settings);
+                            await originalUpdateBill({ 
+                                ...billToSync, 
+                                shareStatus: 'live',
+                                lastUpdatedAt, 
+                                shareInfo: { ...billToSync.shareInfo!, updateToken } 
+                            });
+                            console.log(`[Sync] Successfully re-created share for bill ${billToSync.id}.`);
+                        } else if (res.ok) {
+                            console.log(`[Sync] Share for bill ${billToSync.id} is live. Pushing update...`);
+                            await syncSharedBillUpdate(billToSync, settings, originalUpdateBill);
+                            console.log(`[Sync] Successfully synced update for bill ${billToSync.id}.`);
+                        } else {
+                            const errorData = await res.json().catch(() => ({}));
+                            throw new Error(errorData.error || `Server returned status ${res.status} during share check.`);
+                        }
+                    } catch (e: any) {
+                        console.error(`[Sync] Failed to sync shared bill update for bill ID ${billToSync.id}:`, e);
+                        showNotification(e.message || `Failed to sync update for "${billToSync.description}"`, 'error');
+                        // Also update the bill locally to show an error state
+                        await originalUpdateBill({ ...billToSync, shareStatus: 'error' });
+                    }
                 } else {
-                    // Handle other server errors during the check.
-                    const errorData = await res.json().catch(() => ({}));
-                    throw new Error(errorData.error || `Server returned status ${res.status} during share check.`);
+                    console.log(`[Sync] Skipped for bill ${bill.id}: not a shared bill.`);
                 }
             } catch (e: any) {
-                console.error("Failed to sync shared bill update:", e);
-                showNotification(e.message || "Failed to sync bill update to server", 'error');
+                console.error("[Sync] The entire update/sync process failed:", e);
+                showNotification(e.message || "A critical error occurred while saving and syncing.", 'error');
             }
-        }
+        })();
         
-        return billToSync;
+        // Return a resolved promise immediately for UI responsiveness.
+        // The UI will update via the re-render triggered by originalUpdateBill.
+        return Promise.resolve(bill);
     }, [originalUpdateBill, settings, showNotification]);
 
-    const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<void> => {
-        const updatedBillsFromDB = await originalUpdateMultipleBills(billsToUpdate);
-        // Fire and forget sync updates for each bill. The updated updateBill function is robust.
-        for (const bill of updatedBillsFromDB) {
-            if (bill.shareInfo?.shareId) {
-                updateBill(bill).catch(e => {
-                    console.error(`Failed to sync shared bill update for batch bill ID ${bill.id}:`, e);
-                    showNotification(`Failed to sync update for "${bill.description}"`, 'error');
-                });
+    const updateMultipleBills = useCallback((billsToUpdate: Bill[]): Promise<void> => {
+        (async () => {
+            try {
+                const updatedBillsFromDB = await originalUpdateMultipleBills(billsToUpdate);
+                // The updateBill function is now robust, so we can call it for each bill.
+                for (const bill of updatedBillsFromDB) {
+                    if (bill.shareInfo?.shareId) {
+                        // We don't need to await this, as updateBill is fire-and-forget
+                        updateBill(bill);
+                    }
+                }
+            } catch (e: any) {
+                console.error("[Sync] The entire multiple bill update/sync process failed:", e);
+                showNotification(e.message || "A critical error occurred while saving and syncing multiple bills.", 'error');
             }
-        }
+        })();
+        return Promise.resolve();
     }, [originalUpdateMultipleBills, updateBill, showNotification]);
-
+    
     const checkAndMakeSpaceForImageShare = useCallback(async (billToShare: Bill): Promise<boolean> => {
         if (subscriptionStatus !== 'free' || !billToShare.receiptImage) {
             return true;

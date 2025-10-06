@@ -38,14 +38,14 @@ export const useImportedBills = () => {
 
   const addImportedBill = useCallback(async (newBill: ImportedBill) => {
     await addDB(newBill);
-    postMessage({ type: 'imported-bills-updated' });
     await loadImportedBills(false);
+    postMessage({ type: 'imported-bills-updated' });
   }, [loadImportedBills]);
 
   const updateImportedBill = useCallback(async (updatedBill: ImportedBill) => {
     await updateDB(updatedBill);
-    postMessage({ type: 'imported-bills-updated' });
     await loadImportedBills(false);
+    postMessage({ type: 'imported-bills-updated' });
   }, [loadImportedBills]);
 
   const updateMultipleImportedBills = useCallback(async (billsToUpdate: ImportedBill[]) => {
@@ -63,14 +63,14 @@ export const useImportedBills = () => {
       });
 
       await mergeImportedBillsDB([], billsWithSyncedStatus);
-      postMessage({ type: 'imported-bills-updated' });
       await loadImportedBills(false);
+      postMessage({ type: 'imported-bills-updated' });
   }, [loadImportedBills]);
 
   const deleteImportedBill = useCallback(async (billId: string) => {
     await deleteImportedBillDB(billId);
-    postMessage({ type: 'imported-bills-updated' });
     await loadImportedBills(false);
+    postMessage({ type: 'imported-bills-updated' });
   }, [loadImportedBills]);
 
   const archiveImportedBill = useCallback(async (billId: string) => {
@@ -78,8 +78,8 @@ export const useImportedBills = () => {
     if (billToUpdate) {
       const updatedBill = { ...billToUpdate, status: 'archived' as const };
       await updateDB(updatedBill);
-      postMessage({ type: 'imported-bills-updated' });
       await loadImportedBills(false);
+      postMessage({ type: 'imported-bills-updated' });
     }
   }, [importedBills, loadImportedBills]);
 
@@ -88,8 +88,8 @@ export const useImportedBills = () => {
     if (billToUpdate) {
       const updatedBill = { ...billToUpdate, status: 'active' as const };
       await updateDB(updatedBill);
-      postMessage({ type: 'imported-bills-updated' });
       await loadImportedBills(false);
+      postMessage({ type: 'imported-bills-updated' });
     }
   }, [importedBills, loadImportedBills]);
 
@@ -99,8 +99,6 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX: Replaced for...of loop with forEach to help TypeScript's type inference,
-      // resolving an issue where the loop variable was being treated as 'unknown'.
       billsToMerge.forEach(billToProcess => {
           const existingBill = existingBillMap.get(billToProcess.id);
 
@@ -117,8 +115,8 @@ export const useImportedBills = () => {
 
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeImportedBillsDB(billsToAdd, billsToUpdate);
-          postMessage({ type: 'imported-bills-updated' });
           await loadImportedBills(false);
+          postMessage({ type: 'imported-bills-updated' });
       }
 
       return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };

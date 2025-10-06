@@ -83,39 +83,32 @@ export const useBills = () => {
       lastUpdatedAt: Date.now(),
     };
     await addBillDB(newBill);
-    setBills(prev => [...prev, newBill].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    await loadBills(false);
     postMessage({ type: 'bills-updated' });
-  }, []);
+  }, [loadBills]);
 
   const updateBill = useCallback(async (updatedBill: Bill): Promise<Bill> => {
     const billWithTimestamp = { ...updatedBill, lastUpdatedAt: Date.now() };
     await updateBillDB(billWithTimestamp);
-    setBills(prev => 
-        prev.map(b => b.id === billWithTimestamp.id ? billWithTimestamp : b)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    );
+    await loadBills(false);
     postMessage({ type: 'bills-updated' });
     return billWithTimestamp;
-  }, []);
+  }, [loadBills]);
   
   const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<Bill[]> => {
       const now = Date.now();
       const billsWithTimestamp = billsToUpdate.map(b => ({ ...b, lastUpdatedAt: now }));
       await mergeBillsDB([], billsWithTimestamp);
-      setBills(prev => {
-          const updatedMap = new Map(billsWithTimestamp.map(b => [b.id, b]));
-          return prev.map(b => updatedMap.get(b.id) || b)
-                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      });
+      await loadBills(false);
       postMessage({ type: 'bills-updated' });
       return billsWithTimestamp;
-  }, []);
+  }, [loadBills]);
 
   const deleteBill = useCallback(async (billId: string) => {
     await deleteBillDB(billId);
-    setBills(prev => prev.filter(b => b.id !== billId));
+    await loadBills(false);
     postMessage({ type: 'bills-updated' });
-  }, []);
+  }, [loadBills]);
 
   const archiveBill = useCallback(async (billId: string) => {
     const billToUpdate = bills.find(b => b.id === billId);
@@ -137,8 +130,6 @@ export const useBills = () => {
       const billsToUpdate: Bill[] = [];
       let skippedCount = 0;
 
-      // FIX: Replaced for...of loop with forEach to help TypeScript's type inference,
-      // resolving an issue where the loop variable was being treated as 'unknown'.
       billsToMerge.forEach(billToProcess => {
           const existingBill = existingBillMap.get(billToProcess.id);
 
@@ -155,18 +146,12 @@ export const useBills = () => {
 
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeBillsDB(billsToAdd, billsToUpdate);
-          setBills(prev => {
-              const updatedMap = new Map(billsToUpdate.map(b => [b.id, b]));
-              const currentBillsMap = new Map(prev.map(b => [b.id, b]));
-              updatedMap.forEach((value, key) => currentBillsMap.set(key, value));
-              billsToAdd.forEach(b => currentBillsMap.set(b.id, b));
-              return Array.from(currentBillsMap.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          });
+          await loadBills(false);
           postMessage({ type: 'bills-updated' });
       }
 
       return { added: billsToAdd.length, updated: billsToUpdate.length, skipped: skippedCount };
-  }, [bills]);
+  }, [bills, loadBills]);
 
   return { bills, isLoading, addBill, updateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills };
 };
