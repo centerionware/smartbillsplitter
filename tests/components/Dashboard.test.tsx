@@ -4,17 +4,17 @@ import { render, act } from '@testing-library/react';
 import { screen } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import Dashboard from '../../components/dashboard/Dashboard';
+import Dashboard from '../../components/Dashboard';
 import { View } from '../../types';
 import type { Bill, ImportedBill, RecurringBill, Settings } from '../../types';
-import type { ParticipantData } from '../../components/ParticipantList';
+import type { ParticipantData } from '../../components/dashboard/ParticipantList';
 import type { BudgetData } from '../../components/dashboard/BudgetView';
 
 // Mock child components to isolate Dashboard logic
 vi.mock('../../components/dashboard/DashboardSummary', () => ({ default: () => <div data-testid="summary" /> }));
 vi.mock('../../components/dashboard/DashboardControls', () => ({ default: () => <div data-testid="controls" /> }));
 vi.mock('../../components/dashboard/BillList', () => ({ default: () => <div data-testid="bill-list" /> }));
-vi.mock('../../components/ParticipantList', () => ({ default: () => <div data-testid="participant-list" /> }));
+vi.mock('../../components/dashboard/ParticipantList', () => ({ default: () => <div data-testid="participant-list" /> }));
 vi.mock('../../components/dashboard/EmptyState', () => ({ default: () => <div data-testid="empty-state" /> }));
 
 const mockBills: Bill[] = [
