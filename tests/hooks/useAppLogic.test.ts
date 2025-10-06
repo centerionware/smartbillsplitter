@@ -11,7 +11,7 @@ import type { Bill, Settings } from '../../types';
 // Mock the hooks that useAppLogic depends on
 vi.mock('../../hooks/useBills');
 vi.mock('../../hooks/useSettings');
-vi.mock('../../hooks/useAppControl');
+vi.mock('../../contexts/AppControlContext');
 // Also mock other hooks to provide default values and prevent errors
 vi.mock('../../hooks/useImportedBills', () => ({ useImportedBills: () => ({ importedBills: [], isLoading: false }) }));
 vi.mock('../../hooks/useRecurringBills', () => ({ useRecurringBills: () => ({ recurringBills: [], isLoading: false }) }));
