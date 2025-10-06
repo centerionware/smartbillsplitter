@@ -1,7 +1,6 @@
 import React from 'react';
-// FIX: Changed import statement to correctly import `View` as a value (for enums)
-// and other symbols as types, resolving 'cannot be used as a value' error.
-import { View, type Settings, type Theme, type RequestConfirmationFn, type SettingsSection, type Bill, type ImportedBill } from '../../types';
+import { View } from '../types';
+import type { Settings, Theme, RequestConfirmationFn, SettingsSection, Bill, ImportedBill, Category } from '../types';
 import ConfirmationDialog from '../ConfirmationDialog';
 import SettingsModal from '../SettingsModal';
 import CsvImporterModal from '../CsvImporterModal';
@@ -19,6 +18,9 @@ type AppModalsProps = {
     // Props for modals
     settings: Settings;
     updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
+    categories: Category[];
+    saveCategories: (categories: Category[]) => Promise<void>;
+    deleteCategory: (categoryId: string) => Promise<void>;
     requestConfirmation: RequestConfirmationFn;
     navigate: (view: View, params?: any) => void;
     theme: Theme;
@@ -56,6 +58,9 @@ export const AppModals: React.FC<AppModalsProps> = ({
                     onClose={() => setSettingsSection(null)} 
                     settings={props.settings} 
                     updateSettings={props.updateSettings} 
+                    categories={props.categories}
+                    saveCategories={props.saveCategories}
+                    deleteCategory={props.deleteCategory}
                     requestConfirmation={props.requestConfirmation} 
                     onNavigate={props.navigate} 
                     theme={props.theme} 

@@ -21,8 +21,8 @@ export type BroadcastMessageType =
     | 'theme-updated' 
     | 'db-close-request' 
     | 'db-migration-complete'
-    // FIX: Added 'groups-updated' to the type to support broadcasting group changes.
-    | 'groups-updated';
+    | 'groups-updated'
+    | 'categories-updated';
 
 export interface BroadcastMessage {
   type: BroadcastMessageType;

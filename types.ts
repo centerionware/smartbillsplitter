@@ -51,6 +51,7 @@ export interface Bill {
   shareStatus?: 'live' | 'expired' | 'error';
   shareHistory?: Record<string, Partial<Record<'sms' | 'email' | 'copy' | 'share', number>>>;
   groupId?: string; // Link to a group
+  categoryId?: string;
 }
 
 export interface RecurrenceRule {
@@ -81,6 +82,13 @@ export interface Group {
     popularity: number;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  budget?: number;
+  isDefault?: boolean;
+}
+
 export interface PaymentDetails {
     venmo: string;
     paypal: string;
@@ -96,6 +104,7 @@ export interface Settings {
   notificationsEnabled: boolean;
   notificationDays: number;
   hidePaymentMethodWarning?: boolean;
+  totalBudget?: number;
 }
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -117,7 +126,7 @@ export enum View {
 
 export type SummaryFilter = 'total' | 'othersOweMe' | 'iOwe';
 
-export type DashboardView = 'bills' | 'participants' | 'upcoming' | 'templates' | 'groups';
+export type DashboardView = 'bills' | 'participants' | 'upcoming' | 'templates' | 'groups' | 'budget';
 
 export interface ConstituentShareInfo {
     originalBillId: string;
@@ -180,7 +189,7 @@ export interface PayPalSubscriptionDetails {
     isCurrentDevice: boolean;
 }
 
-export type SettingsSection = 'personalization' | 'payments' | 'reminders' | 'data' | 'sync' | 'subscription' | 'danger' | 'about' | 'disclaimer';
+export type SettingsSection = 'personalization' | 'payments' | 'reminders' | 'data' | 'sync' | 'subscription' | 'danger' | 'about' | 'disclaimer' | 'budgeting';
 
 export interface ManageImageStorageState {
   onProceed: () => void;

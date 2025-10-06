@@ -1,8 +1,9 @@
 import React from 'react';
-import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView, SettingsSection, Group, RequestConfirmationFn } from '../../types';
+import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView, SettingsSection, Group, RequestConfirmationFn, Category } from '../../types';
 import { View } from '../../types';
-import type { SubscriptionStatus } from '../../hooks/useAuth';
 import type { ParticipantData } from '../ParticipantList';
+import type { BudgetData } from '../dashboard/BudgetView';
+import type { SubscriptionStatus } from '../../hooks/useAuth';
 
 // Components
 import Dashboard from '../dashboard/Dashboard';
@@ -26,6 +27,7 @@ type AppLogicProps = {
     importedBills: ImportedBill[];
     recurringBills: RecurringBill[];
     groups: Group[];
+    categories: Category[];
     participantsData: ParticipantData[];
     // Current Items
     currentBill?: Bill;
@@ -52,6 +54,11 @@ type AppLogicProps = {
     onSetDashboardStatusFilter: (status: 'active' | 'archived') => void;
     onSetDashboardSummaryFilter: (filter: SummaryFilter) => void;
     onSelectParticipant: (name: string | null) => void;
+    // Budget
+    budgetData: BudgetData;
+    budgetDate: { year: number, month: number } | 'last30days';
+    setBudgetDate: (date: { year: number, month: number } | 'last30days') => void;
+    handleSelectBillFromBudget: (billInfo: { billId: string, isImported: boolean }) => void;
     // Handlers
     updateBill: (bill: Bill) => Promise<Bill>;
     addImportedBill: (bill: ImportedBill) => Promise<void>;
@@ -59,7 +66,7 @@ type AppLogicProps = {
     handleSaveBill: (billData: Omit<Bill, 'id' | 'status'>, fromTemplateId?: string) => Promise<void>;
     handleSaveRecurringBill: (billData: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => Promise<void>;
     handleUpdateRecurringBill: (bill: RecurringBill) => Promise<void>;
-    handleSaveGroup: (groupData: Omit<Group, 'id' | 'lastUpdatedAt'>) => Promise<void>;
+    handleSaveGroup: (groupData: Omit<Group, 'id' | 'lastUpdatedAt' | 'popularity'>) => Promise<void>;
     handleUpdateGroup: (group: Group) => Promise<void>;
     handleDeleteBill: (billId: string) => void;
     handleDeleteImportedBill: (billId: string) => void;
@@ -87,7 +94,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
         updateBill, setSettingsSection, requestConfirmation,
         recurringBills, createFromTemplate, archiveRecurringBill, unarchiveRecurringBill, handleDeleteRecurringBill,
         addImportedBill, importedBills, canInstall, promptInstall, checkAndMakeSpaceForImageShare,
-        bills, groups, groupToEdit, handleSaveGroup, handleUpdateGroup, handleDeleteGroup
+        bills, groups, groupToEdit, handleSaveGroup, handleUpdateGroup, handleDeleteGroup, categories
     } = props;
 
     if (isLoading) {
@@ -95,7 +102,7 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
             <div className="flex-grow flex items-center justify-center text-center">
                <div>
                    <svg className="animate-spin h-10 w-10 text-teal-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                   <h1 className="text-xl font-semibold text-slate-700 dark:text-slate-200">Loading your data...</h1>
+                   <h1 class="text-xl font-semibold text-slate-700 dark:text-slate-200">Loading your data...</h1>
                </div>
             </div>
        );
@@ -103,11 +110,10 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
 
     switch (view) {
         case View.CreateBill:
-            return <CreateBill onSaveBill={handleSaveBill} onSaveRecurringBill={handleSaveRecurringBill} onUpdateRecurringBill={handleUpdateRecurringBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} recurringBillToEdit={recurringBillToEdit} fromTemplate={fromTemplate} billConversionSource={billConversionSource} groups={groups} />;
+            return <CreateBill onSaveBill={handleSaveBill} onSaveRecurringBill={handleSaveRecurringBill} onUpdateRecurringBill={handleUpdateRecurringBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} recurringBillToEdit={recurringBillToEdit} fromTemplate={fromTemplate} billConversionSource={billConversionSource} groups={groups} categories={categories} />;
         case View.CreateGroup:
             return <CreateGroup onSave={handleSaveGroup} onUpdate={handleUpdateGroup} onBack={() => navigate(View.Dashboard, { view: 'groups' })} groupToEdit={groupToEdit} />;
         case View.GroupDetails:
-            // FIX: Explicitly pass `onUpdateMultipleBills` by mapping it from `props.updateMultipleBills` to satisfy the component's props interface.
             return currentGroup ? <GroupDetailsView group={currentGroup} {...props} onUpdateMultipleBills={props.updateMultipleBills} onBack={() => navigate(View.Dashboard, { view: 'groups' })} /> : <div>Group not found.</div>;
         case View.BillDetails:
             return currentBill ? <BillDetails bill={currentBill} onUpdateBill={updateBill} onBack={() => navigate(View.Dashboard)} settings={settings} updateSettings={updateSettings} setSettingsSection={setSettingsSection} navigate={navigate} onReshareBill={() => props.handleReshareBill(currentBill.id)} checkAndMakeSpaceForImageShare={checkAndMakeSpaceForImageShare} /> : <div>Bill not found.</div>;
@@ -145,6 +151,10 @@ export const AppRouter: React.FC<AppLogicProps> = (props) => {
                         onCreateFromTemplate={props.createFromTemplate}
                         onSelectParticipant={props.onSelectParticipant}
                         onClearParticipant={() => props.onSelectParticipant(null)}
+                        budgetData={props.budgetData}
+                        budgetDate={props.budgetDate}
+                        setBudgetDate={props.setBudgetDate}
+                        handleSelectBillFromBudget={props.handleSelectBillFromBudget}
                    />;
     }
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Bill, Settings, ImportedBill, RecurringBill, RequestConfirmationFn, SettingsSection, SummaryFilter, DashboardView, Group } from '../types';
+import type { Bill, Settings, ImportedBill, RecurringBill, RequestConfirmationFn, SettingsSection, SummaryFilter, DashboardView, Group, Category } from '../types';
 import { View } from '../types';
 import type { ParticipantData } from '../components/ParticipantList';
 
@@ -8,6 +8,7 @@ import { useBills } from './useBills';
 import { useImportedBills } from './useImportedBills';
 import { useRecurringBills } from './useRecurringBills';
 import { useGroups } from './useGroups';
+import { useCategories } from './useCategories';
 import { useSettings } from './useSettings';
 import { useTheme } from './useTheme';
 import { useAuth } from './useAuth';
@@ -26,6 +27,7 @@ export const useAppLogic = () => {
     const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, updateMultipleImportedBills, isLoading: isImportedLoading } = useImportedBills();
     const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: isRecurringLoading } = useRecurringBills();
     const { groups, addGroup, updateGroup, deleteGroup, incrementGroupPopularity, isLoading: isGroupsLoading } = useGroups();
+    const { categories, saveCategories, deleteCategory, isLoading: isCategoriesLoading } = useCategories();
     const { theme, setTheme } = useTheme();
     const { subscriptionStatus } = useAuth();
     const { showNotification } = useAppControl();
@@ -43,6 +45,8 @@ export const useAppLogic = () => {
     const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
     const [dashboardStatusFilter, setDashboardStatusFilter] = useState<'active' | 'archived'>('active');
     const [dashboardSummaryFilter, setDashboardSummaryFilter] = useState<SummaryFilter>('total');
+    const [budgetDate, setBudgetDate] = useState<{ year: number; month: number } | 'last30days'>('last30days');
+
 
     // --- ROUTING LOGIC ---
     const [routerState, setRouterState] = useState({
@@ -66,6 +70,8 @@ export const useAppLogic = () => {
         if (newParams.convertFromBill) { urlParams.set('convertFromBillId', newParams.convertFromBill); delete newParams.convertFromBill; }
         if (newParams.groupToEdit) { urlParams.set('editGroupId', newParams.groupToEdit.id); delete newParams.groupToEdit; }
         if (newParams.groupToView) { urlParams.set('groupId', newParams.groupToView.id); delete newParams.groupToView; }
+        if (newParams.billId) { urlParams.set('billId', newParams.billId); }
+        if (newParams.importedBillId) { urlParams.set('importedBillId', newParams.importedBillId); }
         
         Object.keys(newParams).forEach(key => {
             if (newParams[key] !== undefined && newParams[key] !== null) {
@@ -123,8 +129,100 @@ export const useAppLogic = () => {
         }
     }, [view]);
 
-    // --- Derived Data & Callbacks ---
+    // --- DERIVED DATA & LOGIC ---
+    const isLoading = isBillsLoading || isImportedLoading || isRecurringLoading || isSettingsLoading || isGroupsLoading || isCategoriesLoading;
 
+    const budgetData = useMemo(() => {
+        const myNameLower = settings.myDisplayName.trim().toLowerCase();
+        if (!myNameLower || isSettingsLoading || isCategoriesLoading || isBillsLoading || isImportedLoading) {
+            return { totalBudget: 0, totalSpending: 0, spendingByCategory: {}, hasBudgetData: false };
+        }
+
+        let startDate: Date;
+        let endDate = new Date();
+        if (budgetDate === 'last30days') {
+            startDate = new Date();
+            startDate.setDate(endDate.getDate() - 30);
+            startDate.setHours(0,0,0,0);
+        } else {
+            startDate = new Date(budgetDate.year, budgetDate.month, 1);
+            endDate = new Date(budgetDate.year, budgetDate.month + 1, 0);
+            endDate.setHours(23, 59, 59, 999);
+        }
+
+        const relevantUserBills: { billId: string; description: string; userPortion: number; date: string; categoryId?: string; isImported: boolean }[] = [];
+        
+        bills.forEach(bill => {
+            const billDate = new Date(bill.date);
+            if (bill.status === 'active' && billDate >= startDate && billDate <= endDate) {
+                const myParticipant = bill.participants.find(p => p.name.trim().toLowerCase() === myNameLower);
+                if (myParticipant) {
+                    const userPortion = bill.participants.length === 1 && bill.participants[0].name.trim().toLowerCase() === myNameLower ? bill.totalAmount : myParticipant.amountOwed;
+                    if (userPortion > 0) {
+                        relevantUserBills.push({
+                            billId: bill.id, description: bill.description, userPortion, date: bill.date, categoryId: bill.categoryId, isImported: false
+                        });
+                    }
+                }
+            }
+        });
+
+        importedBills.forEach(iBill => {
+            const bill = iBill.sharedData.bill;
+            const billDate = new Date(bill.date);
+            if (iBill.status === 'active' && billDate >= startDate && billDate <= endDate && iBill.myParticipantId) {
+                const myParticipant = bill.participants.find(p => p.id === iBill.myParticipantId);
+                if (myParticipant) {
+                    const userPortion = myParticipant.amountOwed;
+                    if (userPortion > 0) {
+                        relevantUserBills.push({
+                            billId: iBill.id, description: bill.description, userPortion, date: bill.date, categoryId: bill.categoryId, isImported: true
+                        });
+                    }
+                }
+            }
+        });
+        
+        const spendingByCategory: Record<string, any> = {};
+        let totalSpending = 0;
+
+        relevantUserBills.forEach(bill => {
+            totalSpending += bill.userPortion;
+            const categoryId = bill.categoryId;
+            const category = categories.find(c => c.id === categoryId);
+            
+            const targetId = category ? category.id : 'uncategorized';
+
+            if (!spendingByCategory[targetId]) {
+                spendingByCategory[targetId] = {
+                    category: category || { id: 'uncategorized', name: 'Uncategorized' },
+                    spent: 0,
+                    bills: []
+                };
+            }
+            spendingByCategory[targetId].spent += bill.userPortion;
+            spendingByCategory[targetId].bills.push(bill);
+        });
+
+        let totalBudget = settings.totalBudget || 0;
+        if (!settings.totalBudget || settings.totalBudget === 0) {
+            totalBudget = categories.reduce((sum, cat) => sum + (cat.budget || 0), 0);
+        }
+
+        const hasAnyBillsWithCategory = bills.some(b => b.categoryId) || importedBills.some(b => b.sharedData.bill.categoryId);
+        const hasAnyBudgetSet = totalBudget > 0 || categories.some(c => c.budget && c.budget > 0);
+
+        return {
+            totalBudget,
+            totalSpending,
+            spendingByCategory,
+            hasBudgetData: hasAnyBillsWithCategory || hasAnyBudgetSet
+        };
+    }, [bills, importedBills, categories, settings, budgetDate, isSettingsLoading, isCategoriesLoading, isBillsLoading, isImportedLoading]);
+
+    // ... (other useMemo and useCallback hooks from the original file remain here, unchanged)
+    
+    // --- CALLBACKS & HANDLERS ---
     const participantsData = useMemo((): ParticipantData[] => {
         const myDisplayNameLower = settings.myDisplayName.trim().toLowerCase();
         const participantContactInfo = new Map<string, { phone?: string; email?: string }>();
@@ -336,6 +434,14 @@ export const useAppLogic = () => {
             showNotification('Bill created successfully!');
         }
     };
+    
+    const handleSelectBillFromBudget = (billInfo: { billId: string; isImported: boolean }) => {
+        if (billInfo.isImported) {
+            navigate(View.ImportedBillDetails, { importedBillId: billInfo.billId });
+        } else {
+            navigate(View.BillDetails, { billId: billInfo.billId });
+        }
+    };
 
     const handleSaveRecurringBill = async (billData: Omit<RecurringBill, 'id' | 'status' | 'nextDueDate'>) => {
         await addRecurringBill(billData);
@@ -383,7 +489,6 @@ export const useAppLogic = () => {
     const currentImportedBillId = routerState.params.importedBillId || null;
     const currentBill = bills.find(b => b.id === currentBillId);
     const currentImportedBill = importedBills.find(b => b.id === currentImportedBillId);
-    const isLoading = isBillsLoading || isImportedLoading || isRecurringLoading || isSettingsLoading || isGroupsLoading;
 
     return {
         view, params, currentBillId, currentImportedBillId, recurringBillToEdit, fromTemplate, billConversionSource, groupToEdit, currentGroup,
@@ -393,12 +498,13 @@ export const useAppLogic = () => {
         onSetDashboardView: setDashboardView, onSetDashboardStatusFilter: setDashboardStatusFilter,
         onSetDashboardSummaryFilter: setDashboardSummaryFilter,
         settings, updateSettings, theme, setTheme, subscriptionStatus,
-        bills, importedBills, recurringBills, groups, currentBill, currentImportedBill,
+        bills, importedBills, recurringBills, groups, categories, currentBill, currentImportedBill,
         isLoading, canInstall, promptInstall,
         navigate, requestConfirmation, updateBill, addImportedBill, updateImportedBill, updateMultipleImportedBills,
         handleSaveBill, handleSaveRecurringBill, handleUpdateRecurringBill, handleDeleteBill, handleDeleteImportedBill,
         handleDeleteRecurringBill, handleReshareBill, createFromTemplate,
         handleSaveGroup, handleUpdateGroup, handleDeleteGroup,
+        saveCategories, deleteCategory, budgetData, budgetDate, setBudgetDate, handleSelectBillFromBudget,
         addBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills,
         archiveImportedBill, unarchiveImportedBill, mergeImportedBills,
         addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate,

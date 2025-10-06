@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Changed import statement to correctly import `View` as a value (for enums)
-// and other symbols as types, resolving 'cannot be used as a value' error.
-import { View, type Settings, type Theme, type RequestConfirmationFn, type SettingsSection, type Bill, type ImportedBill } from '../types';
+import { View } from '../types';
+import type { Settings, Theme, RequestConfirmationFn, SettingsSection, Bill, ImportedBill, Category } from '../types';
 import Personalization from './settings/Personalization';
 import PaymentIntegrations from './settings/PaymentIntegrations';
 import BillReminders from './settings/BillReminders';
@@ -12,12 +11,16 @@ import SubscriptionManagement from './settings/SubscriptionManagement';
 import { useAppControl } from '../contexts/AppControlContext';
 import AboutSupport from './settings/AboutSupport';
 import { DisclaimerContent } from './DisclaimerContent';
+import BudgetingSettings from './settings/BudgetingSettings';
 
 interface SettingsModalProps {
   activeSection: SettingsSection;
   onClose: () => void;
   settings: Settings;
   updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
+  categories: Category[];
+  saveCategories: (categories: Category[]) => Promise<void>;
+  deleteCategory: (categoryId: string) => Promise<void>;
   onNavigate: (view: View, params?: any) => void;
   requestConfirmation: RequestConfirmationFn;
   theme: Theme;
@@ -31,28 +34,40 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = (props) => {
-  const { activeSection, onClose, settings, updateSettings } = props;
-  const [formData, setFormData] = useState(settings);
+  const { activeSection, onClose, settings, updateSettings, categories, saveCategories } = props;
+  const [localSettings, setLocalSettings] = useState(settings);
+  const [localCategories, setLocalCategories] = useState<Category[]>(() => JSON.parse(JSON.stringify(categories)));
   const [isDirty, setIsDirty] = useState(false);
   const { showNotification } = useAppControl();
 
   useEffect(() => {
-    setFormData(settings);
-    setIsDirty(false); // Reset dirty state when settings prop changes (e.g., after save)
-  }, [settings, activeSection]);
+    setLocalSettings(settings);
+    setLocalCategories(JSON.parse(JSON.stringify(categories)));
+    setIsDirty(false);
+  }, [settings, categories, activeSection]);
 
-  const handleFormChange = (newValues: Partial<Settings>) => {
-    setFormData(prev => ({ ...prev, ...newValues }));
+  const handleSettingsChange = (newValues: Partial<Settings>) => {
+    setLocalSettings(prev => ({ ...prev, ...newValues }));
     setIsDirty(true);
   };
   
+  const handleCategoriesChange = (newCategories: Category[]) => {
+    setLocalCategories(newCategories);
+    setIsDirty(true);
+  };
+
   const handlePaymentDetailsChange = (newDetails: Partial<Settings['paymentDetails']>) => {
-    setFormData(prev => ({ ...prev, paymentDetails: { ...prev.paymentDetails, ...newDetails }}));
+    setLocalSettings(prev => ({ ...prev, paymentDetails: { ...prev.paymentDetails, ...newDetails }}));
     setIsDirty(true);
   };
   
   const handleSave = async () => {
-    await updateSettings(formData);
+    // Filter out new categories that were added but left empty
+    const finalCategories = localCategories.filter(cat => cat.name.trim() !== '');
+    
+    await updateSettings(localSettings);
+    await saveCategories(finalCategories);
+
     showNotification('Settings saved successfully!');
     onClose();
   };
@@ -71,9 +86,10 @@ const SettingsModal: React.FC<SettingsModalProps> = (props) => {
   };
 
   const sectionConfig: { [key in SettingsSection]: { title: string; component: React.ReactNode; hasSave?: boolean } } = {
-    personalization: { title: 'Personalization', component: <Personalization settings={formData} onSettingsChange={handleFormChange} theme={props.theme} setTheme={props.setTheme} />, hasSave: true },
-    payments: { title: 'Payment Methods', component: <PaymentIntegrations settings={formData} onPaymentDetailsChange={handlePaymentDetailsChange} />, hasSave: true },
-    reminders: { title: 'Bill Reminders', component: <BillReminders settings={formData} onSettingsChange={handleFormChange} />, hasSave: true },
+    personalization: { title: 'Personalization', component: <Personalization settings={localSettings} onSettingsChange={handleSettingsChange} theme={props.theme} setTheme={props.setTheme} />, hasSave: true },
+    payments: { title: 'Payment Methods', component: <PaymentIntegrations settings={localSettings} onPaymentDetailsChange={handlePaymentDetailsChange} />, hasSave: true },
+    reminders: { title: 'Bill Reminders', component: <BillReminders settings={localSettings} onSettingsChange={handleSettingsChange} />, hasSave: true },
+    budgeting: { title: 'Budgeting', component: <BudgetingSettings settings={localSettings} onSettingsChange={handleSettingsChange} categories={localCategories} onCategoriesChange={handleCategoriesChange} />, hasSave: true },
     data: { title: 'Data & Tools', component: <DataManagement requestConfirmation={props.requestConfirmation} onOpenCsvImporter={props.onOpenCsvImporter} onOpenQrImporter={props.onOpenQrImporter} bills={props.bills} importedBills={props.importedBills} /> },
     sync: { title: 'Sync Devices', component: <DataSync onNavigate={() => { onClose(); props.onNavigate(View.Sync); }} /> },
     subscription: { title: 'Subscription', component: <SubscriptionManagement onNavigate={props.onNavigate} onGoToManageSubscriptionPage={() => props.onNavigate(View.ManageSubscription)} /> },

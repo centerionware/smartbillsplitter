@@ -16,6 +16,7 @@ const Header: React.FC<HeaderProps> = ({ navigate, onOpenSettings, currentView, 
   const sections: { id: SettingsSection; title: string; icon: string; }[] = [
     { id: 'personalization', title: 'Personalization', icon: '🎨' },
     { id: 'payments', title: 'Payment Methods', icon: '💳' },
+    { id: 'budgeting', title: 'Budgeting', icon: '📊' },
     { id: 'reminders', title: 'Bill Reminders', icon: '🔔' },
     { id: 'subscription', title: 'Subscription', icon: '⭐' },
     { id: 'about', title: 'About & Support', icon: 'ℹ️' },

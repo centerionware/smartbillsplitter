@@ -13,6 +13,7 @@ interface DashboardControlsProps {
   searchMode: 'description' | 'participant';
   setSearchMode: (mode: 'description' | 'participant') => void;
   hasRecurringBills: boolean;
+  hasBudgetData: boolean;
 }
 
 const DashboardControls: React.FC<DashboardControlsProps> = ({
@@ -27,6 +28,7 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({
   searchMode,
   setSearchMode,
   hasRecurringBills,
+  hasBudgetData,
 }) => {
   return (
     <div className="mb-6 space-y-4">
@@ -46,6 +48,7 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({
           ) : (
              <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg self-start sm:self-center flex-wrap gap-1 sm:gap-0">
                 <button onClick={() => onSetDashboardView('bills')} className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${dashboardView === 'bills' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Bills</button>
+                {hasBudgetData && <button onClick={() => onSetDashboardView('budget')} className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${dashboardView === 'budget' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Budget</button>}
                 <button onClick={() => onSetDashboardView('groups')} className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${dashboardView === 'groups' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Groups</button>
                 <button onClick={() => onSetDashboardView('participants')} className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${dashboardView === 'participants' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>People</button>
                 {hasRecurringBills && (
@@ -57,7 +60,7 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({
             </div>
           )}
         </div>
-        {!['upcoming', 'templates', 'groups'].includes(dashboardView) && (
+        {!['upcoming', 'templates', 'groups', 'budget'].includes(dashboardView) && (
             <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg self-start sm:self-center">
                 <button onClick={() => onSetDashboardStatusFilter('active')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${dashboardStatusFilter === 'active' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Active</button>
                 <button onClick={() => onSetDashboardStatusFilter('archived')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${dashboardStatusFilter === 'archived' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Archived</button>
@@ -65,7 +68,7 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({
         )}
       </div>
 
-      {(dashboardView !== 'participants' || selectedParticipant) && (
+      {(dashboardView !== 'participants' || selectedParticipant) && dashboardView !== 'budget' && (
         <div className="relative">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>

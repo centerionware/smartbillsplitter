@@ -13,6 +13,7 @@ const Settings: React.FC<SettingsProps> = ({ onNavigateToSection, onBack, canIns
   const sections: { id: SettingsSection; title: string; description: string; icon: string; }[] = [
     { id: 'personalization', title: 'Personalization', description: 'Name, theme, and share message', icon: '🎨' },
     { id: 'payments', title: 'Payment Methods', description: 'Your Venmo, PayPal, etc.', icon: '💳' },
+    { id: 'budgeting', title: 'Budgeting', description: 'Set monthly budgets and categories', icon: '📊' },
     { id: 'reminders', title: 'Bill Reminders', description: 'Get notifications for due bills', icon: '🔔' },
     { id: 'subscription', title: 'Subscription', description: 'Manage your Pro subscription', icon: '⭐' },
     { id: 'data', title: 'Data & Tools', description: 'Import, export, or scan QR', icon: '🛠️' },

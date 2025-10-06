@@ -1,9 +1,9 @@
-import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscriptionDetails, Group } from '../types';
+import type { Bill, Settings, Theme, RecurringBill, ImportedBill, PayPalSubscriptionDetails, Group, Category } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import { postMessage } from './broadcastService';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 15; // Incremented for groups popularity feature
+const DB_VERSION = 16; // Incremented for categories and budgeting
 
 // Object Store Names
 const STORES = {
@@ -11,6 +11,7 @@ const STORES = {
   RECURRING_BILLS: 'recurring_bills',
   IMPORTED_BILLS: 'imported_bills',
   GROUPS: 'groups',
+  CATEGORIES: 'categories',
   SETTINGS: 'settings',
   THEME: 'theme',
   SUBSCRIPTION: 'subscription',
@@ -82,6 +83,7 @@ export function initDB(): Promise<void> {
         { name: STORES.RECURRING_BILLS, options: { keyPath: 'id' } },
         { name: STORES.IMPORTED_BILLS, options: { keyPath: 'id' } },
         { name: STORES.GROUPS, options: { keyPath: 'id' } },
+        { name: STORES.CATEGORIES, options: { keyPath: 'id' } },
         { name: STORES.SETTINGS },
         { name: STORES.THEME },
         { name: STORES.SUBSCRIPTION },
@@ -114,6 +116,20 @@ export function initDB(): Promise<void> {
                   }
               };
           }
+      }
+      
+      // Migration for V16: Add categoryId to bills
+      if (event.oldVersion < 16) {
+          console.log("Migrating for v16: ensuring bills and recurring_bills stores exist.");
+          // The store creation logic above already handles this.
+          // If we needed to add an index, it would go here.
+          // Example:
+          // if (dbInstance.objectStoreNames.contains(STORES.BILLS)) {
+          //   const billStore = transaction.objectStore(STORES.BILLS);
+          //   if (!billStore.indexNames.contains('categoryId')) {
+          //     billStore.createIndex('categoryId', 'categoryId', { unique: false });
+          //   }
+          // }
       }
     };
     
@@ -242,6 +258,21 @@ export const addGroup = (group: Group) => set(STORES.GROUPS, group);
 export const updateGroup = (group: Group) => set(STORES.GROUPS, group);
 export const deleteGroupDB = (groupId: string) => del(STORES.GROUPS, groupId);
 
+// --- Category Operations ---
+export const getCategories = () => getAll<Category>(STORES.CATEGORIES);
+export const addCategory = (category: Category) => set(STORES.CATEGORIES, category);
+export const updateCategory = (category: Category) => set(STORES.CATEGORIES, category);
+export const deleteCategoryDB = (categoryId: string) => del(STORES.CATEGORIES, categoryId);
+export const saveMultipleCategories = async (categories: Category[]): Promise<void> => {
+    const store = await getStore(STORES.CATEGORIES, 'readwrite');
+    const tx = store.transaction;
+    categories.forEach(cat => store.put(cat));
+    return new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+};
+
 
 // --- Settings Operations ---
 export const getSettings = () => get<Settings>(STORES.SETTINGS, SINGLE_KEY);
@@ -322,6 +353,7 @@ export const exportData = async () => {
     const recurringBills = await getRecurringBills();
     const importedBills = await getImportedBills();
     const groups = await getGroups();
+    const categories = await getCategories();
     const settings = await getSettings();
     const theme = await getTheme();
     const subscription = await getSubscriptionStatus();
@@ -333,6 +365,7 @@ export const exportData = async () => {
         recurringBills,
         importedBills,
         groups,
+        categories,
         settings,
         theme,
         subscription,
@@ -368,6 +401,10 @@ export const importData = async (data: any): Promise<void> => {
      if (data.groups) {
         const store = tx.objectStore(STORES.GROUPS);
         data.groups.forEach((g: Group) => store.put(g));
+    }
+    if (data.categories) {
+        const store = tx.objectStore(STORES.CATEGORIES);
+        data.categories.forEach((c: Category) => store.put(c));
     }
     if (data.settings) {
         tx.objectStore(STORES.SETTINGS).put(data.settings, SINGLE_KEY);

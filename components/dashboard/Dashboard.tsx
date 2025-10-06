@@ -21,6 +21,7 @@ import ParticipantDetailView from './ParticipantDetailView';
 import EmptyState from './EmptyState';
 import RecurringBillCard from '../RecurringBillCard';
 import SwipeableGroupCard from './SwipeableGroupCard';
+import BudgetView, { BudgetData } from './BudgetView';
 
 // Import the ad error message
 import { AD_ERROR_MESSAGE } from '../../services/adService';
@@ -61,6 +62,11 @@ interface DashboardProps {
   onSetDashboardSummaryFilter: (filter: SummaryFilter) => void;
   onSelectParticipant: (name: string | null) => void;
   onClearParticipant: () => void;
+  // Budget props
+  budgetData: BudgetData;
+  budgetDate: { year: number; month: number } | 'last30days';
+  setBudgetDate: (date: { year: number; month: number } | 'last30days') => void;
+  handleSelectBillFromBudget: (billInfo: { billId: string; isImported: boolean }) => void;
 }
 
 const BILLS_PER_PAGE = 15;
@@ -74,7 +80,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     onShowSummaryDetails, onCreateFromTemplate,
     navigate,
     dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter,
-    onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant
+    onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant,
+    budgetData, budgetDate, setBudgetDate, handleSelectBillFromBudget
   } = props;
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -98,7 +105,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
 
   useEffect(() => {
-    if (['upcoming', 'templates', 'groups'].includes(dashboardView)) {
+    if (['upcoming', 'templates', 'groups', 'budget'].includes(dashboardView)) {
         setSearchMode('description');
     }
   }, [dashboardView]);
@@ -367,6 +374,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
      if (dashboardView === 'groups') {
         return { title: "No groups yet", message: "Create a group to quickly add a set of friends to a new bill." };
     }
+    if (dashboardView === 'budget') {
+        return { title: "No Budget Data", message: "Create bills with categories to see your budget breakdown." };
+    }
     if (dashboardSummaryFilter === 'othersOweMe' && filteredBills.length === 0) {
       return { title: "All Caught Up!", message: "No one currently owes you money on active bills." };
     }
@@ -475,6 +485,15 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             </div>
           );
         }
+    } else if (dashboardView === 'budget') {
+        if (budgetData.hasBudgetData) {
+            return <BudgetView 
+                budgetData={budgetData}
+                date={budgetDate}
+                setDate={setBudgetDate}
+                onSelectBill={handleSelectBillFromBudget}
+            />
+        }
     } else if (dashboardView === 'bills' && (filteredBills.length > 0 || filteredImportedBills.length > 0 || subscriptionStatus === 'free')) {
         return <BillList 
             filteredBills={filteredBills} 
@@ -508,7 +527,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
 
   return (
     <div>
-      {!['upcoming', 'templates', 'groups'].includes(dashboardView) &&
+      {['bills', 'participants'].includes(dashboardView) &&
         <DashboardSummary summaryTotals={summaryTotals} dashboardStatusFilter={dashboardStatusFilter} dashboardSummaryFilter={dashboardSummaryFilter} onSetDashboardSummaryFilter={onSetDashboardSummaryFilter} />
       }
       <DashboardControls 
@@ -523,6 +542,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         searchMode={searchMode}
         setSearchMode={setSearchMode}
         hasRecurringBills={hasRecurringBills}
+        hasBudgetData={budgetData.hasBudgetData}
       />
       
       {activeFilterTag && dashboardView === 'bills' && (

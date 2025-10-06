@@ -17,6 +17,7 @@ const initialSettings: Settings = {
   notificationsEnabled: false,
   notificationDays: 3,
   hidePaymentMethodWarning: false,
+  totalBudget: undefined,
 };
 
 export const useSettings = () => {
