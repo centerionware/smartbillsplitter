@@ -21,7 +21,7 @@ const FREE_TIER_IMAGE_SHARE_LIMIT = 5;
 export const useAppLogic = () => {
     // --- Hooks ---
     const { settings, updateSettings, isLoading: isSettingsLoading } = useSettings();
-    const { bills, addBill, updateBill: originalUpdateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills, mergeBills, isLoading: isBillsLoading } = useBills();
+    const { bills, addBill, updateBill: originalUpdateBill, deleteBill, archiveBill, unarchiveBill, updateMultipleBills: originalUpdateMultipleBills, mergeBills, isLoading: isBillsLoading } = useBills();
     const { importedBills, addImportedBill, updateImportedBill, deleteImportedBill, archiveImportedBill, unarchiveImportedBill, mergeImportedBills, updateMultipleImportedBills, isLoading: isImportedLoading } = useImportedBills();
     const { recurringBills, addRecurringBill, updateRecurringBill, deleteRecurringBill, archiveRecurringBill, unarchiveRecurringBill, updateRecurringBillDueDate, isLoading: isRecurringLoading } = useRecurringBills();
     const { groups, addGroup, updateGroup, deleteGroup, incrementGroupPopularity, isLoading: isGroupsLoading } = useGroups();
@@ -180,6 +180,25 @@ export const useAppLogic = () => {
         return updatedBillFromDB;
     }, [originalUpdateBill, settings, showNotification]);
 
+    const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]) => {
+        // First, update all bills in the local DB.
+        await originalUpdateMultipleBills(billsToUpdate);
+
+        // Then, for each bill that was updated, if it's a shared bill,
+        // trigger a sync to the server.
+        for (const bill of billsToUpdate) {
+            if (bill.shareInfo?.shareId) {
+                // The `bill` object here has the correct `participants` state, which is what's
+                // important for the payload. The timestamp will be updated inside syncSharedBillUpdate if needed.
+                syncSharedBillUpdate(bill, settings, originalUpdateBill).catch(e => {
+                    console.error(`Failed to sync shared bill update for bill ID ${bill.id}:`, e);
+                    // Provide a more specific notification to the user.
+                    showNotification(`Failed to sync update for "${bill.description}"`, 'error');
+                });
+            }
+        }
+    }, [originalUpdateMultipleBills, originalUpdateBill, settings, showNotification]);
+
     const checkAndMakeSpaceForImageShare = useCallback(async (billToShare: Bill): Promise<boolean> => {
         if (subscriptionStatus !== 'free' || !billToShare.receiptImage) {
             return true;
@@ -236,13 +255,13 @@ export const useAppLogic = () => {
             const ownedShared = bills.filter(b => b.shareInfo?.shareId);
             if (ownedShared.length > 0) {
                 const billsToUpdate = await pollOwnedSharedBills(ownedShared);
-                if (billsToUpdate.length > 0) await updateMultipleBills(billsToUpdate);
+                if (billsToUpdate.length > 0) await originalUpdateMultipleBills(billsToUpdate);
             }
         };
         const intervalId = setInterval(poll, 5 * 60 * 1000);
         poll();
         return () => clearInterval(intervalId);
-    }, [bills, updateMultipleBills]);
+    }, [bills, originalUpdateMultipleBills]);
 
     useEffect(() => {
         if (!notificationService.isSupported()) return;
