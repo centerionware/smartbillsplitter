@@ -25,7 +25,7 @@ vi.mock('../../components/PrivacyConsent.tsx', () => ({
   ),
 }));
 vi.mock('../../services/api', () => ({
-    getApiUrl: vi.fn().mockResolvedValue('http://localhost/api'),
+    getApiUrl: vi.fn().mockImplementation(async (path: string) => `http://localhost/api${path}`),
     fetchWithRetry: vi.fn(),
 }));
 

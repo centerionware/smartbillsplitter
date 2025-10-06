@@ -10,7 +10,7 @@ import { fetchWithRetry } from '../../services/api';
 
 // Mock the API service
 vi.mock('../../services/api.ts', () => ({
-  getApiUrl: vi.fn().mockResolvedValue('http://localhost/api'),
+  getApiUrl: vi.fn().mockImplementation(async (path: string) => `http://localhost/api${path}`),
   fetchWithRetry: vi.fn(),
 }));
 
