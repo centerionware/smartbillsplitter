@@ -11,7 +11,17 @@ interface BudgetingSettingsProps {
 const BudgetingSettings: React.FC<BudgetingSettingsProps> = ({ settings, onSettingsChange, categories, onCategoriesChange }) => {
 
     const handleCategoryChange = (id: string, field: 'name' | 'budget', value: string | number) => {
-        onCategoriesChange(categories.map(cat => cat.id === id ? { ...cat, [field]: value } : cat));
+        onCategoriesChange(categories.map(cat => {
+            if (cat.id === id) {
+                if (field === 'budget') {
+                    // Treat NaN (from empty input) as an undefined budget
+                    return { ...cat, budget: Number.isNaN(value as number) ? undefined : value as number };
+                }
+                // This assumes value is a string if field is 'name'
+                return { ...cat, name: value as string };
+            }
+            return cat;
+        }));
     };
 
     const handleAddCategory = () => {
@@ -60,7 +70,7 @@ const BudgetingSettings: React.FC<BudgetingSettingsProps> = ({ settings, onSetti
                                 type="number"
                                 step="0.01"
                                 value={cat.budget === undefined ? '' : cat.budget}
-                                onChange={e => handleCategoryChange(cat.id, 'budget', (e.target.value === '' ? undefined : parseFloat(e.target.value)) as number | undefined)}
+                                onChange={e => handleCategoryChange(cat.id, 'budget', parseFloat(e.target.value))}
                                 placeholder="Budget"
                                 className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-md focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600"
                             />

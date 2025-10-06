@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Bill, Participant, ReceiptItem, SplitMode, Settings, RecurringBill, RecurrenceRule, Group } from '../types';
+import type { Bill, Participant, ReceiptItem, SplitMode, Settings, RecurringBill, RecurrenceRule, Group, Category } from '../types';
 import ReceiptScanner from './ReceiptScanner';
 import ItemEditor from './ItemEditor';
 import AdditionalInfoEditor from './AdditionalInfoEditor';
@@ -33,11 +33,12 @@ interface CreateBillProps {
   fromTemplate?: RecurringBill;
   billConversionSource?: Bill;
   groups: Group[];
+  categories: Category[];
 }
 
 const CreateBill: React.FC<CreateBillProps> = ({
   onSaveBill, onSaveRecurringBill, onUpdateRecurringBill, onBack,
-  settings, updateSettings, recurringBillToEdit, fromTemplate, billConversionSource, groups,
+  settings, updateSettings, recurringBillToEdit, fromTemplate, billConversionSource, groups, categories
 }) => {
   const initialState = recurringBillToEdit || fromTemplate || billConversionSource;
   const isEditingTemplate = !!recurringBillToEdit;
@@ -81,6 +82,7 @@ const CreateBill: React.FC<CreateBillProps> = ({
   const [additionalInfo, setAdditionalInfo] = useState<{ id: string, key: string, value: string }[]>(
     initialState?.additionalInfo ? Object.entries(initialState.additionalInfo).map(([key, value], i) => ({ id: `info-${i}`, key, value })) : []
   );
+  const [categoryId, setCategoryId] = useState<string | undefined>(initialState?.categoryId);
   
   const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule>(
     (initialState as RecurringBill)?.recurrenceRule || { frequency: 'monthly', interval: 1, dayOfMonth: new Date().getDate() }
@@ -157,14 +159,14 @@ const CreateBill: React.FC<CreateBillProps> = ({
         return acc;
     }, {} as Record<string, string>);
     if (isRecurring) {
-        const recurringData = { description, totalAmount: totalAmount || 0, participants: finalParticipants, items, receiptImage, additionalInfo: additionalInfoRecord, splitMode, recurrenceRule, groupId: selectedGroupId || undefined };
+        const recurringData = { description, totalAmount: totalAmount || 0, participants: finalParticipants, items, receiptImage, additionalInfo: additionalInfoRecord, splitMode, recurrenceRule, groupId: selectedGroupId || undefined, categoryId };
         if (isEditingTemplate && recurringBillToEdit) {
             onUpdateRecurringBill({ ...recurringBillToEdit, ...recurringData });
         } else {
             onSaveRecurringBill(recurringData);
         }
     } else {
-        const data = { description, totalAmount: totalAmount || 0, date, participants: finalParticipants, items, receiptImage, additionalInfo: additionalInfoRecord, groupId: selectedGroupId || undefined };
+        const data = { description, totalAmount: totalAmount || 0, date, participants: finalParticipants, items, receiptImage, additionalInfo: additionalInfoRecord, groupId: selectedGroupId || undefined, categoryId };
         onSaveBill(data, fromTemplate?.id);
     }
     onBack();
@@ -283,7 +285,20 @@ const CreateBill: React.FC<CreateBillProps> = ({
 
   const renderStartModeStep = () => ( <div className="text-center"> <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-6">How do you want to start?</h3> <div className="flex flex-col sm:flex-row gap-6"> <button type="button" onClick={() => setStep(1.5) } className="flex-1 p-8 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all transform hover:-translate-y-1"> <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}> <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /> </svg> <h4 className="text-xl font-bold mt-4 text-slate-800 dark:text-slate-100">Scan a Receipt</h4> <p className="mt-1 text-slate-500 dark:text-slate-400">Use AI to automatically add items.</p> </button> <button type="button" onClick={() => setStep(2) } className="flex-1 p-8 border-2 border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 dark:hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all transform hover:-translate-y-1"> <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}> <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /> </svg> <h4 className="text-xl font-bold mt-4 text-slate-800 dark:text-slate-100">Enter Manually</h4> <p className="mt-1 text-slate-500 dark:text-slate-400">Add the bill details yourself.</p> </button> </div> </div> );
   const renderScanStep = () => <ReceiptScanner onItemsScanned={handleItemsScanned} onImageSelected={setReceiptImage} onImageCleared={() => setReceiptImage(undefined)} isForTemplate={isRecurring} />;
-  const renderPrimaryDetailsStep = () => ( <div className="space-y-6"> <BillPrimaryDetails description={description} setDescription={setDescription} totalAmount={totalAmount} setTotalAmount={setTotalAmount} date={date} setDate={setDate} isRecurring={isRecurring} splitMode={splitMode} errors={errors} /> <div className="mt-8 flex justify-end space-x-4"> <button type="button" onClick={() => setStep(selectedGroupId ? 0 : 1)} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Back</button> <button type="button" onClick={() => handleNext(3)} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Next</button> </div> </div> );
+  const renderPrimaryDetailsStep = () => ( <div className="space-y-6"> <BillPrimaryDetails description={description} setDescription={setDescription} totalAmount={totalAmount} setTotalAmount={setTotalAmount} date={date} setDate={setDate} isRecurring={isRecurring} splitMode={splitMode} errors={errors} /> 
+    <div>
+        <label htmlFor="category" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Category (Optional)</label>
+        <select
+            id="category"
+            value={categoryId || ''}
+            onChange={e => setCategoryId(e.target.value || undefined)}
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-900 dark:text-slate-100"
+        >
+            <option value="">Uncategorized</option>
+            {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+        </select>
+    </div>
+  <div className="mt-8 flex justify-end space-x-4"> <button type="button" onClick={() => setStep(selectedGroupId ? 0 : 1)} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Back</button> <button type="button" onClick={() => handleNext(3)} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Next</button> </div> </div> );
   const renderParticipantsStep = () => ( <div className="space-y-6"> <BillSplitMethod splitMode={splitMode} setSplitMode={setSplitMode} /> <BillParticipants participants={participants} setParticipants={setParticipants} splitMode={splitMode} participantsError={errors.participants} /> <div className="mt-8 flex justify-between space-x-4"> <button type="button" onClick={() => window.history.back()} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Back</button> <button type="button" onClick={() => handleNext(4)} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Next</button> </div> </div> );
   const renderExtrasStep = () => ( <div className="space-y-6"> {isRecurring && <RecurrenceSelector value={recurrenceRule} onChange={setRecurrenceRule} />} <BillExtraDetails items={items} additionalInfo={additionalInfo} onEditItems={() => setIsItemEditorOpen(true)} onEditInfo={() => setIsInfoEditorOpen(true)} isRecurring={isRecurring} receiptImage={receiptImage} onReceiptImageChange={setReceiptImage} /> <div className="mt-8 flex justify-between space-x-4"> <button type="button" onClick={() => window.history.back()} className="px-6 py-3 bg-slate-100 text-slate-800 font-semibold rounded-lg hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 transition-colors">Back</button> <button type="button" onClick={validateAndSave} className="px-6 py-3 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">{isEditingTemplate ? 'Update Template' : 'Save Bill'}</button> </div> </div> );
 
