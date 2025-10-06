@@ -19,11 +19,11 @@ describe('exportService', () => {
         capturedBlobContent = '';
 
         // Mock Blob to capture its content
-        // FIX: Replaced `global` with `globalThis` for compatibility with browser-like test environments.
+        const OriginalBlob = globalThis.Blob;
         vi.spyOn(globalThis, 'Blob').mockImplementation((contentParts, options) => {
             capturedBlobContent = (contentParts as string[]).join('');
-            // Return a real blob so the rest of the code doesn't fail
-            return new Blob(contentParts, options);
+            // Return a real blob using the original constructor so the rest of the code doesn't fail
+            return new OriginalBlob(contentParts, options);
         });
 
         // Mock the rest of the download mechanism to prevent errors in JSDOM

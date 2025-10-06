@@ -70,7 +70,15 @@ describe('useAuth hook', () => {
 
   it('should select free tier and clear details', async () => {
     // Prime the hook to think it's subscribed initially
+    const mockDetails: SubscriptionDetails = {
+        provider: 'stripe',
+        customerId: 'cus_123',
+        subscriptionId: 'sub_123',
+        startDate: new Date().toISOString(),
+        duration: 'monthly',
+    };
     vi.mocked(getSubscriptionStatus).mockResolvedValue('subscribed');
+    vi.mocked(getSubscriptionDetails).mockResolvedValue(mockDetails);
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     // FIX: Wait for the initial async load effect to complete before proceeding.
