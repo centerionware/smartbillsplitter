@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (details && details.customerId === 'trial-user') {
             // This is a trial subscription, check for expiry
             const trialStartTime = new Date(details.startDate).getTime();
-            const trialDuration = 24 * 60 * 60 * 1000; // 24 hours
+            const trialDuration = 5 * 60 * 1000; // 5 minutes
             const now = Date.now();
 
             if (now < trialStartTime + trialDuration) {
