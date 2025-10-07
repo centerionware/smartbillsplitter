@@ -12,6 +12,7 @@ interface State {
 
 export class ErrorBoundary extends React.Component<Props, State> {
   // FIX: A constructor is required for React class components to initialize state and bind methods. Added constructor to resolve errors about `this.state` and `this.props` being undefined.
+  // FIX: A constructor is required for React class components to initialize state and bind methods. Added constructor to resolve errors about `this.state` and `this.props` being undefined.
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
