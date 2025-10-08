@@ -41,7 +41,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
   const { active, allArchived, unpaidArchived } = participantBills;
   const layoutClasses = dashboardLayoutMode === 'card'
     ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-    : "bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden";
+    : "bg-white dark:bg-slate-800 rounded-lg shadow-md";
 
   if (dashboardStatusFilter === 'active') {
     if (active.length === 0 && unpaidArchived.length === 0) {

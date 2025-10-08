@@ -4,28 +4,28 @@ import { View } from '../types';
 import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group, DashboardLayoutMode } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import type { ParticipantData } from './dashboard/ParticipantList';
-import ShareActionSheet from './ShareActionSheet';
-import { generateShareText, generateOneTimeShareLink } from '../services/shareService';
-import { useAppControl } from '../contexts/AppControlContext';
-import HalfScreenAdModal from './HalfScreenAdModal';
-import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
-import PaymentMethodsModal from './PaymentMethodsModal';
-import PaymentMethodWarningModal from './PaymentMethodWarningModal';
-import { exportData } from '../services/exportService';
+import ShareActionSheet from '../ShareActionSheet';
+import { generateShareText, generateOneTimeShareLink } from '../../services/shareService';
+import { useAppControl } from '../../contexts/AppControlContext';
+import HalfScreenAdModal from '../HalfScreenAdModal';
+import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
+import PaymentMethodsModal from '../PaymentMethodsModal';
+import PaymentMethodWarningModal from '../PaymentMethodWarningModal';
+import { exportData } from '../../services/exportService';
 
 // New Child Components
-import DashboardSummary from './dashboard/DashboardSummary';
-import DashboardControls from './dashboard/DashboardControls';
-import BillList from './dashboard/BillList';
-import ParticipantList from './dashboard/ParticipantList';
-import ParticipantDetailView from './dashboard/ParticipantDetailView';
-import EmptyState from './dashboard/EmptyState';
-import RecurringBillCard from './RecurringBillCard';
+import DashboardSummary from './DashboardSummary';
+import DashboardControls from './DashboardControls';
+import BillList from './BillList';
+import ParticipantList from './ParticipantList';
+import ParticipantDetailView from './ParticipantDetailView';
+import EmptyState from './EmptyState';
+import RecurringBillCard from '../RecurringBillCard';
 import SwipeableGroupCard from './dashboard/SwipeableGroupCard';
 import BudgetView, { BudgetData } from './dashboard/BudgetView';
 
 // Import the ad error message
-import { AD_ERROR_MESSAGE } from '../services/adService';
+import { AD_ERROR_MESSAGE } from '../../services/adService';
 
 
 interface DashboardProps {
@@ -467,7 +467,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 />;
     } else if (dashboardView === 'upcoming' && upcomingRecurringBills.length > 0) {
         return (
-            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
+            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "bg-white dark:bg-slate-800 rounded-lg shadow-md"}>
                 {upcomingRecurringBills.slice(0, visibleCount).map(bill => (
                     // FIX: Pass dashboardLayoutMode prop to RecurringBillCard.
                     <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} layoutMode={dashboardLayoutMode} />
@@ -476,7 +476,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         );
     } else if (dashboardView === 'templates' && allRecurringBills.length > 0) {
         return (
-            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
+            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "bg-white dark:bg-slate-800 rounded-lg shadow-md"}>
                 {allRecurringBills.slice(0, visibleCount).map(bill => (
                     // FIX: Pass dashboardLayoutMode prop to RecurringBillCard.
                     <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} layoutMode={dashboardLayoutMode} />
@@ -486,7 +486,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     } else if (dashboardView === 'groups') {
         if (filteredGroups.length > 0) {
           return (
-            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
+            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "bg-white dark:bg-slate-800 rounded-lg shadow-md"}>
               {filteredGroups.map(group => (
                 <SwipeableGroupCard 
                   key={group.id} 

@@ -88,8 +88,7 @@ const BillCard: React.FC<BillCardProps> = ({ bill, onClick, onArchive, onUnarchi
         </button>
         {isMenuOpen && (
             <div 
-                onMouseDown={e => e.stopPropagation()} 
-                onTouchStart={e => e.stopPropagation()} 
+                onClick={e => e.stopPropagation()}
                 className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 py-1 z-20"
             >
                 <button onClick={(e) => handleActionClick(e, onConvertToTemplate)} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Convert to Template</button>
