@@ -24,7 +24,12 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
   
   const maxTranslateX = layoutMode === 'card' ? -ACTION_BUTTON_WIDTH : 0;
 
-  const handleDragStart = (clientX: number, clientY: number) => {
+  const handleDragStart = (clientX: number, clientY: number, e: React.TouchEvent | React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) {
+        isDragging.current = false;
+        return;
+    }
     isDragging.current = true;
     isScrolling.current = false;
     dragStartX.current = clientX;
@@ -121,10 +126,10 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
         ref={cardRef} 
         className="relative z-10" 
         style={{ transform: `translateX(${translateX}px)`, touchAction: 'pan-y' }} 
-        onTouchStart={e => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)} 
+        onTouchStart={e => handleDragStart(e.touches[0].clientX, e.touches[0].clientY, e)} 
         onTouchMove={e => handleDragMove(e.touches[0].clientX, e.touches[0].clientY)} 
         onTouchEnd={e => handleDragEnd(e)} 
-        onMouseDown={e => handleDragStart(e.clientX, e.clientY)} 
+        onMouseDown={e => handleDragStart(e.clientX, e.clientY, e)} 
         onMouseMove={e => handleDragMove(e.clientX, e.clientY)} 
         onMouseUp={e => handleDragEnd(e)} 
         onMouseLeave={() => isDragging.current && handleDragEnd()}
