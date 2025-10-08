@@ -177,14 +177,16 @@ describe('useAppLogic hook', () => {
       { id: 'bill-1', description: 'Bill One' },
       { id: 'bill-2', description: 'Bill Two' },
     ] as Bill[];
-
+    
+    // FIX: Explicitly type initialProps to guide type inference for rerender.
+    const initialPropsForBillTest: { params: { billId?: string } } = { params: { billId: 'bill-2' } };
     const { result, rerender } = renderHook(
       ({ params }: { params: { billId?: string } }) => {
         mocked(useBills).mockReturnValue({ ...defaultMocks.useBills, bills: mockBills });
         mocked(useRouting).mockReturnValue({ ...defaultMocks.useRouting, params });
         return useAppLogic();
       },
-      { initialProps: { params: { billId: 'bill-2' } } }
+      { initialProps: initialPropsForBillTest }
     );
 
     expect(result.current.currentBill).toBeDefined();
@@ -206,7 +208,8 @@ describe('useAppLogic hook', () => {
     const { result } = renderHook(
       ({ params }: { params?: { importedBillId?: string } }) => {
         mocked(useImportedBills).mockReturnValue({ ...defaultMocks.useImportedBills, importedBills: mockImportedBills });
-        mocked(useRouting).mockReturnValue({ ...defaultMocks.useRouting, params });
+        // FIX: Provide a fallback for params in case it's undefined.
+        mocked(useRouting).mockReturnValue({ ...defaultMocks.useRouting, params: params || {} });
         return useAppLogic();
       },
       { initialProps: { params: { importedBillId: 'imported-2' } } }
