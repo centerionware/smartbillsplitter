@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useAppLogic } from '../../hooks/useAppLogic';
 import { View } from '../../types';
 import type { Bill, ImportedBill } from '../../types';
@@ -42,7 +42,7 @@ import { useDataHandlers } from '../../hooks/appLogic/useDataHandlers';
 
 
 // Helper to correctly type the mocked functions
-const mocked = <T extends (...args: any[]) => any>(fn: T): vi.Mock<Parameters<T>, ReturnType<T>> => fn as any;
+const mocked = <T extends (...args: any[]) => any>(fn: T): Mock<Parameters<T>, ReturnType<T>> => fn as any;
 
 const mockSetSelectedParticipant = vi.fn();
 const mockOnSetDashboardSummaryFilter = vi.fn();
@@ -74,6 +74,8 @@ const defaultMocks = {
     onSetDashboardSummaryFilter: mockOnSetDashboardSummaryFilter,
     onSelectParticipant: vi.fn(),
     onClearParticipant: vi.fn(),
+    dashboardLayoutMode: 'card' as const,
+    onSetDashboardLayoutMode: vi.fn(),
   },
   useDerivedData: { participantsData: [], isLoading: false, budgetData: { totalBudget: 0, totalSpending: 0, spendingByCategory: {}, hasBudgetData: false } },
   useDataHandlers: {
@@ -81,7 +83,7 @@ const defaultMocks = {
     updateMultipleBills: vi.fn(),
     checkAndMakeSpaceForImageShare: vi.fn(),
     handleSaveBill: vi.fn(),
-    handleSelectBillFromBudget: vi.fn(),
+    handleSelectBillFromBudget: vi.fn() as (billInfo: { billId: string; isImported: boolean; }) => void,
     handleSaveRecurringBill: vi.fn(),
     handleUpdateRecurringBill: vi.fn(),
     handleSaveGroup: vi.fn(),

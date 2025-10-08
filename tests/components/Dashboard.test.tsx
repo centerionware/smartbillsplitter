@@ -57,6 +57,8 @@ const mockDashboardProps = {
   selectedParticipant: null,
   dashboardStatusFilter: 'active' as const,
   dashboardSummaryFilter: 'total' as const,
+  dashboardLayoutMode: 'card' as const,
+  onSetDashboardLayoutMode: vi.fn(),
   onSetDashboardView: vi.fn(),
   onSetDashboardStatusFilter: vi.fn(),
   onSetDashboardSummaryFilter: vi.fn(),
