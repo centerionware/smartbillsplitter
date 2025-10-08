@@ -1,13 +1,22 @@
-import { useState, useCallback } from 'react';
-import type { DashboardView, SummaryFilter, DashboardLayoutMode } from '../../types';
+import { useState, useCallback, useEffect } from 'react';
+import type { DashboardView, SummaryFilter, DashboardLayoutMode, Settings } from '../../types';
 
-export const useDashboardState = () => {
+export const useDashboardState = (settings: Settings, updateSettings: (newSettings: Partial<Settings>) => Promise<void>) => {
     const [dashboardView, setDashboardView] = useState<DashboardView>('bills');
     const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
     const [dashboardStatusFilter, setDashboardStatusFilter] = useState<'active' | 'archived'>('active');
     const [dashboardSummaryFilter, setDashboardSummaryFilter] = useState<SummaryFilter>('total');
     const [budgetDate, setBudgetDate] = useState<{ year: number; month: number } | 'last30days'>('last30days');
-    const [dashboardLayoutMode, setDashboardLayoutMode] = useState<DashboardLayoutMode>('card');
+    const [dashboardLayoutMode, setDashboardLayoutMode] = useState<DashboardLayoutMode>(settings.dashboardLayoutMode || 'card');
+
+    useEffect(() => {
+        setDashboardLayoutMode(settings.dashboardLayoutMode || 'card');
+    }, [settings.dashboardLayoutMode]);
+
+    const onSetDashboardLayoutMode = useCallback((mode: DashboardLayoutMode) => {
+        setDashboardLayoutMode(mode);
+        updateSettings({ dashboardLayoutMode: mode });
+    }, [updateSettings]);
 
     const onSelectParticipant = useCallback((name: string | null) => {
         if (name) {
@@ -33,7 +42,7 @@ export const useDashboardState = () => {
         budgetDate,
         setBudgetDate,
         dashboardLayoutMode,
-        onSetDashboardLayoutMode: setDashboardLayoutMode,
+        onSetDashboardLayoutMode: onSetDashboardLayoutMode,
         onSelectParticipant,
         onClearParticipant,
     };

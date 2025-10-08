@@ -105,6 +105,7 @@ export interface Settings {
   notificationDays: number;
   hidePaymentMethodWarning?: boolean;
   totalBudget?: number;
+  dashboardLayoutMode?: DashboardLayoutMode;
 }
 
 export type Theme = 'light' | 'dark' | 'system';

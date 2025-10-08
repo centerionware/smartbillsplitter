@@ -18,6 +18,7 @@ const initialSettings: Settings = {
   notificationDays: 3,
   hidePaymentMethodWarning: false,
   totalBudget: undefined,
+  dashboardLayoutMode: 'card',
 };
 
 export const useSettings = () => {

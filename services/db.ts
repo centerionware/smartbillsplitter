@@ -3,7 +3,7 @@ import type { SubscriptionStatus } from '../hooks/useAuth';
 import { postMessage } from './broadcastService';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 16; // Incremented for categories and budgeting
+const DB_VERSION = 17; // Incremented for dashboard layout mode persistence
 
 // Object Store Names
 const STORES = {
@@ -122,14 +122,21 @@ export function initDB(): Promise<void> {
       if (event.oldVersion < 16) {
           console.log("Migrating for v16: ensuring bills and recurring_bills stores exist.");
           // The store creation logic above already handles this.
-          // If we needed to add an index, it would go here.
-          // Example:
-          // if (dbInstance.objectStoreNames.contains(STORES.BILLS)) {
-          //   const billStore = transaction.objectStore(STORES.BILLS);
-          //   if (!billStore.indexNames.contains('categoryId')) {
-          //     billStore.createIndex('categoryId', 'categoryId', { unique: false });
-          //   }
-          // }
+      }
+      
+      // Migration for V17: Add dashboardLayoutMode to settings
+      if (event.oldVersion < 17) {
+          console.log("Migrating for v17: adding dashboardLayoutMode to settings.");
+          if (dbInstance.objectStoreNames.contains(STORES.SETTINGS)) {
+              const settingsStore = transaction.objectStore(STORES.SETTINGS);
+              settingsStore.get(SINGLE_KEY).onsuccess = (e) => {
+                  const settings = (e.target as IDBRequest<Settings>).result;
+                  if (settings && settings.dashboardLayoutMode === undefined) {
+                      settings.dashboardLayoutMode = 'card'; // Default to card view
+                      settingsStore.put(settings, SINGLE_KEY);
+                  }
+              };
+          }
       }
     };
     

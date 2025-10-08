@@ -34,7 +34,7 @@ export const useAppLogic = () => {
 
     // --- 2. State & UI Logic Hooks ---
     const modalStates = useModalStates();
-    const dashboardState = useDashboardState();
+    const dashboardState = useDashboardState(settingsHook.settings, settingsHook.updateSettings);
     const routing = useRouting({
         bills: billsHook.bills,
         recurringBills: recurringBillsHook.recurringBills,
