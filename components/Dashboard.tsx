@@ -20,7 +20,7 @@ import BillList from './dashboard/BillList';
 import ParticipantList from './dashboard/ParticipantList';
 import ParticipantDetailView from './dashboard/ParticipantDetailView';
 import EmptyState from './dashboard/EmptyState';
-import RecurringBillCard from './RecurringBillCard';
+import RecurringBillCard from '../RecurringBillCard';
 import SwipeableGroupCard from './dashboard/SwipeableGroupCard';
 import BudgetView, { BudgetData } from './dashboard/BudgetView';
 
@@ -442,11 +442,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const renderContent = () => {
     if (dashboardView === 'participants' && !selectedParticipant) {
         if (participantsData.length > 0) {
-            // FIX: Pass dashboardLayoutMode prop to ParticipantList.
             return <ParticipantList participantsData={participantsData} onSetShareSheetParticipant={handleSelectParticipantForShare} onMarkParticipantAsPaid={handleMarkParticipantAsPaid} dashboardLayoutMode={dashboardLayoutMode} />;
         }
     } else if (selectedParticipant) {
-        // FIX: Pass dashboardLayoutMode prop to ParticipantDetailView.
         return <ParticipantDetailView 
                   participantBills={participantBills} 
                   onSelectBill={onSelectBill} 
@@ -503,7 +501,6 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             />
         }
     } else if (dashboardView === 'bills' && (filteredBills.length > 0 || filteredImportedBills.length > 0 || subscriptionStatus === 'free')) {
-        // FIX: Pass dashboardLayoutMode prop to BillList.
         return <BillList 
             filteredBills={filteredBills} 
             filteredImportedBills={filteredImportedBills} 

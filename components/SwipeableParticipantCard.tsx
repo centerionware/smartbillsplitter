@@ -1,5 +1,3 @@
-
-
 import React, { useRef, useState } from 'react';
 import ParticipantCard from './ParticipantCard';
 
@@ -140,7 +138,7 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
 
       <div
         ref={cardRef}
-        className="relative z-10 h-full"
+        className="relative z-10"
         style={{ transform: `translateX(${translateX}px)`, touchAction: participant.type === 'owed' ? 'pan-y' : 'auto' }}
         onTouchStart={e => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={e => handleDragMove(e.touches[0].clientX, e.touches[0].clientY)}

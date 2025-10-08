@@ -69,7 +69,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
             <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">Active Bills</h3>
             <div className={layoutClasses}>
               {active.map(bill => (
-                <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
+                <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={(e) => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
               ))}
             </div>
           </div>
@@ -79,7 +79,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
             <h3 className="text-xl font-semibold text-red-700 dark:text-red-400 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">Unpaid Archived Bills</h3>
             <div className={layoutClasses}>
               {unpaidArchived.map(bill => (
-                <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
+                <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={(e) => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
               ))}
             </div>
           </div>
@@ -110,7 +110,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
         </div>
         <div className={`${layoutClasses} mt-8`}>
             {allArchived.map(bill => (
-            <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
+            <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={(e) => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
             ))}
         </div>
       </>

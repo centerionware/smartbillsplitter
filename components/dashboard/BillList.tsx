@@ -77,7 +77,7 @@ const BillList: React.FC<BillListProps> = ({
             onUnarchive={() => onUnarchiveBill(bill.id)}
             onDelete={() => onDeleteBill(bill.id)}
             onReshare={() => onReshareBill(bill.id)}
-            onClick={() => onSelectBill(bill)}
+            onClick={(e) => onSelectBill(bill)}
             onConvertToTemplate={() => onConvertToTemplate(bill)}
             onExport={() => onExportOwnedBill(bill)}
           />
@@ -108,7 +108,7 @@ const BillList: React.FC<BillListProps> = ({
                 onArchive={() => onArchiveImportedBill(ib.id)}
                 onUnarchive={() => onUnarchiveImportedBill(ib.id)}
                 onDelete={() => onDeleteImportedBill(ib.id)}
-                onClick={() => onSelectImportedBill(ib)}
+                onClick={(e) => onSelectImportedBill(ib)}
                 onShowSummaryDetails={() => onShowSummaryDetails(ib)}
                 onSettleUp={() => onSettleUp(ib)}
                 onExport={() => onExportImportedBill(ib)}

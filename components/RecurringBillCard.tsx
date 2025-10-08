@@ -1,5 +1,5 @@
 import React from 'react';
-import type { RecurringBill } from '../../types';
+import type { RecurringBill, Participant } from '../types';
 
 interface RecurringBillCardProps {
   bill: RecurringBill;
@@ -148,7 +148,7 @@ const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) 
       <div className="bg-slate-50 dark:bg-slate-700/50 px-5 py-3">
         <div className="flex items-center justify-between text-sm">
           <div className="flex -space-x-2 overflow-hidden">
-            {bill.participants.slice(0, 4).map(p => (
+            {bill.participants.slice(0, 4).map((p: Participant) => (
               <div key={p.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-800 bg-teal-500 flex items-center justify-center text-white font-bold text-xs">
                 {p.name.charAt(0)}
               </div>

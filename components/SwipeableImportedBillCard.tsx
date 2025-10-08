@@ -1,5 +1,3 @@
-
-
 import React, { useRef, useState } from 'react';
 import type { ImportedBill } from '../types';
 import ImportedBillCard from './ImportedBillCard';
@@ -119,7 +117,7 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = (pro
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-lg h-full">
+    <div className="relative w-full overflow-hidden rounded-lg">
       <div className="absolute top-0 right-0 h-full flex items-center z-0">
         {!isPaid && (
           <button onClick={() => executeAction(onSettleUp)} className="h-full w-[70px] flex flex-col items-center justify-center bg-emerald-500 text-white transition-colors hover:bg-emerald-600" aria-label='Settle Up'>
@@ -140,7 +138,7 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = (pro
       </div>
       <div 
         ref={cardRef} 
-        className="relative z-10 h-full" 
+        className="relative z-10" 
         style={{ transform: `translateX(${translateX}px)`, touchAction: 'pan-y' }} 
         onTouchStart={e => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)} 
         onTouchMove={e => handleDragMove(e.touches[0].clientX, e.touches[0].clientY)} 
