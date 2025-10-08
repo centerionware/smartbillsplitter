@@ -25,7 +25,7 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
 }) => {
   const layoutClasses = dashboardLayoutMode === 'card'
     ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-    : "flex flex-col gap-4";
+    : "bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden";
 
   return (
     <div className={layoutClasses}>
@@ -35,6 +35,8 @@ const ParticipantList: React.FC<ParticipantListProps> = ({
           participant={p}
           onClick={() => onSetShareSheetParticipant(p)}
           onPaidInFull={() => onMarkParticipantAsPaid(p.name)}
+          // FIX: Pass the layoutMode prop to the swipeable card.
+          layoutMode={dashboardLayoutMode}
         />
       ))}
     </div>

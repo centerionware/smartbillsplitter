@@ -1,15 +1,17 @@
 import React, { useRef, useState } from 'react';
 import ParticipantCard from './ParticipantCard';
+import type { DashboardLayoutMode } from '../types';
 
 interface SwipeableParticipantCardProps {
   participant: { name: string; amount: number; type: 'owed' | 'paid'; phone?: string; email?: string; };
   onClick: () => void;
   onPaidInFull: () => void;
+  layoutMode: DashboardLayoutMode;
 }
 
 const ACTION_BUTTON_WIDTH = 90; // Width for the "Paid in Full" button
 
-const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ participant, onClick, onPaidInFull }) => {
+const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ participant, onClick, onPaidInFull, layoutMode }) => {
   const [translateX, setTranslateX] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
   const dragStartX = useRef(0);
@@ -120,7 +122,7 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
   };
 
   return (
-    <div className={`relative w-full overflow-hidden transition-all duration-300 ease-in-out ${isExiting ? 'opacity-0 max-h-0 scale-95' : 'max-h-96'}`}>
+    <div className={`relative w-full transition-all duration-300 ease-in-out ${isExiting ? 'opacity-0 max-h-0 scale-95' : 'max-h-96'}`}>
        {participant.type === 'owed' && (
         <div className="absolute top-0 right-0 h-full flex items-center z-0">
             <button
@@ -151,6 +153,8 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
         <ParticipantCard
           data={participant}
           onClick={() => { /* Click is now handled in dragEnd */ }}
+          // FIX: Pass the layoutMode prop to satisfy the ParticipantCard's prop types.
+          layoutMode={layoutMode}
         />
       </div>
     </div>

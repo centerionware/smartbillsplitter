@@ -1,8 +1,12 @@
 import React from 'react';
+// FIX: Add import for DashboardLayoutMode type.
+import type { DashboardLayoutMode } from '../types';
 
 interface ParticipantCardProps {
   data: { name: string; amount: number; type: 'owed' | 'paid'; phone?: string; email?: string; };
   onClick: () => void;
+  // FIX: Add layoutMode to props to satisfy type checking from parent components.
+  layoutMode: DashboardLayoutMode;
 }
 
 const ParticipantCard: React.FC<ParticipantCardProps> = ({ data, onClick }) => {

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import type { ImportedBill } from '../types';
+import type { ImportedBill, DashboardLayoutMode } from '../types';
 import ImportedBillCard from './ImportedBillCard';
 
 interface SwipeableImportedBillCardProps {
@@ -11,12 +11,13 @@ interface SwipeableImportedBillCardProps {
   onSettleUp: () => void;
   onShowSummaryDetails: () => void;
   onExport: () => void;
+  layoutMode: DashboardLayoutMode;
 }
 
 const ACTION_BUTTON_WIDTH = 70;
 
 const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = (props) => {
-  const { bill, onClick, onArchive, onUnarchive, onDelete, onSettleUp } = props;
+  const { bill, onClick, onArchive, onUnarchive, onDelete, onSettleUp, layoutMode } = props;
   const [translateX, setTranslateX] = useState(0);
   const dragStartX = useRef(0);
   const dragStartY = useRef(0);
@@ -117,7 +118,7 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = (pro
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-lg">
+    <div className="relative w-full overflow-hidden">
       <div className="absolute top-0 right-0 h-full flex items-center z-0">
         {!isPaid && (
           <button onClick={() => executeAction(onSettleUp)} className="h-full w-[70px] flex flex-col items-center justify-center bg-emerald-500 text-white transition-colors hover:bg-emerald-600" aria-label='Settle Up'>

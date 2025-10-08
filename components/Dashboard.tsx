@@ -469,7 +469,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         return (
             <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
                 {upcomingRecurringBills.slice(0, visibleCount).map(bill => (
-                    <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} />
+                    // FIX: Pass dashboardLayoutMode prop to RecurringBillCard.
+                    <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} layoutMode={dashboardLayoutMode} />
                 ))}
             </div>
         );
@@ -477,7 +478,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         return (
             <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
                 {allRecurringBills.slice(0, visibleCount).map(bill => (
-                    <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} />
+                    // FIX: Pass dashboardLayoutMode prop to RecurringBillCard.
+                    <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} layoutMode={dashboardLayoutMode} />
                 ))}
             </div>
         );
@@ -491,7 +493,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                   group={group} 
                   onClick={() => navigate(View.GroupDetails, { groupToView: group })} 
                   onEdit={() => navigate(View.CreateGroup, { groupToEdit: group })} 
-                  onDelete={() => onDeleteGroup(group.id)} />
+                  onDelete={() => onDeleteGroup(group.id)}
+// FIX: Pass dashboardLayoutMode prop to SwipeableGroupCard.
+                  layoutMode={dashboardLayoutMode} />
               ))}
             </div>
           );

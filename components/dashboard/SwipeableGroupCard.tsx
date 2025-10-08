@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import type { Group } from '../../types';
+import type { Group, DashboardLayoutMode } from '../../types';
 import GroupCard from './GroupCard';
 
 interface SwipeableGroupCardProps {
@@ -7,11 +7,12 @@ interface SwipeableGroupCardProps {
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onEdit: () => void;
   onDelete: () => void;
+  layoutMode: DashboardLayoutMode;
 }
 
 const ACTION_BUTTON_WIDTH = 70;
 
-const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick, onEdit, onDelete }) => {
+const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick, onEdit, onDelete, layoutMode }) => {
   const [translateX, setTranslateX] = useState(0);
   const dragStartX = useRef(0);
   const dragStartY = useRef(0);
@@ -101,7 +102,7 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-lg">
+    <div className="relative w-full overflow-hidden">
       <div className="absolute top-0 right-0 h-full flex items-center z-0">
         <button onClick={() => executeAction(onDelete)} className="h-full w-[70px] flex flex-col items-center justify-center bg-red-500 text-white transition-colors hover:bg-red-600" aria-label="Delete">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -120,7 +121,8 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
         onMouseUp={e => handleDragEnd(e)} 
         onMouseLeave={() => isDragging.current && handleDragEnd()}
       >
-        <GroupCard group={group} onEdit={onEdit} onClick={onClick} />
+        {/* FIX: Pass the layoutMode prop down to the GroupCard. */}
+        <GroupCard group={group} onEdit={onEdit} onClick={onClick} layoutMode={layoutMode} />
       </div>
     </div>
   );

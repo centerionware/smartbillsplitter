@@ -1,9 +1,12 @@
 import React from 'react';
-import type { RecurringBill, Participant } from '../types';
+// FIX: Add DashboardLayoutMode to imports
+import type { RecurringBill, Participant, DashboardLayoutMode } from '../types';
 
 interface RecurringBillCardProps {
   bill: RecurringBill;
   onClick: () => void;
+  // FIX: Add layoutMode prop to satisfy type checking from parent components.
+  layoutMode: DashboardLayoutMode;
 }
 
 const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) => {

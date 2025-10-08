@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { Group } from '../../types';
+// FIX: Add DashboardLayoutMode to imports
+import type { Group, DashboardLayoutMode } from '../../types';
 
 interface GroupCardProps {
   group: Group;
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onEdit: () => void;
+  // FIX: Add layoutMode prop to satisfy type checking from parent components.
+  layoutMode: DashboardLayoutMode;
 }
 
 const GroupCard: React.FC<GroupCardProps> = ({ group, onClick, onEdit }) => {

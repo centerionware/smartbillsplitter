@@ -63,7 +63,7 @@ const BillList: React.FC<BillListProps> = ({
     const renderedItems: React.ReactElement[] = [];
     const isFree = subscriptionStatus === 'free';
 
-    if (isFree) {
+    if (isFree && dashboardLayoutMode === 'card') {
       renderedItems.push(<AdBillCard key="ad-first" />);
     }
 
@@ -80,11 +80,12 @@ const BillList: React.FC<BillListProps> = ({
             onClick={(e) => onSelectBill(bill)}
             onConvertToTemplate={() => onConvertToTemplate(bill)}
             onExport={() => onExportOwnedBill(bill)}
+            layoutMode={dashboardLayoutMode}
           />
         </div>
       );
 
-      if (isFree && (index + 1) % AD_INTERVAL === 0) {
+      if (isFree && dashboardLayoutMode === 'card' && (index + 1) % AD_INTERVAL === 0) {
         renderedItems.push(<AdBillCard key={`ad-interval-${index}`} />);
       }
     });
@@ -93,7 +94,7 @@ const BillList: React.FC<BillListProps> = ({
 
   const layoutClasses = dashboardLayoutMode === 'card'
     ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-    : "flex flex-col gap-4";
+    : "bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden";
 
   return (
     <>
@@ -112,6 +113,7 @@ const BillList: React.FC<BillListProps> = ({
                 onShowSummaryDetails={() => onShowSummaryDetails(ib)}
                 onSettleUp={() => onSettleUp(ib)}
                 onExport={() => onExportImportedBill(ib)}
+                layoutMode={dashboardLayoutMode}
               />
             ))}
           </div>
