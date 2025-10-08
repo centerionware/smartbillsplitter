@@ -56,6 +56,8 @@ const defaultMocks = {
         shareTemplate: 'template',
         notificationsEnabled: false,
         notificationDays: 3,
+        hidePaymentMethodWarning: false,
+        totalBudget: undefined,
     },
     isLoading: false,
     updateSettings: vi.fn(),
@@ -131,7 +133,7 @@ describe('useAppLogic hook', () => {
 
   it('should reset dashboard filters when navigating away from the dashboard', () => {
     const { rerender } = renderHook(
-      ({ view }) => {
+      ({ view }: { view: View }) => {
         // Update the mock's return value for each render
         mocked(useRouting).mockReturnValue({
           ...defaultMocks.useRouting,
@@ -156,7 +158,7 @@ describe('useAppLogic hook', () => {
 
   it('should not reset dashboard filters when staying on the dashboard', () => {
     const { rerender } = renderHook(
-      ({ view }) => {
+      ({ view }: { view: View }) => {
         mocked(useRouting).mockReturnValue({ ...defaultMocks.useRouting, view });
         return useAppLogic();
       },
@@ -201,8 +203,8 @@ describe('useAppLogic hook', () => {
       { id: 'imported-2', creatorName: 'Bob' },
     ] as ImportedBill[];
 
-    const { result, rerender } = renderHook(
-      ({ params }) => {
+    const { result } = renderHook(
+      ({ params }: { params?: { importedBillId?: string } }) => {
         mocked(useImportedBills).mockReturnValue({ ...defaultMocks.useImportedBills, importedBills: mockImportedBills });
         mocked(useRouting).mockReturnValue({ ...defaultMocks.useRouting, params });
         return useAppLogic();
