@@ -20,9 +20,10 @@ vi.mock('../../services/broadcastService', () => ({
   useBroadcastListener: vi.fn(),
 }));
 
+// Use distinct dates to ensure predictable sorting. 'Groceries' is newer and should appear first.
 const mockBills: Bill[] = [
-  { id: '1', description: 'Groceries', totalAmount: 100, date: new Date().toISOString(), participants: [], status: 'active' },
-  { id: '2', description: 'Dinner', totalAmount: 50, date: new Date().toISOString(), participants: [], status: 'active' },
+  { id: '1', description: 'Groceries', totalAmount: 100, date: new Date('2024-05-21T12:00:00Z').toISOString(), participants: [], status: 'active' },
+  { id: '2', description: 'Dinner', totalAmount: 50, date: new Date('2024-05-20T12:00:00Z').toISOString(), participants: [], status: 'active' },
 ];
 
 describe('useBills hook', () => {
@@ -94,7 +95,9 @@ describe('useBills hook', () => {
     const { result } = renderHook(() => useBills());
     await act(async () => {});
     
-    vi.mocked(getBills).mockResolvedValue([mockBills[1]]);
+    // After deleting bill '1', only bill '2' should remain.
+    const remainingBills = mockBills.filter(b => b.id !== '1');
+    vi.mocked(getBills).mockResolvedValue(remainingBills);
 
     await act(async () => {
       await result.current.deleteBill('1');
