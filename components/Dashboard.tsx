@@ -20,7 +20,7 @@ import BillList from './dashboard/BillList';
 import ParticipantList from './dashboard/ParticipantList';
 import ParticipantDetailView from './dashboard/ParticipantDetailView';
 import EmptyState from './dashboard/EmptyState';
-import RecurringBillCard from '../RecurringBillCard';
+import RecurringBillCard from './RecurringBillCard';
 import SwipeableGroupCard from './dashboard/SwipeableGroupCard';
 import BudgetView, { BudgetData } from './dashboard/BudgetView';
 
