@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { DashboardView, SummaryFilter } from '../../types';
+import type { DashboardView, SummaryFilter, DashboardLayoutMode } from '../../types';
 
 export const useDashboardState = () => {
     const [dashboardView, setDashboardView] = useState<DashboardView>('bills');
@@ -7,6 +7,7 @@ export const useDashboardState = () => {
     const [dashboardStatusFilter, setDashboardStatusFilter] = useState<'active' | 'archived'>('active');
     const [dashboardSummaryFilter, setDashboardSummaryFilter] = useState<SummaryFilter>('total');
     const [budgetDate, setBudgetDate] = useState<{ year: number; month: number } | 'last30days'>('last30days');
+    const [dashboardLayoutMode, setDashboardLayoutMode] = useState<DashboardLayoutMode>('card');
 
     const onSelectParticipant = useCallback((name: string | null) => {
         if (name) {
@@ -31,6 +32,8 @@ export const useDashboardState = () => {
         onSetDashboardSummaryFilter: setDashboardSummaryFilter,
         budgetDate,
         setBudgetDate,
+        dashboardLayoutMode,
+        onSetDashboardLayoutMode: setDashboardLayoutMode,
         onSelectParticipant,
         onClearParticipant,
     };

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View } from '../../types';
-import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group } from '../../types';
+// FIX: Added DashboardLayoutMode to type imports.
+import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group, DashboardLayoutMode } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
 import type { ParticipantData } from './ParticipantList';
 import ShareActionSheet from '../ShareActionSheet';
@@ -57,6 +58,9 @@ interface DashboardProps {
   selectedParticipant: string | null;
   dashboardStatusFilter: 'active' | 'archived';
   dashboardSummaryFilter: SummaryFilter;
+  // FIX: Added missing props for layout mode.
+  dashboardLayoutMode: DashboardLayoutMode;
+  onSetDashboardLayoutMode: (mode: DashboardLayoutMode) => void;
   onSetDashboardView: (view: DashboardView) => void;
   onSetDashboardStatusFilter: (status: 'active' | 'archived') => void;
   onSetDashboardSummaryFilter: (filter: SummaryFilter) => void;
@@ -79,8 +83,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     onUpdateImportedBill, onArchiveImportedBill, onUnarchiveImportedBill, onDeleteImportedBill,
     onShowSummaryDetails, onCreateFromTemplate,
     navigate,
-    dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter,
-    onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant,
+    // FIX: Destructured missing props.
+    dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter, dashboardLayoutMode,
+    onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant, onSetDashboardLayoutMode,
     budgetData, budgetDate, setBudgetDate, handleSelectBillFromBudget
   } = props;
   
@@ -158,7 +163,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     let totalTracked = 0, othersOweMe = 0, iOwe = 0;
     activeBills.forEach(bill => {
       totalTracked += bill.totalAmount;
-      bill.participants.forEach(p => {
+      bill.participants.forEach((p: Participant) => {
         if (!p.paid) {
           if (p.name.trim().toLowerCase() === myDisplayNameLower) iOwe += p.amountOwed;
           else othersOweMe += p.amountOwed;
@@ -167,7 +172,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     });
     importedBills.forEach(imported => {
         if (imported.status === 'active' && !imported.localStatus.myPortionPaid) {
-            const myPart = imported.sharedData.bill.participants.find(p => p.id === imported.myParticipantId);
+            const myPart = imported.sharedData.bill.participants.find((p: Participant) => p.id === imported.myParticipantId);
             if (myPart && !myPart.paid) iOwe += myPart.amountOwed;
         }
     });
@@ -177,11 +182,11 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const participantBills = useMemo(() => {
     if (!selectedParticipant) return { active: [], allArchived: [], unpaidArchived: [] };
     const lowercasedQuery = searchQuery.toLowerCase().trim();
-    const allParticipantBills = bills.filter(b => b.participants.some(p => p.name === selectedParticipant));
-    const searchedBills = lowercasedQuery ? allParticipantBills.filter(bill => searchMode === 'description' ? bill.description.toLowerCase().includes(lowercasedQuery) : bill.participants.some(p => p.name.toLowerCase().includes(lowercasedQuery))) : allParticipantBills;
+    const allParticipantBills = bills.filter(b => b.participants.some((p: Participant) => p.name === selectedParticipant));
+    const searchedBills = lowercasedQuery ? allParticipantBills.filter(bill => searchMode === 'description' ? bill.description.toLowerCase().includes(lowercasedQuery) : bill.participants.some((p: Participant) => p.name.toLowerCase().includes(lowercasedQuery))) : allParticipantBills;
     const active = searchedBills.filter(b => b.status === 'active').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const allArchived = searchedBills.filter(b => b.status === 'archived').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const unpaidArchived = allArchived.filter(b => b.participants.some(p => p.name === selectedParticipant && !p.paid && p.amountOwed > 0.005));
+    const unpaidArchived = allArchived.filter(b => b.participants.some((p: Participant) => p.name === selectedParticipant && !p.paid && p.amountOwed > 0.005));
     return { active, allArchived, unpaidArchived };
   }, [bills, selectedParticipant, searchQuery, searchMode]);
 
@@ -189,13 +194,13 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     if (selectedParticipant || dashboardView !== 'bills') return [];
     const lowercasedQuery = searchQuery.toLowerCase().trim();
     const myNameLower = settings.myDisplayName.toLowerCase().trim();
-    let billsToFilter = lowercasedQuery ? bills.filter(bill => searchMode === 'description' ? bill.description.toLowerCase().includes(lowercasedQuery) : bill.participants.some(p => p.name.toLowerCase().includes(lowercasedQuery))) : bills;
+    let billsToFilter = lowercasedQuery ? bills.filter(bill => searchMode === 'description' ? bill.description.toLowerCase().includes(lowercasedQuery) : bill.participants.some((p: Participant) => p.name.toLowerCase().includes(lowercasedQuery))) : bills;
     let statusFilteredBills = billsToFilter.filter(bill => bill.status === dashboardStatusFilter);
     if (dashboardStatusFilter === 'active') {
         if (dashboardSummaryFilter === 'othersOweMe') {
-            statusFilteredBills = statusFilteredBills.filter(bill => !bill.participants.some(p => p.name.toLowerCase().trim() === myNameLower && !p.paid) && bill.participants.some(p => p.name.toLowerCase().trim() !== myNameLower && !p.paid));
+            statusFilteredBills = statusFilteredBills.filter(bill => !bill.participants.some((p: Participant) => p.name.toLowerCase().trim() === myNameLower && !p.paid) && bill.participants.some((p: Participant) => p.name.toLowerCase().trim() !== myNameLower && !p.paid));
         } else if (dashboardSummaryFilter === 'iOwe') {
-            statusFilteredBills = statusFilteredBills.filter(bill => bill.participants.some(p => p.name.toLowerCase().trim() === myNameLower && !p.paid));
+            statusFilteredBills = statusFilteredBills.filter(bill => bill.participants.some((p: Participant) => p.name.toLowerCase().trim() === myNameLower && !p.paid));
         }
     }
     return statusFilteredBills;
@@ -272,7 +277,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const getShareTextForParticipant = useCallback((participantName: string): string => {
     const participantData = participantsData.find(p => p.name === participantName && p.type === 'owed');
     if (!participantData) return "No outstanding bills found.";
-    const billsInfo = activeBills.filter(b => b.participants.some(p => p.name === participantName && !p.paid && p.amountOwed > 0)).map(b => ({ description: b.description, amountOwed: b.participants.find(p => p.name === participantName)!.amountOwed }));
+    const billsInfo = activeBills.filter(b => b.participants.some((p: Participant) => p.name === participantName && !p.paid && p.amountOwed > 0)).map(b => ({ description: b.description, amountOwed: b.participants.find((p: Participant) => p.name === participantName)!.amountOwed }));
     return generateShareText(participantName, participantData.amount, billsInfo, settings, subscriptionStatus);
   }, [participantsData, activeBills, settings, subscriptionStatus]);
 
@@ -307,7 +312,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   };
 
   const handleShareLink = useCallback(async (participantName: string, method: 'sms' | 'email' | 'generic') => {
-    const unpaidBills = bills.filter(b => b.status === 'active' && b.participants.some(p => p.name === participantName && !p.paid && p.amountOwed > 0));
+    const unpaidBills = bills.filter(b => b.status === 'active' && b.participants.some((p: Participant) => p.name === participantName && !p.paid && p.amountOwed > 0));
     if (unpaidBills.length === 0) {
         showNotification(`${participantName} has no outstanding bills to share.`, 'info');
         setShareSheetParticipant(null);
@@ -346,12 +351,12 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   }, [bills, settings, onUpdateMultipleBills, participantsData, showNotification, subscriptionStatus]);
 
   const handleMarkParticipantAsPaid = async (participantName: string) => {
-    const billsToUpdate: Bill[] = bills.filter(bill => bill.status === 'active' && bill.participants.some(p => p.name === participantName && !p.paid)).map(bill => ({ ...bill, participants: bill.participants.map(p => p.name === participantName ? { ...p, paid: true } : p) }));
+    const billsToUpdate: Bill[] = bills.filter(bill => bill.status === 'active' && bill.participants.some((p: Participant) => p.name === participantName && !p.paid)).map(bill => ({ ...bill, participants: bill.participants.map((p: Participant) => p.name === participantName ? { ...p, paid: true } : p) }));
     if (billsToUpdate.length > 0) await onUpdateMultipleBills(billsToUpdate);
   };
   
   const handleExportParticipant = async (participantName: string) => {
-    const billsForParticipant = bills.filter(b => b.participants.some(p => p.name === participantName));
+    const billsForParticipant = bills.filter(b => b.participants.some((p: Participant) => p.name === participantName));
     if (billsForParticipant.length === 0) {
       showNotification(`No bills found for ${participantName}.`, 'info');
       return;
@@ -411,7 +416,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       }
   };
 
-  const myParticipantForSettleUp = settleUpBill ? settleUpBill.sharedData.bill.participants.find(p => p.id === settleUpBill.myParticipantId) : null;
+  const myParticipantForSettleUp = settleUpBill ? settleUpBill.sharedData.bill.participants.find((p: Participant) => p.id === settleUpBill.myParticipantId) : null;
 
   const getActiveFilterTag = () => {
     if (dashboardSummaryFilter === 'othersOweMe') return 'Others Owe Me';
@@ -530,6 +535,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       {['bills', 'participants'].includes(dashboardView) &&
         <DashboardSummary summaryTotals={summaryTotals} dashboardStatusFilter={dashboardStatusFilter} dashboardSummaryFilter={dashboardSummaryFilter} onSetDashboardSummaryFilter={onSetDashboardSummaryFilter} />
       }
+      {/* FIX: Pass dashboardLayoutMode and onSetDashboardLayoutMode props. */}
       <DashboardControls 
         selectedParticipant={selectedParticipant}
         onClearParticipant={onClearParticipant}
@@ -541,6 +547,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         setSearchQuery={setSearchQuery}
         searchMode={searchMode}
         setSearchMode={setSearchMode}
+        dashboardLayoutMode={dashboardLayoutMode}
+        onSetDashboardLayoutMode={onSetDashboardLayoutMode}
         hasRecurringBills={hasRecurringBills}
         hasBudgetData={budgetData.hasBudgetData}
       />

@@ -127,6 +127,7 @@ export enum View {
 export type SummaryFilter = 'total' | 'othersOweMe' | 'iOwe';
 
 export type DashboardView = 'bills' | 'participants' | 'upcoming' | 'templates' | 'groups' | 'budget';
+export type DashboardLayoutMode = 'card' | 'list';
 
 export interface ConstituentShareInfo {
     originalBillId: string;

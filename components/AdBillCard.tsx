@@ -40,7 +40,7 @@ const AdBillCard: React.FC = () => {
   }
 
   return (
-    <div ref={adRef} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden h-full flex flex-col justify-between p-5 border border-slate-200 dark:border-slate-700 min-h-[150px]">
+    <div ref={adRef} className="w-full bg-white dark:bg-slate-800 rounded-lg shadow-lg overflow-hidden h-full flex flex-col justify-between p-5 border border-slate-200 dark:border-slate-700 min-h-[150px]">
       <div>
         <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
           Advertisement

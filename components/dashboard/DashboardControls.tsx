@@ -1,5 +1,5 @@
 import React from 'react';
-import type { DashboardView } from '../../types';
+import type { DashboardView, DashboardLayoutMode } from '../../types';
 
 interface DashboardControlsProps {
   selectedParticipant: string | null;
@@ -12,6 +12,8 @@ interface DashboardControlsProps {
   setSearchQuery: (query: string) => void;
   searchMode: 'description' | 'participant';
   setSearchMode: (mode: 'description' | 'participant') => void;
+  dashboardLayoutMode: DashboardLayoutMode;
+  onSetDashboardLayoutMode: (mode: DashboardLayoutMode) => void;
   hasRecurringBills: boolean;
   hasBudgetData: boolean;
 }
@@ -27,9 +29,14 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({
   setSearchQuery,
   searchMode,
   setSearchMode,
+  dashboardLayoutMode,
+  onSetDashboardLayoutMode,
   hasRecurringBills,
   hasBudgetData,
 }) => {
+  const listViews: DashboardView[] = ['bills', 'participants', 'upcoming', 'templates', 'groups'];
+  const showLayoutToggle = listViews.includes(dashboardView) && !selectedParticipant;
+
   return (
     <div className="mb-6 space-y-4">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -60,12 +67,28 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({
             </div>
           )}
         </div>
-        {!['upcoming', 'templates', 'groups', 'budget'].includes(dashboardView) && (
+        <div className="flex items-center gap-4 justify-end">
+          {showLayoutToggle && (
+            <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg">
+              <button onClick={() => onSetDashboardLayoutMode('card')} title="Card View" className={`p-1.5 rounded-md transition-colors ${dashboardLayoutMode === 'card' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 11a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button onClick={() => onSetDashboardLayoutMode('list')} title="List View" className={`p-1.5 rounded-md transition-colors ${dashboardLayoutMode === 'list' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {!['upcoming', 'templates', 'groups', 'budget'].includes(dashboardView) && (
             <div className="flex items-center space-x-1 bg-slate-200 dark:bg-slate-700 p-1 rounded-lg self-start sm:self-center">
                 <button onClick={() => onSetDashboardStatusFilter('active')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${dashboardStatusFilter === 'active' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Active</button>
                 <button onClick={() => onSetDashboardStatusFilter('archived')} className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${dashboardStatusFilter === 'archived' ? 'bg-white dark:bg-slate-800 shadow text-teal-600 dark:text-teal-400' : 'text-slate-600 dark:text-slate-300'}`}>Archived</button>
             </div>
-        )}
+          )}
+        </div>
       </div>
 
       {(dashboardView !== 'participants' || selectedParticipant) && dashboardView !== 'budget' && (

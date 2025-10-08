@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View } from '../types';
-import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group } from '../types';
+// FIX: Added DashboardLayoutMode to type imports.
+import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group, DashboardLayoutMode } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import type { ParticipantData } from './dashboard/ParticipantList';
 import ShareActionSheet from './ShareActionSheet';
@@ -57,6 +58,9 @@ interface DashboardProps {
   selectedParticipant: string | null;
   dashboardStatusFilter: 'active' | 'archived';
   dashboardSummaryFilter: SummaryFilter;
+  // FIX: Added missing props for layout mode.
+  dashboardLayoutMode: DashboardLayoutMode;
+  onSetDashboardLayoutMode: (mode: DashboardLayoutMode) => void;
   onSetDashboardView: (view: DashboardView) => void;
   onSetDashboardStatusFilter: (status: 'active' | 'archived') => void;
   onSetDashboardSummaryFilter: (filter: SummaryFilter) => void;
@@ -79,8 +83,9 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     onUpdateImportedBill, onArchiveImportedBill, onUnarchiveImportedBill, onDeleteImportedBill,
     onShowSummaryDetails, onCreateFromTemplate,
     navigate,
-    dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter,
-    onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant,
+    // FIX: Destructured missing props.
+    dashboardView, selectedParticipant, dashboardStatusFilter, dashboardSummaryFilter, dashboardLayoutMode,
+    onSetDashboardView, onSetDashboardStatusFilter, onSetDashboardSummaryFilter, onSelectParticipant, onClearParticipant, onSetDashboardLayoutMode,
     budgetData, budgetDate, setBudgetDate, handleSelectBillFromBudget
   } = props;
   
@@ -530,6 +535,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
       {['bills', 'participants'].includes(dashboardView) &&
         <DashboardSummary summaryTotals={summaryTotals} dashboardStatusFilter={dashboardStatusFilter} dashboardSummaryFilter={dashboardSummaryFilter} onSetDashboardSummaryFilter={onSetDashboardSummaryFilter} />
       }
+      {/* FIX: Pass dashboardLayoutMode and onSetDashboardLayoutMode props. */}
       <DashboardControls 
         selectedParticipant={selectedParticipant}
         onClearParticipant={onClearParticipant}
@@ -541,6 +547,8 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         setSearchQuery={setSearchQuery}
         searchMode={searchMode}
         setSearchMode={setSearchMode}
+        dashboardLayoutMode={dashboardLayoutMode}
+        onSetDashboardLayoutMode={onSetDashboardLayoutMode}
         hasRecurringBills={hasRecurringBills}
         hasBudgetData={budgetData.hasBudgetData}
       />

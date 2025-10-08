@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView, SettingsSection, Group, RequestConfirmationFn, Category } from '../../types';
+import type { Bill, Settings, ImportedBill, RecurringBill, SummaryFilter, DashboardView, SettingsSection, Group, RequestConfirmationFn, Category, DashboardLayoutMode } from '../../types';
 import { View } from '../../types';
 import type { ParticipantData } from '../ParticipantList';
 import type { BudgetData } from '../dashboard/BudgetView';
@@ -50,9 +50,11 @@ type AppLogicProps = {
     selectedParticipant: string | null;
     dashboardStatusFilter: 'active' | 'archived';
     dashboardSummaryFilter: SummaryFilter;
+    dashboardLayoutMode: DashboardLayoutMode;
     onSetDashboardView: (view: DashboardView) => void;
     onSetDashboardStatusFilter: (status: 'active' | 'archived') => void;
     onSetDashboardSummaryFilter: (filter: SummaryFilter) => void;
+    onSetDashboardLayoutMode: (mode: DashboardLayoutMode) => void;
     onSelectParticipant: (name: string | null) => void;
     // Budget
     budgetData: BudgetData;
