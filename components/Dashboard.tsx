@@ -4,28 +4,28 @@ import { View } from '../types';
 import type { Bill, Settings, ImportedBill, Participant, SummaryFilter, RecurringBill, DashboardView, SettingsSection, Group, DashboardLayoutMode } from '../types';
 import type { SubscriptionStatus } from '../hooks/useAuth';
 import type { ParticipantData } from './dashboard/ParticipantList';
-import ShareActionSheet from '../ShareActionSheet';
-import { generateShareText, generateOneTimeShareLink } from '../../services/shareService';
-import { useAppControl } from '../../contexts/AppControlContext';
-import HalfScreenAdModal from '../HalfScreenAdModal';
-import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
-import PaymentMethodsModal from '../PaymentMethodsModal';
-import PaymentMethodWarningModal from '../PaymentMethodWarningModal';
-import { exportData } from '../../services/exportService';
+import ShareActionSheet from './ShareActionSheet';
+import { generateShareText, generateOneTimeShareLink } from '../services/shareService';
+import { useAppControl } from '../contexts/AppControlContext';
+import HalfScreenAdModal from './HalfScreenAdModal';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
+import PaymentMethodsModal from './PaymentMethodsModal';
+import PaymentMethodWarningModal from './PaymentMethodWarningModal';
+import { exportData } from '../services/exportService';
 
 // New Child Components
-import DashboardSummary from './DashboardSummary';
-import DashboardControls from './DashboardControls';
-import BillList from './BillList';
-import ParticipantList from './ParticipantList';
-import ParticipantDetailView from './ParticipantDetailView';
-import EmptyState from './EmptyState';
-import RecurringBillCard from '../RecurringBillCard';
+import DashboardSummary from './dashboard/DashboardSummary';
+import DashboardControls from './dashboard/DashboardControls';
+import BillList from './dashboard/BillList';
+import ParticipantList from './dashboard/ParticipantList';
+import ParticipantDetailView from './dashboard/ParticipantDetailView';
+import EmptyState from './dashboard/EmptyState';
+import RecurringBillCard from './RecurringBillCard';
 import SwipeableGroupCard from './dashboard/SwipeableGroupCard';
 import BudgetView, { BudgetData } from './dashboard/BudgetView';
 
 // Import the ad error message
-import { AD_ERROR_MESSAGE } from '../../services/adService';
+import { AD_ERROR_MESSAGE } from '../services/adService';
 
 
 interface DashboardProps {

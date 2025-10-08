@@ -467,7 +467,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
                 />;
     } else if (dashboardView === 'upcoming' && upcomingRecurringBills.length > 0) {
         return (
-            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
+            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "bg-white dark:bg-slate-800 rounded-lg shadow-md"}>
                 {upcomingRecurringBills.slice(0, visibleCount).map(bill => (
                     // FIX: Pass dashboardLayoutMode prop to RecurringBillCard.
                     <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} layoutMode={dashboardLayoutMode} />
@@ -476,7 +476,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
         );
     } else if (dashboardView === 'templates' && allRecurringBills.length > 0) {
         return (
-            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
+            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "bg-white dark:bg-slate-800 rounded-lg shadow-md"}>
                 {allRecurringBills.slice(0, visibleCount).map(bill => (
                     // FIX: Pass dashboardLayoutMode prop to RecurringBillCard.
                     <RecurringBillCard key={bill.id} bill={bill} onClick={() => navigate(View.CreateBill, { fromTemplate: bill })} layoutMode={dashboardLayoutMode} />
@@ -486,7 +486,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     } else if (dashboardView === 'groups') {
         if (filteredGroups.length > 0) {
           return (
-            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
+            <div className={dashboardLayoutMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "bg-white dark:bg-slate-800 rounded-lg shadow-md"}>
               {filteredGroups.map(group => (
                 <SwipeableGroupCard 
                   key={group.id} 
