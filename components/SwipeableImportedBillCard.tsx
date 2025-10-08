@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import type { ImportedBill, DashboardLayoutMode } from '../types';
 import ImportedBillCard from './ImportedBillCard';
 
@@ -94,11 +94,9 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = (pro
         setTranslateX(0);
       } else {
         if (e) {
-          // FIX: Prevent the default action (like a ghost click) on touch devices.
           if (e.type === 'touchend') {
             e.preventDefault();
           }
-          // FIX: Remove incorrect type assertion to pass either event type to the handler.
           onClick(e as React.MouseEvent);
         }
       }
@@ -116,6 +114,12 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = (pro
     action();
     setTranslateX(0);
   };
+
+  const handleMenuToggled = useCallback((isOpen: boolean) => {
+    if (cardRef.current) {
+      cardRef.current.style.zIndex = isOpen ? '20' : '10';
+    }
+  }, []);
 
   return (
     <div className={`relative w-full ${layoutMode === 'card' ? 'overflow-hidden' : ''}`}>
@@ -151,7 +155,7 @@ const SwipeableImportedBillCard: React.FC<SwipeableImportedBillCardProps> = (pro
         onMouseUp={e => handleDragEnd(e)} 
         onMouseLeave={() => isDragging.current && handleDragEnd()}
       >
-        <ImportedBillCard {...props} />
+        <ImportedBillCard {...props} onMenuToggled={handleMenuToggled} />
       </div>
     </div>
   );

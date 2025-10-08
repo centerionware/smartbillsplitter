@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import type { Group, DashboardLayoutMode } from '../../types';
 import GroupCard from './GroupCard';
 
@@ -101,6 +101,12 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
     setTranslateX(0);
   };
 
+  const handleMenuToggled = useCallback((isOpen: boolean) => {
+    if (cardRef.current) {
+      cardRef.current.style.zIndex = isOpen ? '20' : '10';
+    }
+  }, []);
+
   return (
     <div className={`relative w-full ${layoutMode === 'card' ? 'overflow-hidden' : ''}`}>
       {layoutMode === 'card' && (
@@ -123,7 +129,7 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
         onMouseUp={e => handleDragEnd(e)} 
         onMouseLeave={() => isDragging.current && handleDragEnd()}
       >
-        <GroupCard group={group} onEdit={onEdit} onClick={onClick} layoutMode={layoutMode} />
+        <GroupCard group={group} onEdit={onEdit} onClick={onClick} layoutMode={layoutMode} onMenuToggled={handleMenuToggled} />
       </div>
     </div>
   );

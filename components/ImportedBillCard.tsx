@@ -11,6 +11,7 @@ interface ImportedBillCardProps {
   onShowSummaryDetails: () => void;
   onExport: () => void;
   layoutMode: DashboardLayoutMode;
+  onMenuToggled: (isOpen: boolean) => void;
 }
 
 const LiveIndicator: React.FC<{ status: ImportedBill['liveStatus'] }> = ({ status }) => {
@@ -32,7 +33,7 @@ const LiveIndicator: React.FC<{ status: ImportedBill['liveStatus'] }> = ({ statu
     );
 };
 
-const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onSettleUp, onShowSummaryDetails, onExport, layoutMode }) => {
+const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onSettleUp, onShowSummaryDetails, onExport, layoutMode, onMenuToggled }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -40,6 +41,10 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onAr
   const amountOwed = myParticipant?.amountOwed || 0;
   const isPaid = bill.localStatus.myPortionPaid;
   const isSummary = bill.id.startsWith('summary-');
+
+  useEffect(() => {
+    onMenuToggled(isMenuOpen);
+  }, [isMenuOpen, onMenuToggled]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

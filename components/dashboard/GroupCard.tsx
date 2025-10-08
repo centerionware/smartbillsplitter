@@ -6,11 +6,16 @@ interface GroupCardProps {
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onEdit: () => void;
   layoutMode: DashboardLayoutMode;
+  onMenuToggled: (isOpen: boolean) => void;
 }
 
-const GroupCard: React.FC<GroupCardProps> = ({ group, onClick, onEdit, layoutMode }) => {
+const GroupCard: React.FC<GroupCardProps> = ({ group, onClick, onEdit, layoutMode, onMenuToggled }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onMenuToggled(isMenuOpen);
+  }, [isMenuOpen, onMenuToggled]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

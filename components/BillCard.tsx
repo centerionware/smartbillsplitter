@@ -11,6 +11,7 @@ interface BillCardProps {
   onConvertToTemplate: () => void;
   onExport: () => void;
   layoutMode: DashboardLayoutMode;
+  onMenuToggled: (isOpen: boolean) => void;
 }
 
 const LiveIndicator: React.FC<{ status: Bill['shareStatus'], onClick?: (e: React.MouseEvent) => void }> = ({ status, onClick }) => {
@@ -41,7 +42,7 @@ const LiveIndicator: React.FC<{ status: Bill['shareStatus'], onClick?: (e: React
     return indicator;
 };
 
-const BillCard: React.FC<BillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onReshare, onConvertToTemplate, onExport, layoutMode }) => {
+const BillCard: React.FC<BillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onReshare, onConvertToTemplate, onExport, layoutMode, onMenuToggled }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +51,10 @@ const BillCard: React.FC<BillCardProps> = ({ bill, onClick, onArchive, onUnarchi
     .reduce((sum, p) => sum + p.amountOwed, 0);
 
   const allPaid = bill.participants.every(p => p.paid);
+
+  useEffect(() => {
+    onMenuToggled(isMenuOpen);
+  }, [isMenuOpen, onMenuToggled]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

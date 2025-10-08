@@ -21,7 +21,8 @@ const mockGroup: Group = {
 
 describe('GroupCard', () => {
   it('renders group name and member count', () => {
-    render(<GroupCard group={mockGroup} onEdit={vi.fn()} onClick={vi.fn()} layoutMode="card" />);
+    // FIX: Added missing onMenuToggled prop.
+    render(<GroupCard group={mockGroup} onEdit={vi.fn()} onClick={vi.fn()} layoutMode="card" onMenuToggled={vi.fn()} />);
 
     expect(screen.getByText('Apartment Crew')).toBeInTheDocument();
     // FIX: Use getAllByText because "3 members" appears twice.
@@ -29,7 +30,8 @@ describe('GroupCard', () => {
   });
 
   it('displays participant avatars', () => {
-    render(<GroupCard group={mockGroup} onEdit={vi.fn()} onClick={vi.fn()} layoutMode="card" />);
+    // FIX: Added missing onMenuToggled prop.
+    render(<GroupCard group={mockGroup} onEdit={vi.fn()} onClick={vi.fn()} layoutMode="card" onMenuToggled={vi.fn()} />);
 
     expect(screen.getByText('A')).toBeInTheDocument();
     expect(screen.getByText('B')).toBeInTheDocument();
@@ -38,7 +40,8 @@ describe('GroupCard', () => {
 
   it('opens the menu when the menu button is clicked', async () => {
     const onEditMock = vi.fn();
-    render(<GroupCard group={mockGroup} onEdit={onEditMock} onClick={vi.fn()} layoutMode="card" />);
+    // FIX: Added missing onMenuToggled prop.
+    render(<GroupCard group={mockGroup} onEdit={onEditMock} onClick={vi.fn()} layoutMode="card" onMenuToggled={vi.fn()} />);
     
     const menuButton = screen.getByLabelText('More options');
     await userEvent.click(menuButton);

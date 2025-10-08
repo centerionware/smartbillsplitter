@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import type { Bill, DashboardLayoutMode } from '../types';
 import BillCard from './BillCard';
 
@@ -91,11 +91,9 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = (props) => {
         setTranslateX(0); // Close actions on tap
       } else {
         if (e) {
-          // FIX: Prevent the default action (like a ghost click) on touch devices.
           if (e.type === 'touchend') {
             e.preventDefault();
           }
-          // FIX: Remove incorrect type assertion to pass either event type to the handler.
           onClick(e);
         }
       }
@@ -114,6 +112,12 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = (props) => {
     action();
     setTranslateX(0);
   };
+
+  const handleMenuToggled = useCallback((isOpen: boolean) => {
+    if (cardRef.current) {
+      cardRef.current.style.zIndex = isOpen ? '20' : '10';
+    }
+  }, []);
 
   return (
     <div className={`relative w-full ${layoutMode === 'card' ? 'overflow-hidden' : ''}`}>
@@ -141,7 +145,7 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = (props) => {
         onMouseUp={e => handleDragEnd(e)} 
         onMouseLeave={() => isDragging.current && handleDragEnd()}
       >
-        <BillCard {...props} />
+        <BillCard {...props} onMenuToggled={handleMenuToggled} />
       </div>
     </div>
   );

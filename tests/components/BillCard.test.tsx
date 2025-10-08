@@ -27,6 +27,8 @@ const mockHandlers = {
   onReshare: vi.fn(),
   onConvertToTemplate: vi.fn(),
   onExport: vi.fn(),
+  // FIX: Added missing onMenuToggled prop.
+  onMenuToggled: vi.fn(),
 };
 
 describe('BillCard', () => {
