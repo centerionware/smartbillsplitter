@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Bill } from '../../types';
+import type { Bill, DashboardLayoutMode } from '../../types';
 import SwipeableBillCard from '../SwipeableBillCard';
 import EmptyState from './EmptyState';
 
@@ -20,6 +20,7 @@ interface ParticipantDetailViewProps {
   onExport: () => void;
   onConvertToTemplate: (bill: Bill) => void;
   onExportBill: (bill: Bill) => void;
+  dashboardLayoutMode: DashboardLayoutMode;
 }
 
 const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
@@ -35,8 +36,12 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
   onExport,
   onConvertToTemplate,
   onExportBill,
+  dashboardLayoutMode,
 }) => {
   const { active, allArchived, unpaidArchived } = participantBills;
+  const layoutClasses = dashboardLayoutMode === 'card'
+    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+    : "flex flex-col gap-4";
 
   if (dashboardStatusFilter === 'active') {
     if (active.length === 0 && unpaidArchived.length === 0) {
@@ -62,7 +67,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
         {active.length > 0 && (
           <div>
             <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">Active Bills</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className={layoutClasses}>
               {active.map(bill => (
                 <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
               ))}
@@ -72,7 +77,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
         {unpaidArchived.length > 0 && (
           <div>
             <h3 className="text-xl font-semibold text-red-700 dark:text-red-400 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">Unpaid Archived Bills</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className={layoutClasses}>
               {unpaidArchived.map(bill => (
                 <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
               ))}
@@ -103,7 +108,7 @@ const ParticipantDetailView: React.FC<ParticipantDetailViewProps> = ({
                 <span className="text-xl" role="img" aria-label="Download">📥</span>
              </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+        <div className={`${layoutClasses} mt-8`}>
             {allArchived.map(bill => (
             <SwipeableBillCard key={bill.id} bill={bill} onArchive={() => onArchiveBill(bill.id)} onUnarchive={() => onUnarchiveBill(bill.id)} onDelete={() => onDeleteBill(bill.id)} onClick={() => onSelectBill(bill)} onReshare={() => onReshareBill(bill.id)} onConvertToTemplate={() => onConvertToTemplate(bill)} onExport={() => onExportBill(bill)} />
             ))}

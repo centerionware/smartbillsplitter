@@ -10,7 +10,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({ data, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl dark:hover:shadow-teal-900/40 transition-shadow duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1 h-full flex flex-col p-5"
+      className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl dark:hover:shadow-teal-900/40 transition-shadow duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1 flex flex-col p-5"
     >
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-3">

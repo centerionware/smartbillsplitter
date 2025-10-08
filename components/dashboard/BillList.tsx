@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { Bill, ImportedBill } from '../../types';
+import type { Bill, ImportedBill, DashboardLayoutMode } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
 import SwipeableBillCard from '../SwipeableBillCard';
 import SwipeableImportedBillCard from '../SwipeableImportedBillCard';
@@ -30,6 +30,7 @@ interface BillListProps {
   onConvertToTemplate: (bill: Bill) => void;
   onExportOwnedBill: (bill: Bill) => void;
   onExportImportedBill: (bill: ImportedBill) => void;
+  dashboardLayoutMode: DashboardLayoutMode;
 }
 
 const BillList: React.FC<BillListProps> = ({
@@ -55,13 +56,14 @@ const BillList: React.FC<BillListProps> = ({
   onConvertToTemplate,
   onExportOwnedBill,
   onExportImportedBill,
+  dashboardLayoutMode,
 }) => {
   const itemsWithAds = useMemo(() => {
     const billsToShow = filteredBills.slice(0, visibleCount);
     const renderedItems: React.ReactElement[] = [];
     const isFree = subscriptionStatus === 'free';
 
-    if (isFree) {
+    if (isFree && dashboardLayoutMode === 'card') {
       renderedItems.push(<AdBillCard key="ad-first" />);
     }
 
@@ -82,19 +84,23 @@ const BillList: React.FC<BillListProps> = ({
         </div>
       );
 
-      if (isFree && (index + 1) % AD_INTERVAL === 0) {
+      if (isFree && dashboardLayoutMode === 'card' && (index + 1) % AD_INTERVAL === 0) {
         renderedItems.push(<AdBillCard key={`ad-interval-${index}`} />);
       }
     });
     return renderedItems;
-  }, [filteredBills, visibleCount, subscriptionStatus, onArchiveBill, onUnarchiveBill, onDeleteBill, onReshareBill, onSelectBill, archivingBillIds, onConvertToTemplate, onExportOwnedBill, onExportImportedBill]);
+  }, [filteredBills, visibleCount, subscriptionStatus, onArchiveBill, onUnarchiveBill, onDeleteBill, onReshareBill, onSelectBill, archivingBillIds, onConvertToTemplate, onExportOwnedBill, dashboardLayoutMode]);
+
+  const layoutClasses = dashboardLayoutMode === 'card'
+    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+    : "flex flex-col gap-4";
 
   return (
     <>
       {filteredImportedBills.length > 0 && (
         <div className="mb-8">
           <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4">Shared With Me</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={layoutClasses}>
             {filteredImportedBills.map(ib => (
               <SwipeableImportedBillCard 
                 key={ib.id} 
@@ -114,7 +120,7 @@ const BillList: React.FC<BillListProps> = ({
       {itemsWithAds.length > 0 && (
         <>
           <h3 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-4">My Bills</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={layoutClasses}>
             {itemsWithAds}
           </div>
           {hasMore && (

@@ -83,7 +83,7 @@ const BillCard: React.FC<BillCardProps> = ({ bill, onClick, onArchive, onUnarchi
   return (
     <div
       onClick={onClick}
-      className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl dark:hover:shadow-teal-900/40 transition-shadow duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1 h-full flex flex-col"
+      className="bg-white dark:bg-slate-800 rounded-lg shadow-lg hover:shadow-xl dark:hover:shadow-teal-900/40 transition-shadow duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-1 flex flex-col"
     >
       <div className="p-5 flex-grow">
         <div className="flex justify-between items-start gap-2">

@@ -1,5 +1,3 @@
-
-
 import React, { useRef, useState } from 'react';
 import type { Bill } from '../types';
 import BillCard from './BillCard';
@@ -116,7 +114,7 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-lg h-full">
+    <div className="relative w-full overflow-hidden rounded-lg">
       <div className="absolute top-0 right-0 h-full flex items-center z-0">
         <button onClick={() => executeAction(isArchived ? onUnarchive : onArchive)} className="h-full w-[70px] flex flex-col items-center justify-center bg-blue-500 text-white transition-colors hover:bg-blue-600" aria-label={isArchived ? 'Unarchive' : 'Archive'}>
           {isArchived ? <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}
@@ -129,7 +127,7 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = ({ bill, onClick, on
       </div>
       <div 
         ref={cardRef} 
-        className="relative z-10 h-full" 
+        className="relative z-10" 
         style={{ transform: `translateX(${translateX}px)`, touchAction: 'pan-y' }} 
         onTouchStart={e => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)} 
         onTouchMove={e => handleDragMove(e.touches[0].clientX, e.touches[0].clientY)} 
