@@ -116,7 +116,7 @@ const SwipeableBillCard: React.FC<SwipeableBillCardProps> = (props) => {
   };
 
   return (
-    <div className="relative w-full overflow-hidden">
+    <div className={`relative w-full ${layoutMode === 'card' ? 'overflow-hidden' : ''}`}>
       {layoutMode === 'card' && (
         <div className="absolute top-0 right-0 h-full flex items-center z-0">
           <button onClick={() => executeAction(isArchived ? onUnarchive : onArchive)} className="h-full w-[70px] flex flex-col items-center justify-center bg-blue-500 text-white transition-colors hover:bg-blue-600" aria-label={isArchived ? 'Unarchive' : 'Archive'}>

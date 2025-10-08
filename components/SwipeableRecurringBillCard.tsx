@@ -108,7 +108,7 @@ const SwipeableRecurringBillCard: React.FC<SwipeableRecurringBillCardProps> = ({
   };
 
   return (
-    <div className="relative w-full overflow-hidden">
+    <div className={`relative w-full ${layoutMode === 'card' ? 'overflow-hidden' : ''}`}>
       {layoutMode === 'card' && (
         <div className="absolute top-0 right-0 h-full flex items-center z-0">
           {!isArchived && (

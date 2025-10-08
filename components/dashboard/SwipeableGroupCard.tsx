@@ -102,7 +102,7 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
   };
 
   return (
-    <div className="relative w-full overflow-hidden">
+    <div className={`relative w-full ${layoutMode === 'card' ? 'overflow-hidden' : ''}`}>
       {layoutMode === 'card' && (
         <div className="absolute top-0 right-0 h-full flex items-center z-0">
           <button onClick={() => executeAction(onDelete)} className="h-full w-[70px] flex flex-col items-center justify-center bg-red-500 text-white transition-colors hover:bg-red-600" aria-label="Delete">
