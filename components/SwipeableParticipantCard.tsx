@@ -25,8 +25,9 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
   const maxTranslateX = layoutMode === 'card' && participant.type === 'owed' ? -ACTION_BUTTON_WIDTH : 0;
 
   const handleDragStart = (clientX: number, clientY: number) => {
-    if (participant.type !== 'owed' || layoutMode !== 'card') return;
-    isDragging.current = true;
+    // A real drag only happens for owed participants in card view.
+    // For other cases, this logic still runs to capture start coordinates for click detection.
+    isDragging.current = participant.type === 'owed' && layoutMode === 'card';
     isScrolling.current = false;
     dragStartX.current = clientX;
     dragStartY.current = clientY;
@@ -69,9 +70,13 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
 
   const handleDragEnd = (e?: React.TouchEvent | React.MouseEvent) => {
     if (!isDragging.current) {
-        // If not dragging, it might be a simple tap
-        if (Math.abs(dragStartX.current - (e as any).clientX) < 10 && (Date.now() - dragStartTime.current) < 250) {
-             if (e && e.type === 'touchend') e.preventDefault();
+        // This block handles clicks for non-swipeable cards (like in list view).
+        const endX = e && 'changedTouches' in e && e.changedTouches.length > 0 
+          ? e.changedTouches[0].clientX 
+          : (e as React.MouseEvent)?.clientX;
+          
+        if (e && Math.abs(dragStartX.current - endX) < 10 && (Date.now() - dragStartTime.current) < 250) {
+             if (e.type === 'touchend') e.preventDefault();
              onClick();
         }
         return;
@@ -106,11 +111,7 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
       return;
     }
     
-    if (translateX < maxTranslateX / 2) {
-      setTranslateX(maxTranslateX);
-    } else {
-      setTranslateX(0);
-    }
+    if (translateX < maxTranslateX / 2) { setTranslateX(maxTranslateX); } else { setTranslateX(0); }
   };
   
   const executeAction = (action: () => void) => {
@@ -141,7 +142,7 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
       <div
         ref={cardRef}
         className="relative z-10"
-        style={{ transform: `translateX(${translateX}px)`, touchAction: participant.type === 'owed' && layoutMode === 'card' ? 'pan-y' : 'auto' }}
+        style={{ transform: `translateX(${translateX}px)`, touchAction: 'pan-y' }}
         onTouchStart={e => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={e => handleDragMove(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchEnd={e => handleDragEnd(e)}
@@ -153,7 +154,6 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
         <ParticipantCard
           data={participant}
           onClick={() => { /* Click is now handled in dragEnd */ }}
-          // FIX: Pass the layoutMode prop to satisfy the ParticipantCard's prop types.
           layoutMode={layoutMode}
         />
       </div>
