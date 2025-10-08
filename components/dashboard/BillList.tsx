@@ -63,7 +63,7 @@ const BillList: React.FC<BillListProps> = ({
     const renderedItems: React.ReactElement[] = [];
     const isFree = subscriptionStatus === 'free';
 
-    if (isFree && dashboardLayoutMode === 'card') {
+    if (isFree) {
       renderedItems.push(<AdBillCard key="ad-first" />);
     }
 
@@ -85,7 +85,7 @@ const BillList: React.FC<BillListProps> = ({
         </div>
       );
 
-      if (isFree && dashboardLayoutMode === 'card' && (index + 1) % AD_INTERVAL === 0) {
+      if (isFree && (index + 1) % AD_INTERVAL === 0) {
         renderedItems.push(<AdBillCard key={`ad-interval-${index}`} />);
       }
     });

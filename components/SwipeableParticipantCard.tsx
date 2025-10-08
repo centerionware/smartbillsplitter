@@ -22,10 +22,10 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
   const isScrolling = useRef(false);
   const dragStartTime = useRef(0);
 
-  const maxTranslateX = participant.type === 'owed' ? -ACTION_BUTTON_WIDTH : 0;
+  const maxTranslateX = layoutMode === 'card' && participant.type === 'owed' ? -ACTION_BUTTON_WIDTH : 0;
 
   const handleDragStart = (clientX: number, clientY: number) => {
-    if (participant.type !== 'owed') return;
+    if (participant.type !== 'owed' || layoutMode !== 'card') return;
     isDragging.current = true;
     isScrolling.current = false;
     dragStartX.current = clientX;
@@ -123,7 +123,7 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
 
   return (
     <div className={`relative w-full transition-all duration-300 ease-in-out ${isExiting ? 'opacity-0 max-h-0 scale-95' : 'max-h-96'}`}>
-       {participant.type === 'owed' && (
+       {layoutMode === 'card' && participant.type === 'owed' && (
         <div className="absolute top-0 right-0 h-full flex items-center z-0">
             <button
             onClick={() => executeAction(onPaidInFull)}
@@ -141,7 +141,7 @@ const SwipeableParticipantCard: React.FC<SwipeableParticipantCardProps> = ({ par
       <div
         ref={cardRef}
         className="relative z-10"
-        style={{ transform: `translateX(${translateX}px)`, touchAction: participant.type === 'owed' ? 'pan-y' : 'auto' }}
+        style={{ transform: `translateX(${translateX}px)`, touchAction: participant.type === 'owed' && layoutMode === 'card' ? 'pan-y' : 'auto' }}
         onTouchStart={e => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={e => handleDragMove(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchEnd={e => handleDragEnd(e)}
