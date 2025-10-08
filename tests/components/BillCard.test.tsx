@@ -1,5 +1,4 @@
 import React from 'react';
-// FIX: Changed import for `screen`. In some test setups with module resolution issues, `screen` may not be correctly resolved from `@testing-library/react`. Importing it directly from `@testing-library/dom` is a workaround.
 import { render } from '@testing-library/react';
 import { screen } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
@@ -32,7 +31,7 @@ const mockHandlers = {
 
 describe('BillCard', () => {
   it('renders bill details correctly', () => {
-    render(<BillCard bill={mockBill} {...mockHandlers} />);
+    render(<BillCard bill={mockBill} {...mockHandlers} layoutMode="card" />);
 
     expect(screen.getByText('Dinner Party')).toBeInTheDocument();
     expect(screen.getByText('$120.50')).toBeInTheDocument();
@@ -40,7 +39,7 @@ describe('BillCard', () => {
   });
 
   it('calculates and displays the correct amount owed', () => {
-    render(<BillCard bill={mockBill} {...mockHandlers} />);
+    render(<BillCard bill={mockBill} {...mockHandlers} layoutMode="card" />);
     const owedAmount = 40.17 + 40.16; // Bob + Charlie
     expect(screen.getByText('Owed to you')).toBeInTheDocument();
     expect(screen.getByText(`$${owedAmount.toFixed(2)}`)).toBeInTheDocument();
@@ -51,20 +50,20 @@ describe('BillCard', () => {
       ...mockBill,
       participants: mockBill.participants.map(p => ({ ...p, paid: true })),
     };
-    render(<BillCard bill={settledBill} {...mockHandlers} />);
+    render(<BillCard bill={settledBill} {...mockHandlers} layoutMode="card" />);
     expect(screen.getByText('Settled')).toBeInTheDocument();
     expect(screen.getByText('No outstanding')).toBeInTheDocument();
     expect(screen.getByText('$0.00')).toBeInTheDocument();
   });
 
   it('calls onClick when the card is clicked', async () => {
-    render(<BillCard bill={mockBill} {...mockHandlers} />);
+    render(<BillCard bill={mockBill} {...mockHandlers} layoutMode="card" />);
     await userEvent.click(screen.getByText('Dinner Party'));
     expect(mockHandlers.onClick).toHaveBeenCalled();
   });
 
   it('opens the menu and shows actions when the menu button is clicked', async () => {
-    render(<BillCard bill={mockBill} {...mockHandlers} />);
+    render(<BillCard bill={mockBill} {...mockHandlers} layoutMode="card" />);
     const menuButton = screen.getByLabelText('More options');
     await userEvent.click(menuButton);
 

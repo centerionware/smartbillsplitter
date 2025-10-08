@@ -1,15 +1,13 @@
 import React from 'react';
-// FIX: Add DashboardLayoutMode to imports
 import type { RecurringBill, Participant, DashboardLayoutMode } from '../types';
 
 interface RecurringBillCardProps {
   bill: RecurringBill;
   onClick: () => void;
-  // FIX: Add layoutMode prop to satisfy type checking from parent components.
   layoutMode: DashboardLayoutMode;
 }
 
-const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) => {
+const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick, layoutMode }) => {
 
   const getFrequencyText = () => {
     const { frequency, dayOfMonth, dayOfWeek, interval } = bill.recurrenceRule;
@@ -116,6 +114,27 @@ const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) 
     return parts.join(', ');
   };
 
+  if (layoutMode === 'list') {
+    return (
+      <div
+        onClick={onClick}
+        className="w-full flex items-center p-3 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 last:border-b-0"
+      >
+        <div className="flex-grow overflow-hidden">
+          <p className="font-bold text-slate-800 dark:text-slate-100 truncate">{bill.description}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{getFrequencyText()}</p>
+        </div>
+        <div className="flex-shrink-0 w-40 text-right">
+          <p className="font-semibold text-teal-600 dark:text-teal-400">Next due in:</p>
+          <p className="font-bold text-slate-800 dark:text-slate-100">{formatTimeUntilDue(bill.nextDueDate)}</p>
+        </div>
+        <div className="flex-shrink-0 ml-2 w-5 text-right">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 dark:text-slate-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       onClick={onClick}
@@ -151,8 +170,8 @@ const RecurringBillCard: React.FC<RecurringBillCardProps> = ({ bill, onClick }) 
       <div className="bg-slate-50 dark:bg-slate-700/50 px-5 py-3">
         <div className="flex items-center justify-between text-sm">
           <div className="flex -space-x-2 overflow-hidden">
-            {bill.participants.slice(0, 4).map((p: Participant) => (
-              <div key={p.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-800 bg-teal-500 flex items-center justify-center text-white font-bold text-xs">
+            {bill.participants.slice(0, 4).map((p: Participant, i) => (
+              <div key={p.id || i} className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-slate-800 bg-teal-500 flex items-center justify-center text-white font-bold text-xs">
                 {p.name.charAt(0)}
               </div>
             ))}

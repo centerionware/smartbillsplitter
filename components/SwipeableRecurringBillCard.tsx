@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import type { RecurringBill } from '../types';
+import type { RecurringBill, DashboardLayoutMode } from '../types';
 import RecurringBillCard from './RecurringBillCard';
 
 interface SwipeableRecurringBillCardProps {
@@ -9,11 +9,12 @@ interface SwipeableRecurringBillCardProps {
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
+  layoutMode: DashboardLayoutMode;
 }
 
 const ACTION_BUTTON_WIDTH = 70;
 
-const SwipeableRecurringBillCard: React.FC<SwipeableRecurringBillCardProps> = ({ bill, onClick, onEdit, onArchive, onUnarchive, onDelete }) => {
+const SwipeableRecurringBillCard: React.FC<SwipeableRecurringBillCardProps> = ({ bill, onClick, onEdit, onArchive, onUnarchive, onDelete, layoutMode }) => {
   const [translateX, setTranslateX] = useState(0);
   const dragStartX = useRef(0);
   const dragStartY = useRef(0);
@@ -107,7 +108,7 @@ const SwipeableRecurringBillCard: React.FC<SwipeableRecurringBillCardProps> = ({
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-lg">
+    <div className="relative w-full overflow-hidden">
       <div className="absolute top-0 right-0 h-full flex items-center z-0">
         {!isArchived && (
             <button onClick={() => executeAction(onEdit)} className="h-full w-[70px] flex flex-col items-center justify-center bg-indigo-500 text-white transition-colors hover:bg-indigo-600" aria-label='Edit Template'>
@@ -137,7 +138,7 @@ const SwipeableRecurringBillCard: React.FC<SwipeableRecurringBillCardProps> = ({
         onMouseUp={e => handleDragEnd(e)} 
         onMouseLeave={() => handleDragEnd()}
       >
-        <RecurringBillCard bill={bill} onClick={() => { /* Click handled in dragEnd */ }} />
+        <RecurringBillCard bill={bill} onClick={() => { /* Click handled in dragEnd */ }} layoutMode={layoutMode} />
       </div>
     </div>
   );

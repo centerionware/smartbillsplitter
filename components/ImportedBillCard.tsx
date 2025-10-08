@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { ImportedBill } from '../types';
+import type { ImportedBill, DashboardLayoutMode } from '../types';
 
 interface ImportedBillCardProps {
   bill: ImportedBill;
@@ -10,6 +10,7 @@ interface ImportedBillCardProps {
   onSettleUp: () => void;
   onShowSummaryDetails: () => void;
   onExport: () => void;
+  layoutMode: DashboardLayoutMode;
 }
 
 const LiveIndicator: React.FC<{ status: ImportedBill['liveStatus'] }> = ({ status }) => {
@@ -31,7 +32,7 @@ const LiveIndicator: React.FC<{ status: ImportedBill['liveStatus'] }> = ({ statu
     );
 };
 
-const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onSettleUp, onShowSummaryDetails, onExport }) => {
+const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onArchive, onUnarchive, onDelete, onSettleUp, onShowSummaryDetails, onExport, layoutMode }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +66,55 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onAr
     setIsMenuOpen(false);
   };
 
+  const renderMenu = () => (
+    <div ref={menuRef} className="relative flex-shrink-0">
+        <button onClick={handleMenuClick} onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} className="p-3 -m-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full" aria-label="More options">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" /></svg>
+        </button>
+        {isMenuOpen && (
+            <div 
+                onMouseDown={e => e.stopPropagation()} 
+                onTouchStart={e => e.stopPropagation()} 
+                className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 py-1 z-20"
+            >
+                {isSummary && <button onClick={(e) => handleActionClick(e, onShowSummaryDetails)} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">View Breakdown</button>}
+                <button onClick={(e) => handleActionClick(e, onExport)} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Export as CSV</button>
+                <div className="my-1 h-px bg-slate-100 dark:bg-slate-700"></div>
+                <button onClick={(e) => handleActionClick(e, bill.status === 'active' ? onArchive : onUnarchive)} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">{bill.status === 'active' ? 'Archive' : 'Unarchive'}</button>
+                <button onClick={(e) => handleActionClick(e, onDelete)} className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40">Delete</button>
+            </div>
+        )}
+    </div>
+  );
+  
+  if (layoutMode === 'list') {
+    return (
+        <div
+            onClick={onClick}
+            className="w-full flex items-center p-3 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 last:border-b-0"
+        >
+            <div className="flex-grow flex items-center gap-3 overflow-hidden">
+                <LiveIndicator status={bill.liveStatus} />
+                <div className="flex-grow overflow-hidden">
+                    <p className="font-bold text-slate-800 dark:text-slate-100 truncate">{bill.sharedData.bill.description}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">From {bill.creatorName}</p>
+                </div>
+            </div>
+             <div className="flex-shrink-0 w-24 text-right">
+                <p className="font-semibold text-slate-500 dark:text-slate-400">Your Portion</p>
+                <p className={`font-bold ${isPaid ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-100'}`}>
+                    ${amountOwed.toFixed(2)}
+                </p>
+            </div>
+            <div className="flex-shrink-0 w-24 text-right">
+                <p className="font-semibold text-slate-500 dark:text-slate-400">Total</p>
+                <p className="font-bold text-slate-800 dark:text-slate-100">${bill.sharedData.bill.totalAmount.toFixed(2)}</p>
+            </div>
+            {renderMenu()}
+        </div>
+    );
+  }
+
   return (
     <div
       onClick={onClick}
@@ -85,24 +135,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onAr
                  <span className={`px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 ${isPaid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'}`}>
                     {isPaid ? 'Paid' : 'Unpaid'}
                  </span>
-                 <div ref={menuRef} className="relative">
-                    <button onClick={handleMenuClick} onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} className="p-3 -m-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full" aria-label="More options">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" /></svg>
-                    </button>
-                    {isMenuOpen && (
-                        <div 
-                            onMouseDown={e => e.stopPropagation()} 
-                            onTouchStart={e => e.stopPropagation()} 
-                            className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 py-1 z-20"
-                        >
-                           {isSummary && <button onClick={(e) => handleActionClick(e, onShowSummaryDetails)} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">View Breakdown</button>}
-                           <button onClick={(e) => handleActionClick(e, onExport)} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">Export as CSV</button>
-                           <div className="my-1 h-px bg-slate-100 dark:bg-slate-700"></div>
-                           <button onClick={(e) => handleActionClick(e, bill.status === 'active' ? onArchive : onUnarchive)} className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">{bill.status === 'active' ? 'Archive' : 'Unarchive'}</button>
-                           <button onClick={(e) => handleActionClick(e, onDelete)} className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/40">Delete</button>
-                        </div>
-                    )}
-                 </div>
+                 {renderMenu()}
             </div>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">From {bill.creatorName}</p>

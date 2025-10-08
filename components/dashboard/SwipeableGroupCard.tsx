@@ -121,7 +121,6 @@ const SwipeableGroupCard: React.FC<SwipeableGroupCardProps> = ({ group, onClick,
         onMouseUp={e => handleDragEnd(e)} 
         onMouseLeave={() => isDragging.current && handleDragEnd()}
       >
-        {/* FIX: Pass the layoutMode prop down to the GroupCard. */}
         <GroupCard group={group} onEdit={onEdit} onClick={onClick} layoutMode={layoutMode} />
       </div>
     </div>

@@ -55,6 +55,8 @@ const RecurringBillsList: React.FC<RecurringBillsListProps> = ({
               onArchive={() => onArchive(bill.id)}
               onUnarchive={() => onUnarchive(bill.id)}
               onDelete={() => onDelete(bill.id)}
+              // FIX: The layout for this view is always 'card', so pass the required prop.
+              layoutMode="card"
             />
           ))}
         </div>
