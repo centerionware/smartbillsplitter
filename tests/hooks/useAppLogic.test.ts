@@ -49,7 +49,17 @@ const mockOnSetDashboardSummaryFilter = vi.fn();
 
 // Define default return values for all mocked hooks
 const defaultMocks = {
-  useSettings: { settings: { myDisplayName: 'Test User' }, isLoading: false, updateSettings: vi.fn() },
+  useSettings: {
+    settings: {
+        myDisplayName: 'Test User',
+        paymentDetails: { venmo: '', paypal: '', cashApp: '', zelle: '', customMessage: '' },
+        shareTemplate: 'template',
+        notificationsEnabled: false,
+        notificationDays: 3,
+    },
+    isLoading: false,
+    updateSettings: vi.fn(),
+  },
   useBills: { bills: [], isLoading: false, addBill: vi.fn(), updateBill: vi.fn(), deleteBill: vi.fn(), archiveBill: vi.fn(), unarchiveBill: vi.fn(), updateMultipleBills: vi.fn(), mergeBills: vi.fn() },
   useImportedBills: { importedBills: [], isLoading: false, addImportedBill: vi.fn(), updateImportedBill: vi.fn(), deleteImportedBill: vi.fn(), archiveImportedBill: vi.fn(), unarchiveImportedBill: vi.fn(), mergeImportedBills: vi.fn(), updateMultipleImportedBills: vi.fn() },
   useRecurringBills: { recurringBills: [], isLoading: false, addRecurringBill: vi.fn(), updateRecurringBill: vi.fn(), archiveRecurringBill: vi.fn(), unarchiveRecurringBill: vi.fn(), deleteRecurringBill: vi.fn(), updateRecurringBillDueDate: vi.fn() },
@@ -167,7 +177,7 @@ describe('useAppLogic hook', () => {
     ] as Bill[];
 
     const { result, rerender } = renderHook(
-      ({ params }) => {
+      ({ params }: { params: { billId?: string } }) => {
         mocked(useBills).mockReturnValue({ ...defaultMocks.useBills, bills: mockBills });
         mocked(useRouting).mockReturnValue({ ...defaultMocks.useRouting, params });
         return useAppLogic();
