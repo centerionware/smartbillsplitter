@@ -65,10 +65,9 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
                             const itemIndex = items.findIndex((i: ReceiptItem) => i.id === constituentInfo.originalBillId);
                             if (itemIndex > -1) {
                                 items[itemIndex].originalBillData = payload.bill;
-                                // This is a crucial update: Recalculate the item's price for the summary based on the updated constituent data
-                                const myNameInSummary = summaryToUpdate.sharedData.bill.participants.find(p => p.id === summaryToUpdate.myParticipantId)?.name;
+                                const myNameInSummary = summaryToUpdate.sharedData.bill.participants.find((p: Participant) => p.id === summaryToUpdate.myParticipantId)?.name;
                                 if(myNameInSummary) {
-                                    const myParticipantInOriginal = payload.bill.participants.find(p => p.name.toLowerCase().trim() === myNameInSummary.toLowerCase().trim());
+                                    const myParticipantInOriginal = payload.bill.participants.find((p: Participant) => p.name.toLowerCase().trim() === myNameInSummary.toLowerCase().trim());
                                     if (myParticipantInOriginal) {
                                         items[itemIndex].price = myParticipantInOriginal.amountOwed || 0;
                                     }
@@ -95,11 +94,9 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
                             throw new Error("Signature verification failed.");
                         }
 
-                        // Reconcile the creator's view of payment status with the local status.
-                        const myParticipant = data.bill.participants.find(p => p.id === originalBill.myParticipantId);
+                        const myParticipant = data.bill.participants.find((p: Participant) => p.id === originalBill.myParticipantId);
                         const creatorSaysImPaid = myParticipant ? myParticipant.paid : false;
 
-                        // Create a new localStatus object. The user's own toggle is overwritten by the creator's truth.
                         const newLocalStatus = {
                             ...originalBill.localStatus,
                             myPortionPaid: creatorSaysImPaid,
@@ -110,7 +107,7 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
                             sharedData: { ...originalBill.sharedData, bill: data.bill }, 
                             lastUpdatedAt: share.lastUpdatedAt, 
                             liveStatus: 'live',
-                            localStatus: newLocalStatus, // Update localStatus based on creator's data
+                            localStatus: newLocalStatus,
                         });
                     } catch (decryptionError) {
                         console.error(`Processing updated bill ${share.shareId} failed:`, decryptionError);
@@ -120,10 +117,10 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
             }
             
             for (const summary of updatedSummaries.values()) {
-                const myNameInSummary = summary.sharedData.bill.participants.find(p => p.id === summary.myParticipantId)?.name;
+                const myNameInSummary = summary.sharedData.bill.participants.find((p: Participant) => p.id === summary.myParticipantId)?.name;
                 if (!myNameInSummary) {
                     console.warn(`Could not find my participant name in summary bill ${summary.id}. Skipping recalculation.`);
-                    billsNeedingUpdate.push(summary); // Push it anyway with new data, but no recalc
+                    billsNeedingUpdate.push(summary);
                     continue;
                 }
 
@@ -140,7 +137,7 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
                         const originalBill = item.originalBillData;
                         
                         if (originalBill) {
-                             const myParticipantInOriginal = originalBill.participants.find(p => p.name.toLowerCase().trim() === myNameInSummary.toLowerCase().trim());
+                             const myParticipantInOriginal = originalBill.participants.find((p: Participant) => p.name.toLowerCase().trim() === myNameInSummary.toLowerCase().trim());
                              if (myParticipantInOriginal?.paid) {
                                 paidItems[item.id] = true;
                              }
@@ -198,7 +195,6 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
     
     return Array.from(new Map(billsNeedingUpdate.map(b => [b.id, b])).values());
 }
-
 
 /**
  * Polls the server to check the status of bills the user has shared.
