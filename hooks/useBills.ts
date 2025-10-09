@@ -93,7 +93,7 @@ export const useBills = () => {
     const billWithTimestamp = { ...updatedBill, lastUpdatedAt: Date.now() };
     await updateBillDB(billWithTimestamp);
     setBills(prev => sortBills(prev.map(b => b.id === billWithTimestamp.id ? billWithTimestamp : b)));
-    postMessage({ type: 'bills-updated' });
+    // postMessage({ type: 'bills-updated' }); // Broadcasting moved to useDataHandlers
     return billWithTimestamp;
   }, []);
   
@@ -103,7 +103,7 @@ export const useBills = () => {
       await mergeBillsDB([], billsWithTimestamp);
       const updatedMap = new Map(billsWithTimestamp.map(b => [b.id, b]));
       setBills(prev => sortBills(prev.map(b => updatedMap.get(b.id) || b)));
-      postMessage({ type: 'bills-updated' });
+      // postMessage({ type: 'bills-updated' }); // Broadcasting moved to useDataHandlers
       return billsWithTimestamp;
   }, []);
 

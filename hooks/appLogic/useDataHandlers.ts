@@ -5,6 +5,7 @@ import type { SubscriptionStatus } from '../../hooks/useAuth';
 import { useAppControl } from '../../contexts/AppControlContext';
 import { syncSharedBillUpdate, reactivateShare } from '../../services/shareService';
 import { getApiUrl, fetchWithRetry } from '../../services/api';
+import { postMessage } from '../../services/broadcastService';
 
 const FREE_TIER_IMAGE_SHARE_LIMIT = 5;
 
@@ -48,9 +49,9 @@ export const useDataHandlers = ({
     const updateBill = useCallback(async (bill: Bill): Promise<Bill> => {
         const updatedBill = await originalUpdateBill(bill);
         (async () => {
-            if (updatedBill.shareInfo?.shareId) {
-                console.log(`[Sync] Initiating update for shared bill: ${updatedBill.id}`);
-                try {
+            try {
+                if (updatedBill.shareInfo?.shareId) {
+                    console.log(`[Sync] Initiating update for shared bill: ${updatedBill.id}`);
                     const res = await fetchWithRetry(await getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { 
                         method: 'GET', 
                         signal: AbortSignal.timeout(4000) 
@@ -69,13 +70,14 @@ export const useDataHandlers = ({
                         const errorData = await res.json().catch(() => ({}));
                         throw new Error(errorData.error || `Server returned status ${res.status} during share check.`);
                     }
-                } catch (e: any) {
-                    console.error(`[Sync] Failed to sync shared bill update for bill ID ${updatedBill.id}:`, e);
-                    showNotification(e.message || `Failed to sync update for "${updatedBill.description}"`, 'error');
-                    await originalUpdateBill({ ...updatedBill, shareStatus: 'error' });
                 }
-            } else {
-                console.log(`[Sync] Skipped for bill ${updatedBill.id}: not a shared bill.`);
+            } catch (e: any) {
+                console.error(`[Sync] Failed to sync shared bill update for bill ID ${updatedBill.id}:`, e);
+                showNotification(e.message || `Failed to sync update for "${updatedBill.description}"`, 'error');
+                await originalUpdateBill({ ...updatedBill, shareStatus: 'error' });
+            } finally {
+                // Broadcast that bills have been updated after the sync attempt completes.
+                postMessage({ type: 'bills-updated' });
             }
         })();
         return updatedBill;
@@ -84,10 +86,10 @@ export const useDataHandlers = ({
     const updateMultipleBills = useCallback(async (billsToUpdate: Bill[]): Promise<void> => {
         const updatedBills = await originalUpdateMultipleBills(billsToUpdate);
         (async () => {
-            for (const bill of updatedBills) {
-                if (bill.shareInfo?.shareId) {
-                    console.log(`[Sync] Initiating update for shared bill in batch: ${bill.id}`);
-                    try {
+            try {
+                for (const bill of updatedBills) {
+                    if (bill.shareInfo?.shareId) {
+                        console.log(`[Sync] Initiating update for shared bill in batch: ${bill.id}`);
                         const res = await fetchWithRetry(await getApiUrl(`/share/${bill.shareInfo.shareId}`), { 
                             method: 'GET', 
                             signal: AbortSignal.timeout(4000) 
@@ -102,12 +104,15 @@ export const useDataHandlers = ({
                         } else {
                            throw new Error(`Server returned status ${res.status} during share check.`);
                         }
-                    } catch (e: any) {
-                        console.error(`[Sync] Failed to sync shared bill update for bill ID ${bill.id}:`, e);
-                        showNotification(e.message || `Failed to sync update for "${bill.description}"`, 'error');
-                        await originalUpdateBill({ ...bill, shareStatus: 'error' });
                     }
                 }
+            } catch (e: any) {
+                console.error(`[Sync] Failed to sync a shared bill during batch update:`, e);
+                // Do not throw here, as some bills may have succeeded.
+                // The individual bill that failed will have its status updated to 'error' inside the loop.
+            } finally {
+                // Broadcast once after all sync attempts are complete.
+                postMessage({ type: 'bills-updated' });
             }
         })();
     }, [originalUpdateMultipleBills, settings, showNotification, originalUpdateBill]);

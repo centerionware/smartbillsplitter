@@ -2,6 +2,9 @@
 let API_BASE_URL: string | null = null;
 let apiInitializationPromise: Promise<void> | null = null;
 
+const rateLimitCache = new Map<string, number>();
+const RATE_LIMIT_MS = 500; // Block identical requests within this timeframe
+
 /**
  * A self-contained helper to check if a backend URL is live.
  * @param url The base URL to check.
@@ -170,6 +173,19 @@ export const fetchWithRetry = async (
     retries = 3,
     backoff = 500
 ): Promise<Response> => {
+    // --- Client-Side Rate Limiting ---
+    const urlObject = new URL(url.toString(), window.location.origin);
+    const rateLimitKey = `${options?.method || 'GET'}:${urlObject.pathname}`;
+    const now = Date.now();
+    const lastCall = rateLimitCache.get(rateLimitKey);
+
+    if (lastCall && (now - lastCall) < RATE_LIMIT_MS) {
+        console.warn(`Rate limit exceeded for ${rateLimitKey}. Call blocked.`);
+        throw new Error(`Too many requests. Please wait a moment before trying again.`);
+    }
+    rateLimitCache.set(rateLimitKey, now);
+    // --- End Rate Limiting ---
+
     let lastError: Error | undefined;
 
     for (let i = 0; i < retries; i++) {

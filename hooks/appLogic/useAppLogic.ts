@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { View } from '../types';
+import { View } from '../../types';
 // Import base hooks
 import { useBills } from './useBills';
 import { useImportedBills } from './useImportedBills';
@@ -12,12 +12,12 @@ import { useAuth } from './useAuth';
 import { usePwaInstall } from './usePwaInstall';
 import { useAppControl } from '../contexts/AppControlContext';
 // Import new refactored hooks
-import { useRouting } from './appLogic/useRouting';
-import { useModalStates } from './appLogic/useModalStates';
-import { useDashboardState } from './appLogic/useDashboardState';
-import { useDerivedData } from './appLogic/useDerivedData';
-import { useSideEffects } from './appLogic/useSideEffects';
-import { useDataHandlers } from './appLogic/useDataHandlers';
+import { useRouting } from './useRouting';
+import { useModalStates } from './useModalStates';
+import { useDashboardState } from './useDashboardState';
+import { useDerivedData } from './useDerivedData';
+import { useSideEffects } from './useSideEffects';
+import { useDataHandlers } from './useDataHandlers';
 
 export const useAppLogic = () => {
     // --- 1. Base Data Hooks ---
@@ -78,7 +78,6 @@ export const useAppLogic = () => {
         settings: settingsHook.settings,
         updateMultipleImportedBills: importedBillsHook.updateMultipleImportedBills,
         originalUpdateMultipleBills: billsHook.updateMultipleBills,
-        // FIX: The 'view' property was missing but is required by the useSideEffects hook.
         view,
     });
 

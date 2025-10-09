@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { pollImportedBills, pollOwnedSharedBills } from '../../services/shareService';
 import * as notificationService from '../../services/notificationService';
+import { View } from '../../types';
 import type { Bill, ImportedBill, RecurringBill, Settings } from '../../types';
 
 interface SideEffectsDependencies {
@@ -10,16 +11,21 @@ interface SideEffectsDependencies {
     settings: Settings;
     updateMultipleImportedBills: (bills: ImportedBill[]) => void;
     originalUpdateMultipleBills: (bills: Bill[]) => Promise<Bill[]>;
+    view: View;
 }
 
 export const useSideEffects = ({
     bills, importedBills, recurringBills, settings,
-    updateMultipleImportedBills, originalUpdateMultipleBills
+    updateMultipleImportedBills, originalUpdateMultipleBills,
+    view
 }: SideEffectsDependencies) => {
     
     // Polling for imported bills
     useEffect(() => {
         const poll = async () => {
+            if (view === View.BillDetails || view === View.ImportedBillDetails) {
+                return; // Pause polling on detail views
+            }
             const activeImported = importedBills.filter(b => b.status === 'active');
             if (activeImported.length > 0) {
                 const billsToUpdate = await pollImportedBills(activeImported);
@@ -29,11 +35,14 @@ export const useSideEffects = ({
         const intervalId = setInterval(poll, 30 * 1000);
         poll(); // Initial poll
         return () => clearInterval(intervalId);
-    }, [importedBills, updateMultipleImportedBills]);
+    }, [importedBills, updateMultipleImportedBills, view]);
 
     // Polling for owned bills
     useEffect(() => {
         const poll = async () => {
+            if (view === View.BillDetails || view === View.ImportedBillDetails) {
+                return; // Pause polling on detail views
+            }
             const ownedShared = bills.filter(b => b.shareInfo?.shareId);
             if (ownedShared.length > 0) {
                 const billsToUpdate = await pollOwnedSharedBills(ownedShared);
@@ -43,7 +52,7 @@ export const useSideEffects = ({
         const intervalId = setInterval(poll, 5 * 60 * 1000);
         poll(); // Initial poll
         return () => clearInterval(intervalId);
-    }, [bills, originalUpdateMultipleBills]);
+    }, [bills, originalUpdateMultipleBills, view]);
 
     // Notification syncing
     useEffect(() => {
