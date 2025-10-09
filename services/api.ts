@@ -175,7 +175,18 @@ export const fetchWithRetry = async (
 ): Promise<Response> => {
     // --- Client-Side Rate Limiting ---
     const urlObject = new URL(url.toString(), window.location.origin);
-    const rateLimitKey = `${options?.method || 'GET'}:${urlObject.pathname}`;
+    let rateLimitKey: string;
+    const method = options?.method?.toUpperCase() || 'GET';
+
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+        // For mutating requests, key on path and body content to differentiate them.
+        const bodyKey = typeof options?.body === 'string' ? options.body : '';
+        rateLimitKey = `${method}:${urlObject.pathname}:${bodyKey}`;
+    } else {
+        // For GET and other requests, key on the full URL including query params.
+        rateLimitKey = `${method}:${urlObject.pathname}${urlObject.search}`;
+    }
+
     const now = Date.now();
     const lastCall = rateLimitCache.get(rateLimitKey);
 
