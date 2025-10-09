@@ -5,7 +5,7 @@ const ASSETS_TO_CACHE = [
   '/icon.svg',
 ];
 
-// Install event: open a cache, add app shell files, and skip waiting.
+// Install event: open a cache, add app shell files. The new SW will wait until all clients are closed.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -13,7 +13,6 @@ self.addEventListener('install', (event) => {
         console.log('Service Worker: Caching app shell');
         return cache.addAll(ASSETS_TO_CACHE);
       })
-      .then(() => self.skipWaiting()) // Force the new service worker to activate immediately
       .catch(error => {
         console.error('Failed to cache app shell:', error);
       })
@@ -86,13 +85,20 @@ self.addEventListener('notificationclick', (event) => {
   }));
 });
 
-// --- Fallback Notification Scheduling ---
+// --- Fallback Notification Scheduling & Update Handling ---
 const timeoutIds = new Map();
 
 self.addEventListener('message', (event) => {
   if (!event.data) return;
 
   const { type, tag } = event.data;
+  
+  // New: Handle SKIP_WAITING message from the client
+  if (type === 'SKIP_WAITING') {
+    console.log('Service Worker: Received SKIP_WAITING message. Activating new worker.');
+    self.skipWaiting();
+    return;
+  }
 
   if (type === 'schedule-notification') {
     const { title, options, triggerTimestamp } = event.data;

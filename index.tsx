@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import AppGate from './AppGate';
 import { AuthProvider } from './hooks/useAuth';
@@ -148,6 +148,10 @@ try {
         const [notification, setNotification] = useState<NotificationState | null>(null);
         const [isUpdateRequired, setIsUpdateRequired] = useState(false);
         const [isWaitingForMigration, setIsWaitingForMigration] = useState(false);
+        
+        // --- State for Service Worker Updates ---
+        const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+        const waitingWorkerRef = useRef<ServiceWorker | null>(null);
 
         const triggerReload = useCallback(() => {
             if (isUpdateRequired || isWaitingForMigration) return;
@@ -156,6 +160,54 @@ try {
                 window.location.reload();
             }, 4000);
         }, [isUpdateRequired, isWaitingForMigration]);
+        
+        // --- Effect for Service Worker Update Flow ---
+        useEffect(() => {
+          if (!('serviceWorker' in navigator)) return;
+          
+          const swRegistration = navigator.serviceWorker.ready;
+          
+          // 1. Listen for when a new SW is found and starts installing
+          swRegistration.then(reg => {
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                console.log('Service Worker: New version found, installing.');
+                // 2. Listen for when the new SW finishes installing
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed') {
+                    // If there's an active SW, the new one is now waiting
+                    if (navigator.serviceWorker.controller) {
+                      console.log('Service Worker: New version installed and waiting.');
+                      waitingWorkerRef.current = newWorker;
+                      setIsUpdateAvailable(true);
+                    }
+                  }
+                });
+              }
+            });
+          });
+          
+          // 3. Listen for when the new SW takes control
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+              console.log('Service Worker: Controller changed, reloading page.');
+              window.location.reload();
+              refreshing = true;
+            }
+          });
+
+        }, []);
+
+        const handleUpdateApp = () => {
+          if (waitingWorkerRef.current) {
+            waitingWorkerRef.current.postMessage({ type: 'SKIP_WAITING' });
+            // The 'controllerchange' event listener will handle the reload
+            setIsUpdateAvailable(false);
+          }
+        };
+
 
         useEffect(() => {
             window.addEventListener('db-versionchange', triggerReload);
@@ -239,6 +291,22 @@ try {
 
         return (
           <AppControlContext.Provider value={{ reloadApp, showNotification }}>
+            {isUpdateAvailable && (
+              <div role="alert" className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md z-[60] bg-slate-800 text-white rounded-lg shadow-2xl p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <div className="flex-grow">
+                    <p className="font-bold">Update Available</p>
+                    <p className="text-sm text-slate-300">A new version of the app is ready.</p>
+                  </div>
+                </div>
+                <button onClick={handleUpdateApp} className="px-4 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 flex-shrink-0">
+                  Refresh
+                </button>
+              </div>
+            )}
             <div className="fixed top-0 left-0 right-0 z-[60] flex justify-center pointer-events-none">
                 <div className={`transition-all duration-500 ease-in-out mt-4 px-6 py-3 rounded-lg shadow-lg ${notification ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'} ${notification ? getNotificationStyles(notification.type) : ''}`}>
                   <div className="flex items-center gap-3">
