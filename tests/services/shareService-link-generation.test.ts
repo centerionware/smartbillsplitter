@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateOneTimeShareLink, generateShareLink } from '../../services/shareService/link-generation';
 import { fetchWithRetry } from '../../services/api';
 import * as cryptoService from '../../services/cryptoService';
-import { getBillSigningKey, saveBillSigningKey } from '../db';
+import { saveBillSigningKey, getBillSigningKey } from '../../services/db';
 import * as aggregate from '../../services/shareService/aggregate';
 import type { Bill, Settings } from '../../types';
 
