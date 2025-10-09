@@ -92,6 +92,7 @@ export interface Category {
 export interface PaymentDetails {
     venmo: string;
     paypal: string;
+
     cashApp: string;
     zelle: string;
     customMessage: string;
@@ -167,6 +168,7 @@ export interface ImportedBill {
     };
     liveStatus?: 'live' | 'stale' | 'error';
     isOwnBill?: boolean;
+    summaryRecalculated?: boolean; // Flag for one-time migration
 }
 
 export interface RequestConfirmationFn {

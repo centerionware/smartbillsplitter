@@ -3,7 +3,7 @@ import type { SubscriptionStatus } from '../hooks/useAuth';
 import { postMessage } from './broadcastService';
 
 const DB_NAME = 'SmartBillSplitterDB';
-const DB_VERSION = 17; // Incremented for dashboard layout mode persistence
+const DB_VERSION = 18; // Incremented for summary recalculation flag
 
 // Object Store Names
 const STORES = {
@@ -137,6 +137,14 @@ export function initDB(): Promise<void> {
                   }
               };
           }
+      }
+
+      // Migration for V18: Add summaryRecalculated flag support to imported bills.
+      if (event.oldVersion < 18) {
+          // No actual schema changes are needed for the ImportedBill store,
+          // as IndexedDB is schemaless. The new 'summaryRecalculated' property will be added
+          // dynamically by the application logic upon first load to fix stale summary data.
+          console.log("Migrating for v18: Preparing for summary bill recalculation flag.");
       }
     };
     

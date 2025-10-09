@@ -66,9 +66,13 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
                             const itemIndex = items.findIndex((i: ReceiptItem) => i.id === constituentInfo.originalBillId);
                             if (itemIndex > -1) {
                                 items[itemIndex].originalBillData = payload.bill;
-                                const myParticipantInOriginal = payload.bill.participants.find(p => p.id === summaryToUpdate.myParticipantId);
-                                if (myParticipantInOriginal) {
-                                    items[itemIndex].price = myParticipantInOriginal.amountOwed || 0;
+                                // This is a crucial update: Recalculate the item's price for the summary based on the updated constituent data
+                                const myNameInSummary = summaryToUpdate.sharedData.bill.participants.find(p => p.id === summaryToUpdate.myParticipantId)?.name;
+                                if(myNameInSummary) {
+                                    const myParticipantInOriginal = payload.bill.participants.find(p => p.name.toLowerCase().trim() === myNameInSummary.toLowerCase().trim());
+                                    if (myParticipantInOriginal) {
+                                        items[itemIndex].price = myParticipantInOriginal.amountOwed || 0;
+                                    }
                                 }
                             }
                         }
@@ -100,45 +104,48 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
             }
             
             for (const summary of updatedSummaries.values()) {
-                let totalOwedByMe = 0; // The amount I currently owe
-                let totalAmountOfMyPortions = 0; // The original total of my portions
+                const myNameInSummary = summary.sharedData.bill.participants.find(p => p.id === summary.myParticipantId)?.name;
+                if (!myNameInSummary) {
+                    console.warn(`Could not find my participant name in summary bill ${summary.id}. Skipping recalculation.`);
+                    billsNeedingUpdate.push(summary); // Push it anyway with new data, but no recalc
+                    continue;
+                }
+
+                let totalOwedByMe = 0;
+                let totalPortion = 0;
                 let allConstituentsPaid = true;
                 const paidItems: Record<string, boolean> = { ...(summary.localStatus.paidItems || {}) };
 
                 if (summary.sharedData.bill.items) {
                     for (const item of summary.sharedData.bill.items) {
-                        totalAmountOfMyPortions += item.price; // This is my portion of the constituent bill
+                        totalPortion += item.price;
                         
                         let isConsideredPaid = false;
                         const originalBill = item.originalBillData;
+                        
                         if (originalBill) {
-                             const myParticipantInOriginal = originalBill.participants.find((p: Participant) => p.id === summary.myParticipantId);
+                             const myParticipantInOriginal = originalBill.participants.find(p => p.name.toLowerCase().trim() === myNameInSummary.toLowerCase().trim());
                              if (myParticipantInOriginal?.paid) {
-                                paidItems[item.id] = true; // Sync creator-side paid status to local status
+                                paidItems[item.id] = true;
                              }
                         }
                         
-                        // Final check on whether the item is paid (either by creator or by me locally)
                         if (paidItems[item.id]) {
                             isConsideredPaid = true;
                         }
 
                         if (!isConsideredPaid) {
-                            totalOwedByMe += item.price; // Only add to outstanding total if not paid.
+                            totalOwedByMe += item.price;
                             allConstituentsPaid = false;
                         }
                     }
                 }
-
-                // The `totalAmount` of the summary bill should reflect the total of my original portions.
-                summary.sharedData.bill.totalAmount = totalAmountOfMyPortions;
-
-                // The `amountOwed` for my participant on the summary should reflect what I still owe.
+                
+                summary.sharedData.bill.totalAmount = totalPortion;
                 if (summary.sharedData.bill.participants[0]) {
                     summary.sharedData.bill.participants[0].amountOwed = totalOwedByMe;
                 }
-
-                // These local statuses drive the UI on the card (e.g., "Paid" badge)
+                
                 summary.localStatus.paidItems = paidItems;
                 summary.localStatus.myPortionPaid = allConstituentsPaid;
                 summary.liveStatus = 'live';

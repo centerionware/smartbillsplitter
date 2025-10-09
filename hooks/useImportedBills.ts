@@ -20,8 +20,67 @@ export const useImportedBills = () => {
   const loadImportedBills = useCallback(async (isInitialLoad: boolean = false) => {
     if (isInitialLoad) setIsLoading(true);
     try {
-      const dbBills = await getImportedBills();
-      setImportedBills(sortImportedBills(dbBills));
+      let dbBills = await getImportedBills();
+      
+      const billsToUpdate: ImportedBill[] = [];
+      const billsAfterMigration = dbBills.map(bill => {
+          if (bill.id.startsWith('summary-') && !bill.summaryRecalculated) {
+              console.log(`Performing one-time recalculation for summary bill: ${bill.id}`);
+              const migratedBill: ImportedBill = JSON.parse(JSON.stringify(bill)); 
+
+              const myNameInSummary = migratedBill.sharedData.bill.participants.find(p => p.id === migratedBill.myParticipantId)?.name;
+              
+              if (myNameInSummary) {
+                  let totalOwedByMe = 0;
+                  let totalPortion = 0;
+                  let allConstituentsPaid = true;
+                  const paidItems = { ...(migratedBill.localStatus.paidItems || {}) };
+                  
+                  if (migratedBill.sharedData.bill.items) {
+                      for (const item of migratedBill.sharedData.bill.items) {
+                          totalPortion += item.price;
+                          
+                          let isConsideredPaid = false;
+                          const originalBill = item.originalBillData;
+                          if (originalBill) {
+                              const myParticipantInOriginal = originalBill.participants.find(p => p.name.toLowerCase().trim() === myNameInSummary.toLowerCase().trim());
+                              if (myParticipantInOriginal?.paid) {
+                                  paidItems[item.id] = true;
+                              }
+                          }
+                          
+                          if (paidItems[item.id]) {
+                              isConsideredPaid = true;
+                          }
+
+                          if (!isConsideredPaid) {
+                              totalOwedByMe += item.price;
+                              allConstituentsPaid = false;
+                          }
+                      }
+                  }
+
+                  migratedBill.sharedData.bill.totalAmount = totalPortion;
+                  if (migratedBill.sharedData.bill.participants[0]) {
+                      migratedBill.sharedData.bill.participants[0].amountOwed = totalOwedByMe;
+                  }
+                  migratedBill.localStatus.paidItems = paidItems;
+                  migratedBill.localStatus.myPortionPaid = allConstituentsPaid;
+                  migratedBill.summaryRecalculated = true;
+
+                  billsToUpdate.push(migratedBill);
+                  return migratedBill;
+              }
+          }
+          return bill;
+      });
+
+      if (billsToUpdate.length > 0) {
+          console.log(`Saving ${billsToUpdate.length} migrated summary bills.`);
+          await mergeImportedBillsDB([], billsToUpdate);
+      }
+      
+      setImportedBills(sortImportedBills(billsAfterMigration));
     } catch (err) {
       console.error("Failed to load imported bills:", err);
     } finally {
