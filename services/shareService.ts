@@ -308,7 +308,8 @@ export const generateShareLink = async (
                 console.warn(`Share session for bill ${updatedBill.id} not found on server. Recreating...`);
                 updatedBill = await recreateShareSession(updatedBill, settings, updateBillCallback);
             } else if (!res.ok) {
-                throw new Error(`Failed to verify existing share session. Status: ${res.status}`);
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.error || `Failed to verify existing share session. Status: ${res.status}`);
             }
         } catch (error: any) {
             console.error("Could not verify share session:", error);
@@ -607,45 +608,132 @@ export async function syncSharedBillUpdate(
 export async function pollImportedBills(bills: ImportedBill[]): Promise<ImportedBill[]> {
     if (bills.length === 0) return [];
 
-    const checkPayload = bills.map(b => ({ shareId: b.shareId, lastUpdatedAt: b.lastUpdatedAt }));
+    const constituentToSummaryMap = new Map<string, ImportedBill>();
+    const checkPayload: { shareId: string; lastUpdatedAt: number }[] = [];
+    const regularBillsToCheck = new Map<string, ImportedBill>();
+
+    for (const bill of bills) {
+        if (bill.constituentShares && bill.constituentShares.length > 0) {
+            for (const share of bill.constituentShares) {
+                const item = bill.sharedData.bill.items?.find(i => i.id === share.originalBillId);
+                const lastUpdatedAt = item?.originalBillData?.lastUpdatedAt || bill.lastUpdatedAt;
+                checkPayload.push({ shareId: share.shareId, lastUpdatedAt });
+                constituentToSummaryMap.set(share.shareId, bill);
+            }
+        } else {
+            checkPayload.push({ shareId: bill.shareId, lastUpdatedAt: bill.lastUpdatedAt });
+            regularBillsToCheck.set(bill.shareId, bill);
+        }
+    }
+
+    const uniqueCheckPayload = Array.from(new Map(checkPayload.map(item => [item.shareId, item])).values());
     const billsNeedingUpdate: ImportedBill[] = [];
+    const updatedSummaries = new Map<string, ImportedBill>();
 
     try {
         const response = await fetchWithRetry(await getApiUrl('/share/batch-check'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(checkPayload),
+            body: JSON.stringify(uniqueCheckPayload),
             signal: AbortSignal.timeout(20000)
         });
-        
+
         if (response.ok) {
             const updatedShares: { shareId: string, encryptedData: string, lastUpdatedAt: number }[] = await response.json();
-            const updatedIds = new Set(updatedShares.map(s => s.shareId));
-
-            for (const bill of bills) {
-                if (!updatedIds.has(bill.shareId) && bill.liveStatus === 'stale') {
-                    billsNeedingUpdate.push({ ...bill, liveStatus: 'live' });
-                }
-            }
+            const updatedShareIds = new Set(updatedShares.map(s => s.shareId));
 
             for (const share of updatedShares) {
-                const originalBill = bills.find(b => b.shareId === share.shareId);
-                if (!originalBill) continue;
-                try {
-                    const symmetricKey = await cryptoService.importEncryptionKey(originalBill.shareEncryptionKey);
-                    const decryptedBytes = await cryptoService.decrypt(share.encryptedData, symmetricKey);
-                    const decryptedJson = pako.inflate(decryptedBytes, { to: 'string' });
-                    const data: SharedBillPayload = JSON.parse(decryptedJson);
-                    const publicKey = await cryptoService.importPublicKey(data.publicKey);
-                    if (!(await cryptoService.verify(JSON.stringify(data.bill), data.signature, publicKey))) {
-                        throw new Error("Signature verification failed.");
+                if (constituentToSummaryMap.has(share.shareId)) {
+                    const summaryTemplate = constituentToSummaryMap.get(share.shareId)!;
+                    let summaryToUpdate = updatedSummaries.get(summaryTemplate.id) || JSON.parse(JSON.stringify(summaryTemplate));
+                    const constituentInfo = summaryToUpdate.constituentShares!.find(cs => cs.shareId === share.shareId)!;
+
+                    try {
+                        const key = await cryptoService.importEncryptionKey(constituentInfo.encryptionKey);
+                        const decrypted = await cryptoService.decrypt(share.encryptedData, key);
+                        const json = pako.inflate(decrypted, { to: 'string' });
+                        const payload: SharedBillPayload = JSON.parse(json);
+                        const pubKey = await cryptoService.importPublicKey(payload.publicKey);
+                        if (!await cryptoService.verify(JSON.stringify(payload.bill), payload.signature, pubKey)) throw new Error("Signature failed for constituent bill.");
+
+                        const itemIndex = summaryToUpdate.sharedData.bill.items.findIndex((i: any) => i.id === constituentInfo.originalBillId);
+                        if (itemIndex > -1) {
+                            summaryToUpdate.sharedData.bill.items[itemIndex].originalBillData = payload.bill;
+                            const myParticipantInOriginal = payload.bill.participants.find(p => p.id === summaryToUpdate.myParticipantId);
+                            summaryToUpdate.sharedData.bill.items[itemIndex].price = myParticipantInOriginal?.amountOwed || 0;
+                        }
+                        updatedSummaries.set(summaryToUpdate.id, summaryToUpdate);
+                    } catch (e) {
+                        console.error(`Failed to process constituent update for ${share.shareId}`, e);
+                        if (summaryToUpdate.liveStatus !== 'stale') {
+                            summaryToUpdate.liveStatus = 'stale';
+                            updatedSummaries.set(summaryToUpdate.id, summaryToUpdate);
+                        }
                     }
-                    billsNeedingUpdate.push({ ...originalBill, sharedData: { ...originalBill.sharedData, bill: data.bill }, lastUpdatedAt: share.lastUpdatedAt, liveStatus: 'live' });
-                } catch (decryptionError) {
-                    console.error(`Processing updated bill ${share.shareId} failed:`, decryptionError);
-                    if (originalBill.liveStatus !== 'stale') billsNeedingUpdate.push({ ...originalBill, liveStatus: 'stale' });
+                } else if (regularBillsToCheck.has(share.shareId)) {
+                    const originalBill = regularBillsToCheck.get(share.shareId)!;
+                    try {
+                        const symmetricKey = await cryptoService.importEncryptionKey(originalBill.shareEncryptionKey);
+                        const decryptedBytes = await cryptoService.decrypt(share.encryptedData, symmetricKey);
+                        const decryptedJson = pako.inflate(decryptedBytes, { to: 'string' });
+                        const data: SharedBillPayload = JSON.parse(decryptedJson);
+                        const publicKey = await cryptoService.importPublicKey(data.publicKey);
+                        if (!(await cryptoService.verify(JSON.stringify(data.bill), data.signature, publicKey))) {
+                            throw new Error("Signature verification failed.");
+                        }
+                        billsNeedingUpdate.push({ ...originalBill, sharedData: { ...originalBill.sharedData, bill: data.bill }, lastUpdatedAt: share.lastUpdatedAt, liveStatus: 'live' });
+                    } catch (decryptionError) {
+                        console.error(`Processing updated bill ${share.shareId} failed:`, decryptionError);
+                        if (originalBill.liveStatus !== 'stale') billsNeedingUpdate.push({ ...originalBill, liveStatus: 'stale' });
+                    }
                 }
             }
+            
+            for (const summary of updatedSummaries.values()) {
+                let totalOwed = 0;
+                let allConstituentsPaid = true;
+                const paidItems: Record<string, boolean> = { ...(summary.localStatus.paidItems || {}) };
+
+                for (const item of summary.sharedData.bill.items) {
+                    totalOwed += item.price;
+                    const originalBill = item.originalBillData;
+                    if (originalBill) {
+                         const myParticipantInOriginal = originalBill.participants.find((p: Participant) => p.id === summary.myParticipantId);
+                         if (myParticipantInOriginal?.paid) {
+                            paidItems[item.id] = true;
+                         }
+                    }
+                    if (!paidItems[item.id]) {
+                        allConstituentsPaid = false;
+                    }
+                }
+                
+                summary.sharedData.bill.totalAmount = totalOwed;
+                if (summary.sharedData.bill.participants[0]) {
+                    summary.sharedData.bill.participants[0].amountOwed = totalOwed;
+                }
+                summary.localStatus.paidItems = paidItems;
+                summary.localStatus.myPortionPaid = allConstituentsPaid;
+                summary.liveStatus = 'live';
+                summary.lastUpdatedAt = Math.max(...summary.sharedData.bill.items.map((i: any) => i.originalBillData?.lastUpdatedAt || 0), summary.lastUpdatedAt);
+                
+                billsNeedingUpdate.push(summary);
+            }
+            
+            const polledShareIds = new Set(uniqueCheckPayload.map(p => p.shareId));
+            bills.forEach(bill => {
+              if (bill.liveStatus === 'stale') {
+                 if (bill.constituentShares && bill.constituentShares.length > 0) {
+                     const allConstituentsPolled = bill.constituentShares.every(cs => polledShareIds.has(cs.shareId));
+                     if (allConstituentsPolled) billsNeedingUpdate.push({ ...bill, liveStatus: 'live' });
+                 } else {
+                     if (polledShareIds.has(bill.shareId) && !updatedShareIds.has(bill.shareId)) {
+                        billsNeedingUpdate.push({ ...bill, liveStatus: 'live' });
+                     }
+                 }
+              }
+            });
+
         } else {
              throw new Error(`Batch check failed with status ${response.status}`);
         }
@@ -656,7 +744,7 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
         }
     }
     
-    return billsNeedingUpdate;
+    return Array.from(new Map(billsNeedingUpdate.map(b => [b.id, b])).values());
 }
 
 

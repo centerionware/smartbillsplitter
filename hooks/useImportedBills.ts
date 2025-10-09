@@ -54,19 +54,10 @@ export const useImportedBills = () => {
   const updateMultipleImportedBills = useCallback(async (billsToUpdate: ImportedBill[]) => {
       if (billsToUpdate.length === 0) return;
       
-      const billsWithSyncedStatus = billsToUpdate.map(incomingBill => {
-        const myParticipantOnServer = incomingBill.sharedData.bill.participants.find(
-            p => p.id === incomingBill.myParticipantId
-        );
-        const isPaidOnServer = myParticipantOnServer?.paid ?? false;
-        return {
-            ...incomingBill,
-            localStatus: { ...incomingBill.localStatus, myPortionPaid: isPaidOnServer }
-        };
-      });
-
-      await mergeImportedBillsDB([], billsWithSyncedStatus);
-      const updatedMap = new Map(billsWithSyncedStatus.map(b => [b.id, b]));
+      // The `billsToUpdate` array coming from the polling service now has pre-calculated statuses
+      // for both regular and summary bills. We can trust it directly.
+      await mergeImportedBillsDB([], billsToUpdate);
+      const updatedMap = new Map(billsToUpdate.map(b => [b.id, b]));
       setImportedBills(prev => sortImportedBills(prev.map(b => updatedMap.get(b.id) || b)));
       postMessage({ type: 'imported-bills-updated' });
   }, []);

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import type { Bill, Settings, Participant } from '../types';
 import { generateShareLink } from '../services/shareService';
 import { useAppControl } from '../contexts/AppControlContext';
@@ -25,6 +25,67 @@ const ActionButton: React.FC<{ onClick: () => void; children: React.ReactNode; d
         {children}
     </button>
 );
+
+const formatTimeAgo = (timestamp: number) => {
+    const now = Date.now();
+    const seconds = Math.floor((now - timestamp) / 1000);
+
+    if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    const days = Math.floor(hours / 24);
+    return `${days} day${days !== 1 ? 's' : ''} ago`;
+};
+
+const ShareHistory: React.FC<{bill: Bill}> = ({ bill }) => {
+    const historyEvents = useMemo(() => {
+        if (!bill.shareHistory) return [];
+        const events: { participantName: string; method: string; timestamp: number }[] = [];
+        for (const participantId in bill.shareHistory) {
+            const participant = bill.participants.find(p => p.id === participantId);
+            if (!participant) continue;
+
+            const shares = bill.shareHistory[participantId];
+            for (const method in shares) {
+                events.push({
+                    participantName: participant.name,
+                    method: method,
+                    timestamp: shares[method as keyof typeof shares]!
+                });
+            }
+        }
+        return events.sort((a, b) => b.timestamp - a.timestamp);
+    }, [bill.shareHistory, bill.participants]);
+
+    if (historyEvents.length === 0) {
+        return <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-2">No shares have been sent for this bill yet.</p>;
+    }
+
+    const getMethodText = (method: string) => {
+        switch(method) {
+            case 'sms': return 'via Text Message';
+            case 'email': return 'via Email';
+            case 'copy': return 'via Link Copy';
+            case 'share': return 'via Share';
+            default: return `via ${method}`;
+        }
+    };
+
+    return (
+        <ul className="space-y-2 text-sm max-h-48 overflow-y-auto">
+            {historyEvents.map((event, index) => (
+                <li key={index} className="flex justify-between items-center p-2 bg-slate-100 dark:bg-slate-700/50 rounded-md">
+                    <span className="text-slate-700 dark:text-slate-200">
+                        Shared with <span className="font-semibold">{event.participantName}</span> {getMethodText(event.method)}
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400 text-xs flex-shrink-0 ml-2">{formatTimeAgo(event.timestamp)}</span>
+                </li>
+            ))}
+        </ul>
+    );
+};
 
 const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpdateBill, checkAndMakeSpaceForImageShare }) => {
   const [loading, setLoading] = useState<Set<string>>(new Set());
@@ -115,7 +176,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
         <div className="p-6">
           <h3 className="text-xl font-bold text-center text-slate-800 dark:text-slate-100 mb-2">Share Bill</h3>
           <p className="text-sm text-center text-slate-500 dark:text-slate-400 mb-6">Send each participant a unique, secure link to view this bill. Links are single-use for key retrieval and expire after 24 hours.</p>
-          <ul className="space-y-2 max-h-80 overflow-y-auto pr-2">
+          <ul className="space-y-2 max-h-60 overflow-y-auto pr-2">
             {bill.participants.map(p => (
               <li key={p.id} className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
                 <div className="flex items-center gap-3">
@@ -135,6 +196,14 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
               </li>
             ))}
           </ul>
+          <div className="mt-4">
+              <details className="bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                  <summary className="cursor-pointer p-3 font-semibold text-slate-600 dark:text-slate-300">Share History</summary>
+                  <div className="p-3 border-t border-slate-200 dark:border-slate-600">
+                      <ShareHistory bill={bill} />
+                  </div>
+              </details>
+          </div>
         </div>
         <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end">
           <button onClick={onClose} className="px-5 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors">Done</button>
