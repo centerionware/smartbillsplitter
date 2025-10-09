@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pollImportedBills } from '../../services/shareService';
+import { generateShareText, pollImportedBills } from '../../services/shareService';
+import type { Settings, ImportedBill, SharedBillPayload, Bill } from '../../types';
+import type { SubscriptionStatus } from '../../hooks/useAuth';
 import { fetchWithRetry } from '../../services/api';
 import * as cryptoService from '../../services/cryptoService';
-import { ImportedBill, SharedBillPayload, Bill } from '../../types';
 
 // Mocks
 vi.mock('../../services/api', () => ({
-  getApiUrl: vi.fn().mockResolvedValue('http://api.test'),
+  getApiUrl: vi.fn().mockImplementation(async (path: string) => `http://api.test${path}`),
   fetchWithRetry: vi.fn(),
 }));
 
@@ -17,6 +18,72 @@ const pako = {
   inflate: vi.fn((data) => JSON.stringify(data)), // Simple mock: just stringify the input
 };
 vi.stubGlobal('pako', pako);
+
+
+describe('shareService.generateShareText', () => {
+    const participantName = 'Alex';
+    const totalOwed = 12.50;
+    const billsInfo = [
+        { description: 'Lunch', amountOwed: 7.50 },
+        { description: 'Coffee', amountOwed: 5.00 },
+    ];
+
+    const baseSettings: Settings = {
+        myDisplayName: 'Me',
+        shareTemplate: 'Hi {participantName}, you owe {totalOwed}.\nBills:\n{billList}{paymentInfo}{promoText}',
+        paymentDetails: { venmo: '', paypal: '', cashApp: '', zelle: '', customMessage: '' },
+        notificationsEnabled: false,
+        notificationDays: 3,
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('should generate a basic share text', () => {
+        const result = generateShareText(participantName, totalOwed, billsInfo, baseSettings, 'subscribed');
+        expect(result).toContain('Hi Alex, you owe $12.50.');
+        expect(result).toContain('- "Lunch": $7.50');
+        expect(result).toContain('- "Coffee": $5.00');
+        expect(result).not.toContain('You can pay me via');
+        expect(result).not.toContain('Created with SharedBills');
+    });
+
+    it('should include payment info if provided', () => {
+        const settingsWithPayments: Settings = {
+            ...baseSettings,
+            paymentDetails: {
+                ...baseSettings.paymentDetails,
+                venmo: 'my-venmo',
+                paypal: 'my-paypal.me',
+            },
+        };
+        const result = generateShareText(participantName, totalOwed, billsInfo, settingsWithPayments, 'subscribed');
+        expect(result).toContain('You can pay me via Venmo: @my-venmo or PayPal: my-paypal.me.');
+    });
+    
+    it('should include custom message if provided', () => {
+        const settingsWithCustomMessage: Settings = {
+            ...baseSettings,
+            paymentDetails: {
+                ...baseSettings.paymentDetails,
+                customMessage: 'Thanks!',
+            },
+        };
+        const result = generateShareText(participantName, totalOwed, billsInfo, settingsWithCustomMessage, 'subscribed');
+        expect(result).toContain('Thanks!');
+    });
+
+    it('should include promo text for free tier users', () => {
+        const result = generateShareText(participantName, totalOwed, billsInfo, baseSettings, 'free');
+        expect(result).toContain('Created with SharedBills');
+    });
+
+    it('should not include promo text for subscribed users', () => {
+        const result = generateShareText(participantName, totalOwed, billsInfo, baseSettings, 'subscribed');
+        expect(result).not.toContain('Created with SharedBills');
+    });
+});
 
 const mockRegularBill: ImportedBill = {
   id: 'imported-1',
@@ -67,7 +134,6 @@ const mockSummaryBill: ImportedBill = {
   },
 };
 
-
 describe('shareService.pollImportedBills', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -87,7 +153,6 @@ describe('shareService.pollImportedBills', () => {
   });
   
   it('should return an updated regular bill if server has a newer version', async () => {
-    // FIX: Construct the payload to match the SharedBillPayload type, adding creatorName and using publicKey.
     const updatedPayload: SharedBillPayload = {
       creatorName: mockRegularBill.creatorName,
       publicKey: mockRegularBill.sharedData.creatorPublicKey,
@@ -113,13 +178,11 @@ describe('shareService.pollImportedBills', () => {
   });
 
   it('should correctly reconstruct a summary bill when a constituent is updated', async () => {
-    // This is the key test for the bug fix
     const updatedConstituentBillData: Bill = {
       ...(mockSummaryBill.sharedData.bill.items![1].originalBillData!),
       participants: [{ id: 'p-me', name: 'Me', amountOwed: 20, paid: true }], // User has now paid
       lastUpdatedAt: 2500,
     };
-    // FIX: Construct the payload to match the SharedBillPayload type, adding creatorName and using publicKey.
     const updatedPayload: SharedBillPayload = {
       creatorName: mockSummaryBill.creatorName,
       publicKey: mockSummaryBill.sharedData.creatorPublicKey,

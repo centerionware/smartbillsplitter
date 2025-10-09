@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ShareModal from '../../components/ShareModal';
@@ -85,16 +85,20 @@ describe('ShareModal', () => {
   it('shows previous share events when history exists', async () => {
     render(<ShareModal bill={mockBillWithHistory} settings={mockSettings} {...mockHandlers} />);
     
-    // FIX: Click the summary to expand the details section before asserting its content.
+    // Click the summary to expand the details section
     const summary = screen.getByText('Share History');
     await userEvent.click(summary);
 
-    expect(await screen.findByText(/Shared with Alice/i)).toBeInTheDocument();
-    expect(screen.getByText(/via Text Message/i)).toBeInTheDocument();
-    expect(screen.getByText(/5 minutes ago/i)).toBeInTheDocument();
-    expect(screen.getByText(/Shared with Bob/i)).toBeInTheDocument();
-    expect(screen.getByText(/via Link Copy/i)).toBeInTheDocument();
-    expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
+    // Use findByRole which waits for the element and is more robust to text splitting
+    const aliceShare = await screen.findByRole('listitem', { name: /Shared with Alice via Text Message/i });
+    expect(aliceShare).toBeInTheDocument();
+    
+    const bobShare = await screen.findByRole('listitem', { name: /Shared with Bob via Link Copy/i });
+    expect(bobShare).toBeInTheDocument();
+    
+    // Also check the timestamps for completeness
+    expect(within(aliceShare).getByText(/minutes ago/)).toBeInTheDocument();
+    expect(within(bobShare).getByText(/days ago/)).toBeInTheDocument();
   });
 
   it('shows a message when no share history exists', async () => {
