@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pollImportedBills } from '../../services/shareService';
+import { pollImportedBills } from '../../services/shareService/polling';
 import { fetchWithRetry } from '../../services/api';
 import * as cryptoService from '../../services/cryptoService';
 import { ImportedBill, SharedBillPayload, Bill } from '../../types';

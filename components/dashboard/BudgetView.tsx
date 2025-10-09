@@ -89,8 +89,8 @@ const BudgetView: React.FC<BudgetViewProps> = ({ budgetData, date, setDate, onSe
         }
     };
     
-    // FIX: Corrected the explicit type for sort parameters, which was missing the `category` property.
-    const sortedCategories = Object.values(spendingByCategory).sort((a: { category: Category; spent: number }, b: { category: Category; spent: number }) => b.spent - a.spent);
+    // FIX: Explicitly typed the sortedCategories array to resolve type inference issues where Object.values was returning `unknown[]`.
+    const sortedCategories: BudgetData['spendingByCategory'][string][] = Object.values(spendingByCategory).sort((a, b) => b.spent - a.spent);
 
     const getDateLabel = () => {
         if (date === 'last30days') return "Last 30 Days";
