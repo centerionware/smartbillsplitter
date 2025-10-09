@@ -128,7 +128,8 @@ export const useBills = () => {
   }, [bills, updateBill]);
 
   const mergeBills = useCallback(async (billsToMerge: (Omit<Bill, 'status'>)[]) => {
-      const existingBillMap = new Map(bills.map(b => [b.id, b]));
+      // FIX: Explicitly type Map to resolve type inference issues.
+      const existingBillMap = new Map<string, Bill>(bills.map(b => [b.id, b]));
       const billsToAdd: Bill[] = [];
       const billsToUpdate: Bill[] = [];
       let skippedCount = 0;
@@ -151,7 +152,8 @@ export const useBills = () => {
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeBillsDB(billsToAdd, billsToUpdate);
           setBills(prev => {
-              const prevMap = new Map(prev.map(b => [b.id, b]));
+              // FIX: Explicitly type Map to resolve type inference issues.
+              const prevMap = new Map<string, Bill>(prev.map(b => [b.id, b]));
               billsToUpdate.forEach(b => prevMap.set(b.id, b));
               billsToAdd.forEach(b => prevMap.set(b.id, b));
               return sortBills(Array.from(prevMap.values()));

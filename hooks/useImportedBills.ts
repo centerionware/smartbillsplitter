@@ -85,7 +85,8 @@ export const useImportedBills = () => {
   }, [importedBills, updateImportedBill]);
 
   const mergeImportedBills = useCallback(async (billsToMerge: (Omit<ImportedBill, 'status' | 'liveStatus'>)[]) => {
-      const existingBillMap = new Map(importedBills.map(b => [b.id, b]));
+      // FIX: Explicitly type Map to resolve type inference issues.
+      const existingBillMap = new Map<string, ImportedBill>(importedBills.map(b => [b.id, b]));
       const billsToAdd: ImportedBill[] = [];
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
@@ -107,7 +108,8 @@ export const useImportedBills = () => {
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeImportedBillsDB(billsToAdd, billsToUpdate);
           setImportedBills(prev => {
-              const prevMap = new Map(prev.map(b => [b.id, b]));
+              // FIX: Explicitly type Map to resolve type inference issues.
+              const prevMap = new Map<string, ImportedBill>(prev.map(b => [b.id, b]));
               billsToUpdate.forEach(b => prevMap.set(b.id, b));
               billsToAdd.forEach(b => prevMap.set(b.id, b));
               return sortImportedBills(Array.from(prevMap.values()));

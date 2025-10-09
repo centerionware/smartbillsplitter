@@ -1,4 +1,3 @@
-
 import type { Settings, Bill, Participant, ReceiptItem, SharedBillPayload, ConstituentShareInfo } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
 import * as cryptoService from '../cryptoService';
