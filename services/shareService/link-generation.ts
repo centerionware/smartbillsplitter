@@ -1,11 +1,11 @@
-import type { Bill, Participant, Settings } from '../types';
+import type { Bill, Participant, Settings } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
-import * as cryptoService from '../cryptoService';
-import { getApiUrl, fetchWithRetry } from '../api';
+import * as cryptoService from '../../cryptoService';
+import { getApiUrl, fetchWithRetry } from '../../api';
 import { generateAggregateBill } from './aggregate';
 import { base64UrlEncode, encryptAndSignPayload } from './utils';
 import { recreateShareSession } from './session';
-import { saveBillSigningKey, getBillSigningKey } from '../db';
+import { saveBillSigningKey, getBillSigningKey } from '../../db';
 
 declare var pako: any;
 

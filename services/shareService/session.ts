@@ -1,9 +1,8 @@
-import type { Bill, Settings } from '../types';
-import { getApiUrl, fetchWithRetry } from '../api';
-import { getBillSigningKey } from '../db';
+import type { Bill, Settings } from '../../types';
+import { getApiUrl, fetchWithRetry } from '../../api';
+import { getBillSigningKey } from '../../db';
 import { encryptAndSignPayload } from './utils';
-// FIX: Import 'cryptoService' to resolve 'Cannot find name' errors.
-import * as cryptoService from '../cryptoService';
+import * as cryptoService from '../../cryptoService';
 
 export const recreateShareSession = async (
     bill: Bill,

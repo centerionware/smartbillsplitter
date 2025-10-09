@@ -1,6 +1,6 @@
-import type { Bill, ImportedBill, SharedBillPayload, ConstituentShareInfo, Participant, ReceiptItem } from '../types';
-import { getApiUrl, fetchWithRetry } from '../api';
-import * as cryptoService from '../cryptoService';
+import type { Bill, ImportedBill, SharedBillPayload, ConstituentShareInfo, Participant, ReceiptItem } from '../../types';
+import { getApiUrl, fetchWithRetry } from '../../api';
+import * as cryptoService from '../../cryptoService';
 
 declare var pako: any;
 

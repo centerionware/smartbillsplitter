@@ -335,7 +335,6 @@ try {
         const root = ReactDOM.createRoot(rootElement);
         root.render(
           <React.StrictMode>
-            {/* FIX: The error "Property 'children' is missing" was a symptom of a missing constructor in the ErrorBoundary component. The fix is applied in ErrorBoundary.tsx. */}
             <ErrorBoundary>
               <Root />
             </ErrorBoundary>
