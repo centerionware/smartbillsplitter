@@ -2,7 +2,7 @@
 let API_BASE_URL: string | null = null;
 let apiInitializationPromise: Promise<void> | null = null;
 
-const rateLimitCache = new Map<string, number>();
+export const rateLimitCache = new Map<string, number>();
 const RATE_LIMIT_MS = 500; // Block identical requests within this timeframe
 
 /**

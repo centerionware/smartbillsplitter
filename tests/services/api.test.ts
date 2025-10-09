@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchWithRetry } from '../../services/api';
+import { fetchWithRetry, rateLimitCache } from '../../services/api';
 
 describe('api.fetchWithRetry', () => {
   const TEST_URL = 'http://localhost/api/test-endpoint';
 
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    // The rate limiter cache persists between tests, causing failures.
+    // Clear it before each test to ensure they run in isolation.
+    rateLimitCache.clear();
   });
 
   afterEach(() => {

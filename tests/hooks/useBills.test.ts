@@ -4,8 +4,8 @@ import { useBills } from '../../hooks/useBills';
 import type { Bill } from '../../types';
 
 // FIX: Added direct imports for mocked functions. `vi.mock` hoists and replaces these modules, so the imports will refer to the mocks.
-import { getBills, addBill, updateBill, deleteBillDB, addMultipleBillsDB } from '../../services/db';
-import { postMessage } from '../../services/broadcastService';
+import { getBills, addBill as addBillDB, updateBill as updateBillDB, deleteBillDB, addMultipleBillsDB, mergeBillsDB } from '../../services/db';
+import { postMessage, useBroadcastListener } from '../../services/broadcastService';
 
 // Mock dependencies
 vi.mock('../../services/db', () => ({
@@ -14,6 +14,7 @@ vi.mock('../../services/db', () => ({
   updateBill: vi.fn(),
   deleteBillDB: vi.fn(),
   addMultipleBillsDB: vi.fn(),
+  mergeBillsDB: vi.fn(),
 }));
 vi.mock('../../services/broadcastService', () => ({
   postMessage: vi.fn(),
@@ -64,13 +65,17 @@ describe('useBills hook', () => {
 
     const newBillData = { description: 'Movies', totalAmount: 30, date: new Date().toISOString(), participants: [] };
     
-    vi.mocked(getBills).mockResolvedValue([...mockBills, { ...newBillData, id: '3', status: 'active' }]);
+    // Simulating the bill being added to the DB for the next load
+    const updatedBillList = [...mockBills, { ...newBillData, id: '3', status: 'active', lastUpdatedAt: Date.now() }];
+    vi.mocked(getBills).mockResolvedValue(updatedBillList);
 
     await act(async () => {
       await result.current.addBill(newBillData);
     });
-
-    expect(addBill).toHaveBeenCalledWith(expect.objectContaining(newBillData));
+    
+    // The hook updates its internal state directly before the broadcast/reload happens
+    expect(result.current.bills.find(b => b.description === 'Movies')).toBeDefined();
+    expect(addBillDB).toHaveBeenCalledWith(expect.objectContaining(newBillData));
     expect(postMessage).toHaveBeenCalledWith({ type: 'bills-updated' });
     expect(result.current.bills).toHaveLength(3);
   });
@@ -86,8 +91,11 @@ describe('useBills hook', () => {
       await result.current.updateBill(billToUpdate);
     });
 
-    expect(updateBill).toHaveBeenCalledWith(expect.objectContaining({ ...billToUpdate, lastUpdatedAt: expect.any(Number) }));
-    expect(postMessage).toHaveBeenCalledWith({ type: 'bills-updated' });
+    expect(updateBillDB).toHaveBeenCalledWith(expect.objectContaining({ ...billToUpdate, lastUpdatedAt: expect.any(Number) }));
+    // Broadcasting is now handled by a higher-level hook, so this should not be called here.
+    // expect(postMessage).toHaveBeenCalledWith({ type: 'bills-updated' });
+    const updatedBillInState = result.current.bills.find(b => b.id === '1');
+    expect(updatedBillInState?.totalAmount).toBe(150);
   });
 
   it('should delete a bill', async () => {
