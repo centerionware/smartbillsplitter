@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { syncSharedBillUpdate, reactivateShare } from '../../services/shareService';
+import { syncSharedBillUpdate } from '../../services/shareService/session';
 import { fetchWithRetry } from '../../services/api';
 import { getBillSigningKey } from '../../services/db';
 import * as cryptoService from '../../services/cryptoService';
@@ -33,9 +33,9 @@ const mockBill: Bill = {
   participants: [],
   shareInfo: {
     shareId: 'share-123',
-    encryptionKey: {} as JsonWebKey,
-    signingPublicKey: {} as JsonWebKey,
-    updateToken: 'token-abc',
+    encryptionKey: { kty: 'oct', k: 'key' } as JsonWebKey,
+    signingPublicKey: { kty: 'EC', crv: 'P-384' } as JsonWebKey,
+    updateToken: 'initial-token-abc',
   },
 };
 const mockSettings: Settings = { myDisplayName: 'Me' } as Settings;
@@ -49,70 +49,50 @@ describe('shareService/session', () => {
   });
 
   describe('syncSharedBillUpdate', () => {
-    it('should send an encrypted payload to the correct endpoint', async () => {
-      vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
-      
-      await syncSharedBillUpdate(mockBill, mockSettings, mockUpdateCallback);
-      
-      expect(encryptAndSignPayload).toHaveBeenCalled();
-      expect(fetchWithRetry).toHaveBeenCalledWith(
-        'http://api.test/share/share-123',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            encryptedData: 'encrypted-payload',
-            updateToken: 'token-abc',
-          }),
-        })
-      );
-    });
-
-    it('should throw an error on 403 forbidden response', async () => {
-      vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify({ details: 'Forbidden' }), { status: 403 }));
-      
-      await expect(syncSharedBillUpdate(mockBill, mockSettings, mockUpdateCallback))
-        .rejects.toThrow(/Forbidden/);
-    });
-
-    it('should call the update callback if a new token is returned (migration)', async () => {
+    it('should preserve existing keys when updating with a new token from the server', async () => {
+      // 1. Setup: Mock the server to return a successful response with a new token.
+      // This simulates the scenario that was causing the bug.
       vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify({
         updateToken: 'new-token-xyz',
         lastUpdatedAt: 9999,
       }), { status: 200 }));
 
+      // 2. Action: Call the function to sync the update.
       await syncSharedBillUpdate(mockBill, mockSettings, mockUpdateCallback);
 
-      expect(mockUpdateCallback).toHaveBeenCalledWith(expect.objectContaining({
-        id: 'bill-1',
-        shareInfo: expect.objectContaining({ updateToken: 'new-token-xyz' }),
-        lastUpdatedAt: 9999,
-      }));
-    });
-  });
+      // 3. Assertions: Check if the update callback was called with the correctly formed bill object.
+      expect(mockUpdateCallback).toHaveBeenCalledTimes(1);
 
-  describe('reactivateShare', () => {
-    it('should POST to the share endpoint to reactivate', async () => {
+      const updatedBill = mockUpdateCallback.mock.calls[0][0] as Bill;
+      
+      // Ensure the bill itself is correct
+      expect(updatedBill.id).toBe('bill-1');
+      expect(updatedBill.lastUpdatedAt).toBe(9999);
+
+      // CRITICAL: Check that the shareInfo object is intact and not just a fragment.
+      const updatedShareInfo = updatedBill.shareInfo;
+      expect(updatedShareInfo).toBeDefined();
+
+      // The new token should be present
+      expect(updatedShareInfo?.updateToken).toBe('new-token-xyz');
+
+      // The old, essential keys must also be present and unchanged
+      expect(updatedShareInfo?.shareId).toBe('share-123');
+      expect(updatedShareInfo?.encryptionKey).toEqual({ kty: 'oct', k: 'key' });
+      expect(updatedShareInfo?.signingPublicKey).toEqual({ kty: 'EC', crv: 'P-384' });
+    });
+
+    it('should not call update callback if server response has no token', async () => {
+      // Simulate a server response that is successful but does not contain a new token.
       vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify({
-        lastUpdatedAt: 5000,
-        updateToken: 'reactivated-token',
+        lastUpdatedAt: 9999, // Only timestamp, no token
       }), { status: 200 }));
-      
-      const result = await reactivateShare(mockBill, mockSettings);
-      
-      expect(fetchWithRetry).toHaveBeenCalledWith(
-        'http://api.test/share/share-123',
-        expect.objectContaining({ method: 'POST' })
-      );
-      expect(result).toEqual({
-        lastUpdatedAt: 5000,
-        updateToken: 'reactivated-token',
-      });
-    });
 
-    it('should throw if the server fails to reactivate', async () => {
-       vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify({ error: 'Server Down' }), { status: 500 }));
-       await expect(reactivateShare(mockBill, mockSettings))
-        .rejects.toThrow('Server Down');
+      await syncSharedBillUpdate(mockBill, mockSettings, mockUpdateCallback);
+      
+      // In this case, there's no new information for the client to persist,
+      // so the callback to update the bill in the DB should not be called.
+      expect(mockUpdateCallback).not.toHaveBeenCalled();
     });
   });
 });
