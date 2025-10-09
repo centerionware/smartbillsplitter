@@ -57,7 +57,12 @@ async function createOrUpdateShare(
         const existingSessionJson = await kv.get(key);
 
         if (existingSessionJson) { // It's a standard UPDATE
-            const storedPayload = JSON.parse(existingSessionJson);
+            let storedPayload;
+            try {
+                storedPayload = JSON.parse(existingSessionJson);
+            } catch (e) {
+                throw new Error("Corrupted session data found on server.");
+            }
             
             if (storedPayload.updateToken) { // Modern record, requires token validation
                 if (!updateToken || storedPayload.updateToken !== updateToken) {
@@ -117,7 +122,13 @@ async function retrieveShare(shareId: string, kv: KeyValueStore): Promise<{ encr
     if (!sessionJson) {
         throw new Error("Invalid or expired share ID.");
     }
-    const payload = JSON.parse(sessionJson);
+    
+    let payload;
+    try {
+        payload = JSON.parse(sessionJson);
+    } catch (e) {
+        throw new Error("Corrupted session data found on server.");
+    }
     
     // FIX: A more robust and explicit check for both new and legacy data formats.
     // This ensures that even if old data exists, it is correctly processed and returned
