@@ -90,7 +90,7 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX: Explicitly type `billToProcess` because type inference was failing, causing it to be `unknown`.
+// FIX: Explicitly type `billToProcess` because type inference was failing, causing it to be `unknown`.
       billsToMerge.forEach((billToProcess: Omit<ImportedBill, 'status' | 'liveStatus'>) => {
           const existingBill = existingBillMap.get(billToProcess.id);
           if (existingBill) {
