@@ -1,4 +1,3 @@
-
 import type { Bill, ImportedBill, SharedBillPayload, ConstituentShareInfo, Participant, ReceiptItem } from '../../types';
 import { getApiUrl, fetchWithRetry } from '../api';
 import * as cryptoService from '../cryptoService';
@@ -95,7 +94,24 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
                         if (!(await cryptoService.verify(JSON.stringify(data.bill), data.signature, publicKey))) {
                             throw new Error("Signature verification failed.");
                         }
-                        billsNeedingUpdate.push({ ...originalBill, sharedData: { ...originalBill.sharedData, bill: data.bill }, lastUpdatedAt: share.lastUpdatedAt, liveStatus: 'live' });
+
+                        // Reconcile the creator's view of payment status with the local status.
+                        const myParticipant = data.bill.participants.find(p => p.id === originalBill.myParticipantId);
+                        const creatorSaysImPaid = myParticipant ? myParticipant.paid : false;
+
+                        // Create a new localStatus object. The user's own toggle is overwritten by the creator's truth.
+                        const newLocalStatus = {
+                            ...originalBill.localStatus,
+                            myPortionPaid: creatorSaysImPaid,
+                        };
+
+                        billsNeedingUpdate.push({ 
+                            ...originalBill, 
+                            sharedData: { ...originalBill.sharedData, bill: data.bill }, 
+                            lastUpdatedAt: share.lastUpdatedAt, 
+                            liveStatus: 'live',
+                            localStatus: newLocalStatus, // Update localStatus based on creator's data
+                        });
                     } catch (decryptionError) {
                         console.error(`Processing updated bill ${share.shareId} failed:`, decryptionError);
                         if (originalBill.liveStatus !== 'stale') billsNeedingUpdate.push({ ...originalBill, liveStatus: 'stale' });
