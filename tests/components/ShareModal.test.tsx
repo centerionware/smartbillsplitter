@@ -63,7 +63,17 @@ describe('ShareModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(generateShareLink).mockImplementation(async (bill: Bill) => {
-        return { url: 'http://share.link', billWithNewShareInfo: bill };
+        // The real function returns a new bill object with shareInfo added.
+        // This more accurate mock ensures the component receives the expected data structure.
+        const billWithNewShareInfo = {
+            ...bill,
+            shareInfo: bill.shareInfo || {
+                shareId: 'mock-share-id',
+                encryptionKey: {} as any,
+                signingPublicKey: {} as any,
+            }
+        };
+        return { url: 'http://share.link', billWithNewShareInfo };
     });
   });
 
@@ -75,6 +85,7 @@ describe('ShareModal', () => {
   it('shows previous share events when history exists', async () => {
     render(<ShareModal bill={mockBillWithHistory} settings={mockSettings} {...mockHandlers} />);
     
+    // FIX: Click the summary to expand the details section before asserting its content.
     const summary = screen.getByText('Share History');
     await userEvent.click(summary);
 

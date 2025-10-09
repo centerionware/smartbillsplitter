@@ -122,7 +122,8 @@ export async function encryptAndSignPayload(
         creatorName: settings.myDisplayName,
         publicKey: publicKeyJwk,
         signature,
-        paymentDetails: settings.paymentDetails || { venmo: '', paypal: '', cashApp: '', zelle: '', customMessage: '' },
+        // FIX: Add a robust fallback for paymentDetails to prevent errors when it's missing from the settings object.
+        paymentDetails: settings.paymentDetails ?? { venmo: '', paypal: '', cashApp: '', zelle: '', customMessage: '' },
     };
     if (constituentShares) {
         payload.constituentShares = constituentShares;

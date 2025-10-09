@@ -11,7 +11,8 @@ interface State {
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
-  // FIX: Initialize state as a class property to resolve errors with accessing `this.state` before initialization.
+  // FIX: Initialized state as a class property to fix errors where `this.state` was not found.
+  // This is a common pattern and avoids potential constructor-related issues in some environments.
   state: State = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error): State {
