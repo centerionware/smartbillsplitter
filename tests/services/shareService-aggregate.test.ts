@@ -89,7 +89,11 @@ describe('shareService/aggregate', () => {
 
   it('should create a summary bill with correct total and items', async () => {
     const updateCallback = vi.fn();
-    const { summaryBill, constituentShares } = await generateAggregateBill('Alice', mockUnpaidBills, mockSettings, updateCallback, Infinity);
+    // In this test, both bills are unshared, so we expect two API calls.
+    const billsWithoutShareInfo = mockUnpaidBills.map(b => ({...b, shareInfo: undefined}));
+    vi.mocked(getBillSigningKey).mockResolvedValue(undefined);
+
+    const { summaryBill, constituentShares } = await generateAggregateBill('Alice', billsWithoutShareInfo, mockSettings, updateCallback, Infinity);
 
     expect(summaryBill.description).toBe('Summary for Alice');
     expect(summaryBill.totalAmount).toBe(80); // 50 + 30
@@ -103,30 +107,50 @@ describe('shareService/aggregate', () => {
 
   it('should create new share info for bills that have not been shared', async () => {
     const updateCallback = vi.fn();
-    // Simulate bill-1 having no shareInfo
-    const billsForTest = [{ ...mockUnpaidBills[0], shareInfo: undefined }, mockUnpaidBills[1]];
+    // Simulate bill-1 having no shareInfo, but bill-2 has it and a key
+    const bill2WithShareInfo: Bill = {
+      ...mockUnpaidBills[1],
+      shareInfo: {
+        shareId: 'existing-share-id-for-bill2',
+        encryptionKey: {} as JsonWebKey,
+        signingPublicKey: {} as JsonWebKey,
+        updateToken: 'existing-token',
+      },
+    };
+    const billsForTest = [{ ...mockUnpaidBills[0], shareInfo: undefined }, bill2WithShareInfo];
     
-    // Adjust mock for this specific test case
-    vi.mocked(getBillSigningKey).mockResolvedValue(undefined);
+    // Adjust mock: bill-1 has no key, bill-2 does.
+    vi.mocked(getBillSigningKey).mockImplementation(async (billId: string) => {
+      if (billId === 'bill-2') {
+        return { billId: 'bill-2', privateKey: {} as CryptoKey };
+      }
+      return undefined;
+    });
 
     await generateAggregateBill('Alice', billsForTest, mockSettings, updateCallback, Infinity);
     
-    // It should have generated keys for bill-1
+    // It should have generated keys ONLY for bill-1
     expect(cryptoService.generateSigningKeyPair).toHaveBeenCalledTimes(1);
     expect(saveBillSigningKey).toHaveBeenCalledTimes(1);
+    expect(saveBillSigningKey).toHaveBeenCalledWith('bill-1', expect.any(Object));
 
-    // It should have called the update callback with the new shareInfo for bill-1
+    // It should have called the update callback with the updated bills
     expect(updateCallback).toHaveBeenCalled();
-    const updatedBills = updateCallback.mock.calls[0][0];
+    const updatedBills = updateCallback.mock.calls[0][0] as Bill[];
     const updatedBill1 = updatedBills.find((b: Bill) => b.id === 'bill-1');
-    expect(updatedBill1.shareInfo).toBeDefined();
-    expect(updatedBill1.shareInfo.shareId).toBe('new-share-id');
+    expect(updatedBill1).toBeDefined();
+    expect(updatedBill1!.shareInfo).toBeDefined();
+    expect(updatedBill1!.shareInfo!.shareId).toBe('new-share-id');
   });
 
   it('should respect image limits for free tier users and drop oldest images', async () => {
     const updateCallback = vi.fn();
+    // In this test, both bills are unshared, so we expect two API calls.
+    const billsWithoutShareInfo = mockUnpaidBills.map(b => ({...b, shareInfo: undefined}));
+    vi.mocked(getBillSigningKey).mockResolvedValue(undefined);
+
     // Say we only have 1 slot available for images
-    const { summaryBill, imagesDropped } = await generateAggregateBill('Alice', mockUnpaidBills, mockSettings, updateCallback, 1);
+    const { summaryBill, imagesDropped } = await generateAggregateBill('Alice', billsWithoutShareInfo, mockSettings, updateCallback, 1);
 
     expect(imagesDropped).toBe(1);
 
