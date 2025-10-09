@@ -112,7 +112,6 @@ describe('shareService.pollImportedBills', () => {
   });
 
   it('should correctly reconstruct a summary bill when a constituent is updated', async () => {
-    // This is the key test for the bug fix
     const updatedConstituentBillData: Bill = {
       ...(mockSummaryBill.sharedData.bill.items![1].originalBillData!),
       participants: [{ id: 'p-me', name: 'Me', amountOwed: 20, paid: true }], // User has now paid
@@ -150,9 +149,10 @@ describe('shareService.pollImportedBills', () => {
     // 3. Since only one of two items is paid, the summary itself is not fully paid
     expect(updatedSummary.localStatus.myPortionPaid).toBe(false);
 
-    // 4. Check if the total amount was correctly recalculated (it shouldn't change in this case, but good to check)
+    // 4. Check if the total amount was correctly recalculated (it shouldn't change)
     expect(updatedSummary.sharedData.bill.totalAmount).toBe(30); // 10 (unpaid) + 20 (paid)
-    expect(updatedSummary.sharedData.bill.participants[0].amountOwed).toBe(30);
+    // FIX: Assert that amountOwed is the *remaining* balance, not the original total.
+    expect(updatedSummary.sharedData.bill.participants[0].amountOwed).toBe(10);
 
     // 5. Check the lastUpdatedAt timestamp is updated to the latest constituent's timestamp
     expect(updatedSummary.lastUpdatedAt).toBe(2500);
