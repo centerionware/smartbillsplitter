@@ -1,6 +1,7 @@
+
 import type { Bill, ImportedBill, SharedBillPayload, ConstituentShareInfo, Participant, ReceiptItem } from '../../types';
-import { getApiUrl, fetchWithRetry } from '../../api';
-import * as cryptoService from '../../cryptoService';
+import { getApiUrl, fetchWithRetry } from '../api';
+import * as cryptoService from '../cryptoService';
 
 declare var pako: any;
 
@@ -50,7 +51,7 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
                 if (constituentToSummaryMap.has(share.shareId)) {
                     const summaryTemplate = constituentToSummaryMap.get(share.shareId)!;
                     let summaryToUpdate = updatedSummaries.get(summaryTemplate.id) || JSON.parse(JSON.stringify(summaryTemplate));
-                    const constituentInfo = summaryToUpdate.constituentShares!.find(cs => cs.shareId === share.shareId)!;
+                    const constituentInfo = summaryToUpdate.constituentShares!.find((cs: ConstituentShareInfo) => cs.shareId === share.shareId)!;
 
                     try {
                         const key = await cryptoService.importEncryptionKey(constituentInfo.encryptionKey);

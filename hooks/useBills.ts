@@ -134,7 +134,7 @@ export const useBills = () => {
       let skippedCount = 0;
 
       // FIX: Explicitly type `billToProcess` because type inference was failing, causing it to be `unknown`.
-      billsToMerge.forEach((billToProcess: Omit<Bill, 'status'>) => {
+      billsToMerge.forEach((billToProcess) => {
           const existingBill = existingBillMap.get(billToProcess.id);
 
           if (existingBill) {

@@ -1,8 +1,9 @@
+
 import type { Bill, Settings } from '../../types';
-import { getApiUrl, fetchWithRetry } from '../../api';
-import { getBillSigningKey } from '../../db';
+import { getApiUrl, fetchWithRetry } from '../api';
+import { getBillSigningKey } from '../db';
 import { encryptAndSignPayload } from './utils';
-import * as cryptoService from '../../cryptoService';
+import * as cryptoService from '../cryptoService';
 
 export const recreateShareSession = async (
     bill: Bill,

@@ -1,8 +1,11 @@
+
 import type { Bill, ConstituentShareInfo, Participant, ReceiptItem, Settings } from '../../types';
-import { getApiUrl, fetchWithRetry } from '../../api';
-import { getBillSigningKey, saveBillSigningKey } from '../../db';
-import * as cryptoService from '../../cryptoService';
+import { getApiUrl, fetchWithRetry } from '../api';
+import { getBillSigningKey, saveBillSigningKey } from '../db';
+import * as cryptoService from '../cryptoService';
 import { encryptAndSignPayload } from './utils';
+
+declare var pako: any;
 
 /**
  * Creates a virtual "summary" bill from a collection of a participant's real bills.
