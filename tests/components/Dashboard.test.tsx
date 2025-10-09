@@ -4,7 +4,7 @@ import { render, act } from '@testing-library/react';
 import { screen } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import Dashboard from '../../components/Dashboard';
+import Dashboard from '../../components/dashboard/Dashboard';
 import { View } from '../../types';
 import type { Bill, ImportedBill, RecurringBill, Settings } from '../../types';
 import type { ParticipantData } from '../../components/dashboard/ParticipantList';
