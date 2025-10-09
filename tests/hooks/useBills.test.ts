@@ -66,7 +66,7 @@ describe('useBills hook', () => {
     const newBillData = { description: 'Movies', totalAmount: 30, date: new Date().toISOString(), participants: [] };
     
     // Simulating the bill being added to the DB for the next load
-    const updatedBillList = [...mockBills, { ...newBillData, id: '3', status: 'active', lastUpdatedAt: Date.now() }];
+    const updatedBillList: Bill[] = [...mockBills, { ...newBillData, id: '3', status: 'active', lastUpdatedAt: Date.now() }];
     vi.mocked(getBills).mockResolvedValue(updatedBillList);
 
     await act(async () => {
