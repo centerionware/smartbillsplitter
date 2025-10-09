@@ -193,7 +193,16 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         const fragmentKeyJwk = JSON.parse(base64UrlDecode(fragmentKeyStr));
         const fragmentKey = await cryptoService.importEncryptionKey(fragmentKeyJwk);
         const decryptedBillKeyBytes = await cryptoService.decrypt(encryptedBillKey, fragmentKey);
-        const decryptedBillKeyJson = pako.inflate(decryptedBillKeyBytes, { to: 'string' });
+        
+        // Backward compatibility for old, uncompressed keys
+        let decryptedBillKeyJson: string;
+        try {
+            decryptedBillKeyJson = pako.inflate(decryptedBillKeyBytes, { to: 'string' });
+        } catch (e) {
+            console.warn("Could not decompress bill key, assuming legacy format.");
+            decryptedBillKeyJson = new TextDecoder().decode(decryptedBillKeyBytes);
+        }
+
         const billKeyToUse: JsonWebKey = JSON.parse(decryptedBillKeyJson);
         setBillEncryptionKey(billKeyToUse);
         const symmetricKey = await cryptoService.importEncryptionKey(billKeyToUse);
