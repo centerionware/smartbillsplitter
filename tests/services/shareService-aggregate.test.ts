@@ -71,6 +71,7 @@ describe('shareService/aggregate', () => {
     vi.mocked(cryptoService.generateEncryptionKey).mockResolvedValue({} as CryptoKey);
     vi.mocked(cryptoService.importEncryptionKey).mockResolvedValue({} as CryptoKey);
     vi.mocked(cryptoService.sign).mockResolvedValue('signed-data');
+    vi.mocked(cryptoService.encrypt).mockResolvedValue('mock-encrypted-data');
 
     // Mock API responses
     vi.mocked(fetchWithRetry).mockResolvedValue(
