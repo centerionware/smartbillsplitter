@@ -1,16 +1,16 @@
 import { useEffect, useMemo } from 'react';
-import { View } from '../../types';
+import { View, Bill, ImportedBill } from '../../types';
 // Import base hooks
-import { useBills } from './useBills';
-import { useImportedBills } from './useImportedBills';
-import { useRecurringBills } from './useRecurringBills';
-import { useGroups } from './useGroups';
-import { useCategories } from './useCategories';
-import { useSettings } from './useSettings';
-import { useTheme } from './useTheme';
-import { useAuth } from './useAuth';
-import { usePwaInstall } from './usePwaInstall';
-import { useAppControl } from '../contexts/AppControlContext';
+import { useBills } from '../useBills';
+import { useImportedBills } from '../useImportedBills';
+import { useRecurringBills } from '../useRecurringBills';
+import { useGroups } from '../useGroups';
+import { useCategories } from '../useCategories';
+import { useSettings } from '../useSettings';
+import { useTheme } from '../useTheme';
+import { useAuth } from '../useAuth';
+import { usePwaInstall } from '../usePwaInstall';
+import { useAppControl } from '../../contexts/AppControlContext';
 // Import new refactored hooks
 import { useRouting } from './useRouting';
 import { useModalStates } from './useModalStates';
@@ -107,8 +107,8 @@ export const useAppLogic = () => {
     });
 
     // --- 6. Compose and Return Final State ---
-    const currentBill = useMemo(() => billsHook.bills.find(b => b.id === routing.params.billId), [billsHook.bills, routing.params.billId]);
-    const currentImportedBill = useMemo(() => importedBillsHook.importedBills.find(b => b.id === routing.params.importedBillId), [importedBillsHook.importedBills, routing.params.importedBillId]);
+    const currentBill = useMemo(() => billsHook.bills.find((b: Bill) => b.id === routing.params.billId), [billsHook.bills, routing.params.billId]);
+    const currentImportedBill = useMemo(() => importedBillsHook.importedBills.find((b: ImportedBill) => b.id === routing.params.importedBillId), [importedBillsHook.importedBills, routing.params.importedBillId]);
 
     return {
         // Base hook data and setters
