@@ -92,12 +92,12 @@ describe('ShareModal', () => {
     // Use a function with findByText to be robust against nested elements and whitespace.
     // This checks the full text content of the element.
     const aliceShare = await screen.findByText((content, element) => {
-      return element.tagName.toLowerCase() === 'li' && element.textContent.includes('Shared with Alice via Text Message');
+      return !!element && element.tagName.toLowerCase() === 'li' && !!element.textContent && element.textContent.includes('Shared with Alice via Text Message');
     });
     expect(aliceShare).toBeInTheDocument();
     
     const bobShare = await screen.findByText((content, element) => {
-      return element.tagName.toLowerCase() === 'li' && element.textContent.includes('Shared with Bob via Link Copy');
+      return !!element && element.tagName.toLowerCase() === 'li' && !!element.textContent && element.textContent.includes('Shared with Bob via Link Copy');
     });
     expect(bobShare).toBeInTheDocument();
     
