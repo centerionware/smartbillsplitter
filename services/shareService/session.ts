@@ -7,7 +7,7 @@ import * as cryptoService from '../cryptoService';
 export const recreateShareSession = async (
     bill: Bill,
     settings: Settings,
-    updateBillCallback: (updatedBill: Bill) => Promise<void>
+    updateBillCallback: (updatedBill: Bill, options?: { skipSync?: boolean }) => Promise<void>
 ): Promise<Bill> => {
     let updatedBill = JSON.parse(JSON.stringify(bill));
 
@@ -45,7 +45,7 @@ export const recreateShareSession = async (
         updatedBill.lastUpdatedAt = shareResult.lastUpdatedAt;
     }
 
-    await updateBillCallback(updatedBill);
+    await updateBillCallback(updatedBill, { skipSync: true });
     
     return updatedBill;
 };
@@ -59,7 +59,7 @@ export const recreateShareSession = async (
 export async function syncSharedBillUpdate(
     bill: Bill,
     settings: Settings,
-    updateBillCallback: (bill: Bill) => Promise<any>
+    updateBillCallback: (bill: Bill, options?: { skipSync?: boolean }) => Promise<any>
 ): Promise<void> {
   if (!bill.shareInfo?.shareId) {
     console.warn("Attempted to sync a bill without a shareId.", bill.id);
@@ -105,7 +105,7 @@ export async function syncSharedBillUpdate(
       lastUpdatedAt: result.lastUpdatedAt
     };
     // Silently update the bill in the DB with the complete shareInfo object
-    await updateBillCallback(updatedBill);
+    await updateBillCallback(updatedBill, { skipSync: true });
   }
 
   console.log(`Successfully synced update for bill ${bill.id}`);

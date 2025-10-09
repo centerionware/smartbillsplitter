@@ -1,4 +1,3 @@
-
 import type { Bill, Participant, Settings } from '../../types';
 import type { SubscriptionStatus } from '../../hooks/useAuth';
 import * as cryptoService from '../cryptoService';
@@ -92,7 +91,7 @@ export const generateShareLink = async (
     bill: Bill,
     participantId: string,
     settings: Settings,
-    updateBillCallback: (updatedBill: Bill) => Promise<void>
+    updateBillCallback: (updatedBill: Bill, options?: { skipSync?: boolean }) => Promise<void>
 ): Promise<{ url: string; billWithNewShareInfo: Bill }> => {
     let updatedBill = JSON.parse(JSON.stringify(bill));
     let needsDBUpdate = false;
@@ -192,7 +191,7 @@ export const generateShareLink = async (
     }
 
     if (needsDBUpdate) {
-        await updateBillCallback(updatedBill);
+        await updateBillCallback(updatedBill, { skipSync: true });
     }
     
     const billEncryptionKey = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);

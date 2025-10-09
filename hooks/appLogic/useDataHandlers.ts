@@ -46,8 +46,14 @@ export const useDataHandlers = ({
     addGroup, updateGroup, deleteGroup, incrementGroupPopularity
 }: HandlerDependencies) => {
     
-    const updateBill = useCallback(async (bill: Bill): Promise<Bill> => {
+    const updateBill = useCallback(async (bill: Bill, options?: { skipSync?: boolean }): Promise<Bill> => {
         const updatedBill = await originalUpdateBill(bill);
+        
+        if (options?.skipSync) {
+            postMessage({ type: 'bills-updated' }); // Still notify other tabs of the local change
+            return updatedBill;
+        }
+
         (async () => {
             try {
                 if (updatedBill.shareInfo?.shareId) {

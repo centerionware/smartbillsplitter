@@ -100,7 +100,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
     participant: Participant,
     method: 'sms' | 'email' | 'copy' | 'share'
   ) => {
-    const loadingKey = `${participant.id}-${method}`;
+    const loadingKey = participant.id;
     if (loading.has(loadingKey)) return;
 
     setLoading(prev => new Set(prev).add(loadingKey));
@@ -186,12 +186,12 @@ const ShareModal: React.FC<ShareModalProps> = ({ bill, settings, onClose, onUpda
                   <span className="font-semibold text-slate-800 dark:text-slate-100">{p.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  {p.phone && <ActionButton title="Share via Text Message" onClick={() => handleShareAction(p, 'sms')} disabled={loading.has(`${p.id}-sms`)} isUsed={!!bill.shareHistory?.[p.id]?.sms}><span className="text-xl" role="img" aria-label="Text message">💬</span></ActionButton>}
-                  {p.email && <ActionButton title="Share via Email" onClick={() => handleShareAction(p, 'email')} disabled={loading.has(`${p.id}-email`)} isUsed={!!bill.shareHistory?.[p.id]?.email}><span className="text-xl" role="img" aria-label="Email">📧</span></ActionButton>}
-                  <ActionButton title="Copy Link" onClick={() => handleShareAction(p, 'copy')} disabled={loading.has(`${p.id}-copy`)} isUsed={!!bill.shareHistory?.[p.id]?.copy}>
+                  {p.phone && <ActionButton title="Share via Text Message" onClick={() => handleShareAction(p, 'sms')} disabled={loading.has(p.id)} isUsed={!!bill.shareHistory?.[p.id]?.sms}><span className="text-xl" role="img" aria-label="Text message">💬</span></ActionButton>}
+                  {p.email && <ActionButton title="Share via Email" onClick={() => handleShareAction(p, 'email')} disabled={loading.has(p.id)} isUsed={!!bill.shareHistory?.[p.id]?.email}><span className="text-xl" role="img" aria-label="Email">📧</span></ActionButton>}
+                  <ActionButton title="Copy Link" onClick={() => handleShareAction(p, 'copy')} disabled={loading.has(p.id)} isUsed={!!bill.shareHistory?.[p.id]?.copy}>
                     {copied === p.id ? <span className="text-xl" role="img" aria-label="Checkmark">✅</span> : <span className="text-xl" role="img" aria-label="Copy">📋</span>}
                   </ActionButton>
-                  <ActionButton title="Share..." onClick={() => handleShareAction(p, 'share')} disabled={loading.has(`${p.id}-share`)} isUsed={!!bill.shareHistory?.[p.id]?.share}><span className="text-xl" role="img" aria-label="Share">🔗</span></ActionButton>
+                  <ActionButton title="Share..." onClick={() => handleShareAction(p, 'share')} disabled={loading.has(p.id)} isUsed={!!bill.shareHistory?.[p.id]?.share}><span className="text-xl" role="img" aria-label="Share">🔗</span></ActionButton>
                 </div>
               </li>
             ))}
