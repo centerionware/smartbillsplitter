@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { Bill, Settings, SettingsSection } from '../types';
 import ShareModal from './ShareModal';
 import { exportData } from '../services/exportService';
@@ -51,8 +51,9 @@ const LiveIndicator: React.FC<{ status: Bill['shareStatus'], onClick?: (e: React
 const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, settings, updateSettings, setSettingsSection, navigate, onReshareBill, checkAndMakeSpaceForImageShare }) => {
     const [localBill, setLocalBill] = useState(bill);
     const [isSaving, setIsSaving] = useState(false);
-    // FIX: Replaced NodeJS.Timeout with ReturnType<typeof setTimeout> for browser compatibility.
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingUpdateRef = useRef<Bill | null>(null); // Ref to hold pending state
+
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isPaymentWarningOpen, setIsPaymentWarningOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -62,21 +63,36 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, s
     const menuRef = useRef<HTMLDivElement>(null);
     
     useEffect(() => {
-        // When the parent's bill prop changes (e.g., due to polling),
-        // update our local state to reflect it, but only if we are not in the middle of a save.
         if (!isSaving) {
             setLocalBill(bill);
         }
     }, [bill, isSaving]);
+    
+    // Function to immediately save any pending debounced changes
+    const flushChanges = useCallback(() => {
+        if (debounceTimerRef.current && pendingUpdateRef.current) {
+            console.log("Flushing debounced changes before unmount/pagehide.");
+            clearTimeout(debounceTimerRef.current);
+            // Fire the update immediately. We don't await because the page might be unloading.
+            onUpdateBill(pendingUpdateRef.current);
+            debounceTimerRef.current = null;
+            pendingUpdateRef.current = null;
+            setIsSaving(false);
+        }
+    }, [onUpdateBill]);
 
-    // Cleanup timer on unmount
+    // Effect to handle component unmount (navigating away) and page exit (closing tab)
     useEffect(() => {
+        // Handles closing the tab or backgrounding the app
+        window.addEventListener('pagehide', flushChanges);
+
+        // Cleanup function handles component unmount
         return () => {
-            if (debounceTimerRef.current) {
-                clearTimeout(debounceTimerRef.current);
-            }
+            window.removeEventListener('pagehide', flushChanges);
+            flushChanges();
         };
-    }, []);
+    }, [flushChanges]);
+
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -105,11 +121,16 @@ const BillDetails: React.FC<BillDetailsProps> = ({ bill, onUpdateBill, onBack, s
             ),
         };
         setLocalBill(updatedBill); // Update UI immediately
+        pendingUpdateRef.current = updatedBill; // Store the pending update
 
         debounceTimerRef.current = setTimeout(() => {
-            onUpdateBill(updatedBill).finally(() => {
-                setIsSaving(false);
-            });
+            if (pendingUpdateRef.current) {
+                onUpdateBill(pendingUpdateRef.current).finally(() => {
+                    setIsSaving(false);
+                    pendingUpdateRef.current = null;
+                    debounceTimerRef.current = null;
+                });
+            }
         }, DEBOUNCE_DELAY);
     };
 
