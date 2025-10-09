@@ -66,7 +66,7 @@ describe('shareService/aggregate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default crypto mocks
-    vi.mocked(cryptoService.generateSigningKeyPair).mockResolvedValue({} as CryptoKeyPair);
+    vi.mocked(cryptoService.generateSigningKeyPair).mockResolvedValue({ privateKey: {} as CryptoKey, publicKey: {} as CryptoKey });
     vi.mocked(cryptoService.exportKey).mockResolvedValue({} as JsonWebKey);
     vi.mocked(cryptoService.generateEncryptionKey).mockResolvedValue({} as CryptoKey);
     vi.mocked(cryptoService.importEncryptionKey).mockResolvedValue({} as CryptoKey);
