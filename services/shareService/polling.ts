@@ -100,37 +100,52 @@ export async function pollImportedBills(bills: ImportedBill[]): Promise<Imported
             }
             
             for (const summary of updatedSummaries.values()) {
-                let totalOwed = 0;
+                let totalOwedByMe = 0; // The amount I currently owe
+                let totalAmountOfMyPortions = 0; // The original total of my portions
                 let allConstituentsPaid = true;
                 const paidItems: Record<string, boolean> = { ...(summary.localStatus.paidItems || {}) };
 
                 if (summary.sharedData.bill.items) {
                     for (const item of summary.sharedData.bill.items) {
-                        totalOwed += item.price;
+                        totalAmountOfMyPortions += item.price; // This is my portion of the constituent bill
+                        
+                        let isConsideredPaid = false;
                         const originalBill = item.originalBillData;
                         if (originalBill) {
                              const myParticipantInOriginal = originalBill.participants.find((p: Participant) => p.id === summary.myParticipantId);
                              if (myParticipantInOriginal?.paid) {
-                                paidItems[item.id] = true;
+                                paidItems[item.id] = true; // Sync creator-side paid status to local status
                              }
                         }
-                        if (!paidItems[item.id]) {
+                        
+                        // Final check on whether the item is paid (either by creator or by me locally)
+                        if (paidItems[item.id]) {
+                            isConsideredPaid = true;
+                        }
+
+                        if (!isConsideredPaid) {
+                            totalOwedByMe += item.price; // Only add to outstanding total if not paid.
                             allConstituentsPaid = false;
                         }
                     }
                 }
-                
-                summary.sharedData.bill.totalAmount = totalOwed;
+
+                // The `totalAmount` of the summary bill should reflect the total of my original portions.
+                summary.sharedData.bill.totalAmount = totalAmountOfMyPortions;
+
+                // The `amountOwed` for my participant on the summary should reflect what I still owe.
                 if (summary.sharedData.bill.participants[0]) {
-                    summary.sharedData.bill.participants[0].amountOwed = totalOwed;
+                    summary.sharedData.bill.participants[0].amountOwed = totalOwedByMe;
                 }
+
+                // These local statuses drive the UI on the card (e.g., "Paid" badge)
                 summary.localStatus.paidItems = paidItems;
                 summary.localStatus.myPortionPaid = allConstituentsPaid;
                 summary.liveStatus = 'live';
                 if (summary.sharedData.bill.items) {
                     summary.lastUpdatedAt = Math.max(...summary.sharedData.bill.items.map((i: ReceiptItem) => i.originalBillData?.lastUpdatedAt || 0), summary.lastUpdatedAt);
                 }
-                
+
                 billsNeedingUpdate.push(summary);
             }
             
