@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ShareModal from '../../components/ShareModal';
 import { Bill, Settings } from '../../types';
+import { generateShareLink } from '../../services/shareService';
 
 // Mocks
 vi.mock('../../contexts/AppControlContext', () => ({
@@ -13,7 +14,7 @@ vi.mock('../../contexts/AppControlContext', () => ({
 }));
 
 vi.mock('../../services/shareService', () => ({
-  generateShareLink: vi.fn().mockResolvedValue({ url: 'http://share.link', billWithNewShareInfo: {} }),
+  generateShareLink: vi.fn(),
 }));
 
 const mockSettings: Settings = {
@@ -61,6 +62,10 @@ const mockHandlers = {
 describe('ShareModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // FIX: Mock implementation to return the passed bill object to ensure properties are not lost.
+    vi.mocked(generateShareLink).mockImplementation(async (bill: Bill) => {
+        return { url: 'http://share.link', billWithNewShareInfo: bill };
+    });
   });
 
   it('renders a "Share History" section', () => {
@@ -71,13 +76,13 @@ describe('ShareModal', () => {
   it('shows previous share events when history exists', async () => {
     render(<ShareModal bill={mockBillWithHistory} settings={mockSettings} {...mockHandlers} />);
     
-    // The details/summary element might not be a "button" role by default
     const summary = screen.getByText('Share History');
     await userEvent.click(summary);
 
-    expect(await screen.findByText(/Shared with Alice via Text Message/i)).toBeInTheDocument();
+    // FIX: Use a more robust regex to match text across multiple elements.
+    expect(await screen.findByText(/Shared with Alice.*via Text Message/i)).toBeInTheDocument();
     expect(screen.getByText(/5 minutes ago/i)).toBeInTheDocument();
-    expect(screen.getByText(/Shared with Bob via Link Copy/i)).toBeInTheDocument();
+    expect(screen.getByText(/Shared with Bob.*via Link Copy/i)).toBeInTheDocument();
     expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
   });
 

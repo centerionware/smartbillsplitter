@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateAggregateBill } from '../../services/shareService/aggregate';
 import { fetchWithRetry } from '../../services/api';
 import * as cryptoService from '../../services/cryptoService';
-import { getBillSigningKey, saveBillSigningKey } from '../../services/db';
+import { getBillSigningKey, saveBillSigningKey } from '../db';
 import type { Bill, Settings } from '../../types';
 
 // Mocks
@@ -64,6 +64,14 @@ describe('shareService/aggregate', () => {
     vi.mocked(fetchWithRetry).mockResolvedValue(
       new Response(JSON.stringify({ shareId: 'new-share-id', updateToken: 'new-token' }), { status: 201 })
     );
+
+    // FIX: Provide a mock implementation for getBillSigningKey to prevent test failures.
+    vi.mocked(getBillSigningKey).mockImplementation(async (billId: string) => {
+      if (billId === 'bill-1' || billId === 'bill-2') {
+        return { billId, privateKey: {} as CryptoKey };
+      }
+      return undefined;
+    });
   });
 
   it('should create a summary bill with correct total and items', async () => {
@@ -84,6 +92,8 @@ describe('shareService/aggregate', () => {
     const updateCallback = vi.fn();
     // Simulate bill-1 having no shareInfo
     const billsForTest = [{ ...mockUnpaidBills[0], shareInfo: undefined }, mockUnpaidBills[1]];
+    
+    // Adjust mock for this specific test case
     vi.mocked(getBillSigningKey).mockResolvedValue(undefined);
 
     await generateAggregateBill('Alice', billsForTest, mockSettings, updateCallback, Infinity);

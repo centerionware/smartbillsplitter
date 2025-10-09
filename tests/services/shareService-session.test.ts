@@ -8,7 +8,7 @@ import type { Bill, Settings } from '../../types';
 
 // Mocks
 vi.mock('../../services/api', () => ({
-  getApiUrl: vi.fn().mockResolvedValue('http://api.test'),
+  getApiUrl: vi.fn().mockImplementation(async (path: string) => `http://api.test${path}`),
   fetchWithRetry: vi.fn(),
 }));
 
