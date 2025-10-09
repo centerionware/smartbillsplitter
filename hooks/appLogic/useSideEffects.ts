@@ -23,8 +23,9 @@ export const useSideEffects = ({
     // Polling for imported bills
     useEffect(() => {
         const poll = async () => {
-            if (view === View.BillDetails || view === View.ImportedBillDetails) {
-                return; // Pause polling on detail views
+            // Pause polling on detail views and the share view to prevent request races
+            if (view === View.BillDetails || view === View.ImportedBillDetails || view === View.ViewShared) {
+                return;
             }
             const activeImported = importedBills.filter(b => b.status === 'active');
             if (activeImported.length > 0) {
@@ -40,8 +41,9 @@ export const useSideEffects = ({
     // Polling for owned bills
     useEffect(() => {
         const poll = async () => {
-            if (view === View.BillDetails || view === View.ImportedBillDetails) {
-                return; // Pause polling on detail views
+            // Pause polling on detail views and the share view to prevent request races
+            if (view === View.BillDetails || view === View.ImportedBillDetails || view === View.ViewShared) {
+                return;
             }
             const ownedShared = bills.filter(b => b.shareInfo?.shareId);
             if (ownedShared.length > 0) {

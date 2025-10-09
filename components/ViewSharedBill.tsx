@@ -142,6 +142,7 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
     };
 }, [status, isAlreadyImported, requestConfirmation]);
 
+  // Main data fetching effect, runs only on initial load or hash change
   useEffect(() => {
     if (!hasAcceptedPrivacy) return;
 
@@ -227,18 +228,6 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
         const isVerified = await cryptoService.verify(JSON.stringify(data.bill), data.signature, publicKey);
         if (!isVerified) throw new Error("Signature verification failed. The bill data may have been tampered with.");
         
-        const incomingPublicKey = data.publicKey;
-        let isSelfImported = false;
-        for (const localBill of bills) {
-            if (localBill.shareInfo?.signingPublicKey) {
-                if (JSON.stringify(localBill.shareInfo.signingPublicKey) === JSON.stringify(incomingPublicKey)) {
-                    isSelfImported = true;
-                    break;
-                }
-            }
-        }
-        setIsOwnBill(isSelfImported);
-
         setSharedData(data);
         setStatus('verified');
       } catch (err: any) {
@@ -248,7 +237,27 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
       }
     };
     processShareLink();
-  }, [hasAcceptedPrivacy, window.location.hash, bills]);
+  }, [hasAcceptedPrivacy, window.location.hash]);
+
+  // Secondary effect to check if the user is importing their own bill.
+  // This runs only after the shared data and local bills are available.
+  useEffect(() => {
+    if (!sharedData || !bills) {
+      return;
+    }
+
+    const incomingPublicKey = sharedData.publicKey;
+    let isSelfImported = false;
+    for (const localBill of bills) {
+        if (localBill.shareInfo?.signingPublicKey) {
+            if (JSON.stringify(localBill.shareInfo.signingPublicKey) === JSON.stringify(incomingPublicKey)) {
+                isSelfImported = true;
+                break;
+            }
+        }
+    }
+    setIsOwnBill(isSelfImported);
+  }, [sharedData, bills]);
 
   const handleImport = async () => {
     if (!sharedData || !myParticipantId || !billEncryptionKey) return;
