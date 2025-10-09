@@ -84,7 +84,7 @@ describe('shareService/aggregate', () => {
     const updateCallback = vi.fn();
     // Simulate bill-1 having no shareInfo
     const billsForTest = [{ ...mockUnpaidBills[0], shareInfo: undefined }, mockUnpaidBills[1]];
-    vi.mocked(getBillSigningKey).mockResolvedValue(null);
+    vi.mocked(getBillSigningKey).mockResolvedValue(undefined);
 
     await generateAggregateBill('Alice', billsForTest, mockSettings, updateCallback, Infinity);
     

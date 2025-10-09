@@ -335,6 +335,7 @@ try {
         const root = ReactDOM.createRoot(rootElement);
         root.render(
           <React.StrictMode>
+            {/* FIX: Wrap Root component in ErrorBoundary to provide children prop */}
             <ErrorBoundary>
               <Root />
             </ErrorBoundary>
