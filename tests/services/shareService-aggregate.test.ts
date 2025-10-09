@@ -21,7 +21,19 @@ const pako = {
 };
 vi.stubGlobal('pako', pako);
 
-const mockSettings: Settings = { myDisplayName: 'Me' } as Settings;
+const mockSettings: Settings = {
+    myDisplayName: 'Me',
+    shareTemplate: '',
+    notificationsEnabled: false,
+    notificationDays: 3,
+    paymentDetails: {
+        venmo: '',
+        paypal: '',
+        cashApp: '',
+        zelle: '',
+        customMessage: ''
+    }
+};
 
 const mockUnpaidBills: Bill[] = [
   {
