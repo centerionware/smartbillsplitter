@@ -73,9 +73,9 @@ describe('shareService/aggregate', () => {
     vi.mocked(cryptoService.sign).mockResolvedValue('signed-data');
     vi.mocked(cryptoService.encrypt).mockResolvedValue('mock-encrypted-data');
 
-    // Mock API responses
-    vi.mocked(fetchWithRetry).mockResolvedValue(
-      new Response(JSON.stringify({ shareId: 'new-share-id', updateToken: 'new-token' }), { status: 201 })
+    // Mock API responses to generate a new Response object on each call
+    vi.mocked(fetchWithRetry).mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ shareId: 'new-share-id', updateToken: 'new-token' }), { status: 201 }))
     );
 
     // FIX: Provide a mock implementation for getBillSigningKey to prevent test failures.
