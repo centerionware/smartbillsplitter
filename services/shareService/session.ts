@@ -1,4 +1,3 @@
-
 import type { Bill, Settings } from '../../types';
 import { getApiUrl, fetchWithRetry } from '../api';
 import { getBillSigningKey } from '../db';
@@ -93,19 +92,20 @@ export async function syncSharedBillUpdate(
     throw new Error(result.error || 'Failed to sync bill update to the server.');
   }
 
-  // Handle migration: server sends back a new token for legacy bills
-  if (result.updateToken) {
-    console.log(`Received new update token for bill ${bill.id}. Migrating.`);
-    const migratedBill: Bill = {
+  // Handle server responses that include an update token (e.g., on first update or after migration)
+  if (result.updateToken && bill.shareInfo) {
+    console.log(`Received new/updated token for bill ${bill.id}. Persisting.`);
+    const updatedShareInfo = {
+      ...bill.shareInfo,
+      updateToken: result.updateToken,
+    };
+    const updatedBill: Bill = {
       ...bill,
-      shareInfo: {
-        ...bill.shareInfo,
-        updateToken: result.updateToken,
-      },
+      shareInfo: updatedShareInfo,
       lastUpdatedAt: result.lastUpdatedAt
     };
-    // Silently update the bill in the DB with the new token
-    await updateBillCallback(migratedBill);
+    // Silently update the bill in the DB with the complete shareInfo object
+    await updateBillCallback(updatedBill);
   }
 
   console.log(`Successfully synced update for bill ${bill.id}`);
@@ -145,7 +145,6 @@ export async function reactivateShare(bill: Bill, settings: Settings): Promise<{
     throw new Error(result.error || 'Failed to reactivate share on the server.');
   }
   
-  // The server now consistently returns a token.
   if (!result.updateToken) {
     throw new Error('Server did not return an update token on reactivation.');
   }
