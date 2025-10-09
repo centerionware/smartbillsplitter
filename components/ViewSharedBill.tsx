@@ -6,7 +6,6 @@ import { getApiUrl, fetchWithRetry } from '../services/api';
 import PaymentMethodsModal from './PaymentMethodsModal';
 import SummaryBillDetailsModal from './SummaryBillDetailsModal';
 
-// FIX: Added declaration for pako, which is loaded as a global script.
 declare var pako: any;
 
 interface ViewSharedBillProps {
@@ -73,7 +72,6 @@ function base64UrlDecode(base64Url: string): string {
     }
 }
 
-// FIX: Changed to a named export to resolve module resolution issues.
 export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete, settings, addImportedBill, importedBills, requestConfirmation, bills }) => {
   const [hasAcceptedPrivacy, setHasAcceptedPrivacy] = useState(
     () => typeof window !== 'undefined' && localStorage.getItem('privacyConsentAccepted') === 'true'

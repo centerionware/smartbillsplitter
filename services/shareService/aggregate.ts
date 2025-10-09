@@ -28,15 +28,24 @@ export const generateAggregateBill = async (
     for (const bill of unpaidBills) {
         let updatedBill = { ...bill };
         let needsServerUpdate = false;
+        let keyRecord = await getBillSigningKey(updatedBill.id);
 
-        if (!updatedBill.shareInfo || !updatedBill.shareInfo.shareId) {
+        if (!updatedBill.shareInfo || !updatedBill.shareInfo.shareId || !keyRecord) {
+            needsServerUpdate = true;
             const signingKeyPair = await cryptoService.generateSigningKeyPair();
             await saveBillSigningKey(updatedBill.id, signingKeyPair.privateKey);
+            keyRecord = { billId: updatedBill.id, privateKey: signingKeyPair.privateKey };
             const signingPublicKeyJwk = await cryptoService.exportKey(signingKeyPair.publicKey);
+            
             const billEncryptionKey = await cryptoService.generateEncryptionKey();
             const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
-            updatedBill.shareInfo = { shareId: '', encryptionKey: billEncryptionKeyJwk, signingPublicKey: signingPublicKeyJwk };
-            needsServerUpdate = true;
+            
+            updatedBill.shareInfo = { 
+                ...(updatedBill.shareInfo || {}),
+                shareId: updatedBill.shareInfo?.shareId || '', // Keep existing shareId if recreating
+                encryptionKey: billEncryptionKeyJwk, 
+                signingPublicKey: signingPublicKeyJwk 
+            };
         } else {
             // Even if a share exists, we must push the latest data to the server
             // to ensure the summary reflects any local updates.
@@ -44,8 +53,7 @@ export const generateAggregateBill = async (
         }
 
         if (needsServerUpdate) {
-            const keyRecord = await getBillSigningKey(updatedBill.id);
-            if (!keyRecord || !updatedBill.shareInfo) throw new Error(`Could not find signing key for bill ${updatedBill.id}`);
+            if (!keyRecord || !updatedBill.shareInfo) throw new Error(`Could not find or create signing key for bill ${updatedBill.id}`);
             const encryptionKey = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
             const encryptedData = await encryptAndSignPayload(updatedBill, settings, keyRecord.privateKey, updatedBill.shareInfo.signingPublicKey, encryptionKey);
             
@@ -138,4 +146,4 @@ export const generateAggregateBill = async (
         status: 'active' as const,
     };
     return { summaryBill, constituentShares, imagesDropped };
-};
+}

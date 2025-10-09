@@ -97,7 +97,6 @@ export const matchAndAssignItems = async (params: MatchAndAssignItemsParams): Pr
 
 // --- CSV Parsing ---
 export type ParsedBillFromCsv = Omit<Bill, 'status'>;
-// FIX: Added ParsedCsvData interface to correctly type the CSV parsing result.
 export interface ParsedCsvData {
   ownedBills: ParsedBillFromCsv[];
   importedBills: Omit<ImportedBill, 'status' | 'liveStatus'>[];
@@ -108,7 +107,6 @@ export interface ParsedCsvData {
 const EXPORT_HEADER = '# SharedBills CSV Export v2';
 
 // Client-side parser for our own CSV format
-// FIX: Rewrote parseAppCsv to handle the V2 export format and return the ParsedCsvData structure.
 export const parseAppCsv = (csvContent: string): ParsedCsvData => {
     const lines = csvContent.split(/\r?\n/).filter(line => line.trim() && !line.startsWith('#'));
     if (lines.length < 1) return { ownedBills: [], importedBills: [] };
@@ -238,7 +236,6 @@ export const parseAppCsv = (csvContent: string): ParsedCsvData => {
                     },
                     creatorPublicKey: creatorPublicKey,
                     signature: '',
-                    // FIX: Replaced empty object with a valid PaymentDetails object to satisfy the type.
                     paymentDetails: {
                         venmo: '',
                         paypal: '',
@@ -261,7 +258,6 @@ export const parseAppCsv = (csvContent: string): ParsedCsvData => {
     return result;
 };
 
-// FIX: Updated function signature and AI fallback logic to return ParsedCsvData.
 export const parseCsv = async (csvContent: string, myDisplayName: string): Promise<ParsedCsvData> => {
     // Client-side detection logic
     if (csvContent.trim().startsWith(EXPORT_HEADER)) {

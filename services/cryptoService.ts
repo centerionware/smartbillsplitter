@@ -94,10 +94,6 @@ export const encrypt = async (data: string | Uint8Array, key: CryptoKey): Promis
   const iv = crypto.getRandomValues(new Uint8Array(12)); // IV for GCM should be 12 bytes
   const encodedData = typeof data === 'string' ? new TextEncoder().encode(data) : data;
 
-  // FIX: By calling .slice() on the Uint8Array, we create a shallow copy with a new,
-  // guaranteed-standard ArrayBuffer. This resolves a TypeScript error where the buffer
-  // was inferred as potentially being a SharedArrayBuffer, which is incompatible
-  // with the Web Crypto API.
   const encryptedContent = await crypto.subtle.encrypt(
     { name: SYMMETRIC_ALGORITHM, iv },
     key,
@@ -127,10 +123,6 @@ export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<Ui
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
-  // FIX: By calling .slice() on the Uint8Array, we create a shallow copy with a new,
-  // guaranteed-standard ArrayBuffer. This resolves a TypeScript error where the buffer
-  // was inferred as potentially being a SharedArrayBuffer, which is incompatible
-  // with the Web Crypto API.
   const decryptedContent = await crypto.subtle.decrypt(
     { name: SYMMETRIC_ALGORITHM, iv },
     key,
@@ -146,7 +138,7 @@ export const decrypt = async (encryptedData: string, key: CryptoKey): Promise<Ui
  * Generates a new ECDSA key pair for digital signatures.
  */
 export const generateSigningKeyPair = async (): Promise<CryptoKeyPair> => {
-  return crypto.subtle.generateKey(SIGNING_KEY_OPTIONS, SIGNING_KEY_EXTRACTABLE, SIGNING_KEY_USAGES);
+  return crypto.subtle.generateKey(SIGNING_KEY_OPTIONS, SYMMETRIC_KEY_EXTRACTABLE, SIGNING_KEY_USAGES);
 };
 
 /**
@@ -166,7 +158,6 @@ export const importPublicKey = async (jwk: JsonWebKey): Promise<CryptoKey> => {
  */
 export const sign = async (data: string, privateKey: CryptoKey): Promise<string> => {
   const encodedData = new TextEncoder().encode(data);
-  // FIX: Use .slice() to prevent potential SharedArrayBuffer issues with the Web Crypto API.
   const signatureBuffer = await crypto.subtle.sign(SIGNING_ALGORITHM, privateKey, encodedData.slice());
   return btoa(uint8ArrayToBinaryString(new Uint8Array(signatureBuffer)));
 };
@@ -183,10 +174,6 @@ export const verify = async (data: string, signature: string, publicKey: CryptoK
   // Decode the signature using the robust helper
   const signatureBytes = decodeBase64(signature);
 
-  // FIX: By calling .slice() on the Uint8Arrays, we create shallow copies with new,
-  // guaranteed-standard ArrayBuffers. This resolves a TypeScript error where the buffers
-  // were inferred as potentially being SharedArrayBuffers, which are incompatible
-  // with the Web Crypto API.
   return crypto.subtle.verify(
     SIGNING_ALGORITHM,
     publicKey,

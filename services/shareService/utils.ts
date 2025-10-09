@@ -123,7 +123,7 @@ export async function encryptAndSignPayload(
         creatorName: settings.myDisplayName,
         publicKey: publicKeyJwk,
         signature,
-        paymentDetails: settings.paymentDetails,
+        paymentDetails: settings.paymentDetails || { venmo: '', paypal: '', cashApp: '', zelle: '', customMessage: '' },
     };
     if (constituentShares) {
         payload.constituentShares = constituentShares;

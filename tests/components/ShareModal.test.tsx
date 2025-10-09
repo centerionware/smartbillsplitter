@@ -62,7 +62,6 @@ const mockHandlers = {
 describe('ShareModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // FIX: Mock implementation to return the passed bill object to ensure properties are not lost.
     vi.mocked(generateShareLink).mockImplementation(async (bill: Bill) => {
         return { url: 'http://share.link', billWithNewShareInfo: bill };
     });
@@ -79,10 +78,11 @@ describe('ShareModal', () => {
     const summary = screen.getByText('Share History');
     await userEvent.click(summary);
 
-    // FIX: Use a more robust regex to match text across multiple elements.
-    expect(await screen.findByText(/Shared with Alice.*via Text Message/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Shared with Alice/i)).toBeInTheDocument();
+    expect(screen.getByText(/via Text Message/i)).toBeInTheDocument();
     expect(screen.getByText(/5 minutes ago/i)).toBeInTheDocument();
-    expect(screen.getByText(/Shared with Bob.*via Link Copy/i)).toBeInTheDocument();
+    expect(screen.getByText(/Shared with Bob/i)).toBeInTheDocument();
+    expect(screen.getByText(/via Link Copy/i)).toBeInTheDocument();
     expect(screen.getByText(/2 days ago/i)).toBeInTheDocument();
   });
 

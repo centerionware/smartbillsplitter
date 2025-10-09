@@ -14,7 +14,7 @@ vi.mock('../../services/cryptoService');
 
 // Mock pako, which is a global
 const pako = {
-  inflate: vi.fn((data) => JSON.stringify(data)),
+  inflate: vi.fn((data) => JSON.stringify(data)), // Simple mock: just stringify the input
 };
 vi.stubGlobal('pako', pako);
 
@@ -68,7 +68,7 @@ const mockSummaryBill: ImportedBill = {
 };
 
 
-describe('shareService/polling', () => {
+describe('shareService.pollImportedBills', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default mock implementations
@@ -79,79 +79,82 @@ describe('shareService/polling', () => {
     vi.mocked(pako.inflate).mockImplementation((data) => JSON.stringify(data));
   });
 
-  describe('pollImportedBills', () => {
-    it('should return an empty array if no bills have been updated', async () => {
-        vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
-        const result = await pollImportedBills([mockRegularBill]);
-        expect(result).toEqual([]);
-        expect(fetchWithRetry).toHaveBeenCalledWith('http://api.test/share/batch-check', expect.any(Object));
-    });
+  it('should return an empty array if no bills have been updated', async () => {
+    vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    const result = await pollImportedBills([mockRegularBill]);
+    expect(result).toEqual([]);
+    expect(fetchWithRetry).toHaveBeenCalledWith('http://api.test/share/batch-check', expect.any(Object));
+  });
+  
+  it('should return an updated regular bill if server has a newer version', async () => {
+    const updatedPayload: SharedBillPayload = {
+      creatorName: mockRegularBill.creatorName,
+      publicKey: mockRegularBill.sharedData.creatorPublicKey,
+      signature: mockRegularBill.sharedData.signature,
+      paymentDetails: mockRegularBill.sharedData.paymentDetails,
+      bill: { ...mockRegularBill.sharedData.bill, description: 'Updated Bill' },
+    };
+    const serverResponse = [{
+      shareId: 'share-regular-123',
+      encryptedData: 'encrypted-data',
+      lastUpdatedAt: 2000,
+    }];
     
-    it('should return an updated regular bill if server has a newer version', async () => {
-        const updatedPayload: SharedBillPayload = {
-            creatorName: mockRegularBill.creatorName,
-            publicKey: mockRegularBill.sharedData.creatorPublicKey,
-            signature: mockRegularBill.sharedData.signature,
-            paymentDetails: mockRegularBill.sharedData.paymentDetails,
-            bill: { ...mockRegularBill.sharedData.bill, description: 'Updated Bill' },
-        };
-        const serverResponse = [{
-            shareId: 'share-regular-123',
-            encryptedData: 'encrypted-data',
-            lastUpdatedAt: 2000,
-        }];
-        
-        vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify(serverResponse), { status: 200 }));
-        vi.mocked(pako.inflate).mockReturnValue(JSON.stringify(updatedPayload));
+    vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify(serverResponse), { status: 200 }));
+    vi.mocked(pako.inflate).mockReturnValue(JSON.stringify(updatedPayload));
 
-        const result = await pollImportedBills([mockRegularBill]);
+    const result = await pollImportedBills([mockRegularBill]);
 
-        expect(result).toHaveLength(1);
-        expect(result[0].id).toBe('imported-1');
-        expect(result[0].sharedData.bill.description).toBe('Updated Bill');
-        expect(result[0].lastUpdatedAt).toBe(2000);
-    });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('imported-1');
+    expect(result[0].sharedData.bill.description).toBe('Updated Bill');
+    expect(result[0].lastUpdatedAt).toBe(2000);
+  });
 
-    it('should correctly reconstruct a summary bill when a constituent is updated', async () => {
-      const updatedConstituentBillData: Bill = {
-        ...(mockSummaryBill.sharedData.bill.items![1].originalBillData!),
-        participants: [{ id: 'p-me', name: 'Me', amountOwed: 20, paid: true }], // User has now paid
-        lastUpdatedAt: 2500,
-      };
-      const updatedPayload: SharedBillPayload = {
-        creatorName: mockSummaryBill.creatorName,
-        publicKey: mockSummaryBill.sharedData.creatorPublicKey,
-        signature: mockSummaryBill.sharedData.signature,
-        paymentDetails: mockSummaryBill.sharedData.paymentDetails,
-        bill: updatedConstituentBillData
-      };
-      const serverResponse = [{
-        shareId: 'share-constituent-2', // Only constituent #2 is updated
-        encryptedData: 'encrypted-data-for-constituent-2',
-        lastUpdatedAt: 2500,
-      }];
-      
-      vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify(serverResponse), { status: 200 }));
-      vi.mocked(pako.inflate).mockReturnValue(JSON.stringify(updatedPayload));
+  it('should correctly reconstruct a summary bill when a constituent is updated', async () => {
+    // This is the key test for the bug fix
+    const updatedConstituentBillData: Bill = {
+      ...(mockSummaryBill.sharedData.bill.items![1].originalBillData!),
+      participants: [{ id: 'p-me', name: 'Me', amountOwed: 20, paid: true }], // User has now paid
+      lastUpdatedAt: 2500,
+    };
+    const updatedPayload: SharedBillPayload = {
+      creatorName: mockSummaryBill.creatorName,
+      publicKey: mockSummaryBill.sharedData.creatorPublicKey,
+      signature: mockSummaryBill.sharedData.signature,
+      paymentDetails: mockSummaryBill.sharedData.paymentDetails,
+      bill: updatedConstituentBillData
+    };
+    const serverResponse = [{
+      shareId: 'share-constituent-2', // Only constituent #2 is updated
+      encryptedData: 'encrypted-data-for-constituent-2',
+      lastUpdatedAt: 2500,
+    }];
+    
+    vi.mocked(fetchWithRetry).mockResolvedValue(new Response(JSON.stringify(serverResponse), { status: 200 }));
+    vi.mocked(pako.inflate).mockReturnValue(JSON.stringify(updatedPayload));
 
-      const result = await pollImportedBills([mockSummaryBill]);
+    const result = await pollImportedBills([mockSummaryBill]);
 
-      expect(result).toHaveLength(1);
-      const updatedSummary = result[0];
-      expect(updatedSummary.id).toBe('summary-1');
+    expect(result).toHaveLength(1);
+    const updatedSummary = result[0];
+    expect(updatedSummary.id).toBe('summary-1');
 
-      // 1. Check if the originalBillData was updated inside the summary
-      const updatedItem = updatedSummary.sharedData.bill.items!.find(i => i.id === 'original-2');
-      expect(updatedItem?.originalBillData?.participants[0].paid).toBe(true);
+    // 1. Check if the originalBillData was updated inside the summary
+    const updatedItem = updatedSummary.sharedData.bill.items!.find(i => i.id === 'original-2');
+    expect(updatedItem?.originalBillData?.participants[0].paid).toBe(true);
 
-      // 2. Check if local paid status for items was updated
-      expect(updatedSummary.localStatus.paidItems).toEqual({ 'original-2': true });
+    // 2. Check if local paid status for items was updated
+    expect(updatedSummary.localStatus.paidItems).toEqual({ 'original-2': true });
 
-      // 3. Since only one of two items is paid, the summary itself is not fully paid
-      expect(updatedSummary.localStatus.myPortionPaid).toBe(false);
-      
-      // 4. Check the lastUpdatedAt timestamp is updated to the latest constituent's timestamp
-      expect(updatedSummary.lastUpdatedAt).toBe(2500);
-    });
+    // 3. Since only one of two items is paid, the summary itself is not fully paid
+    expect(updatedSummary.localStatus.myPortionPaid).toBe(false);
+
+    // 4. Check if the total amount was correctly recalculated (it shouldn't change in this case, but good to check)
+    expect(updatedSummary.sharedData.bill.totalAmount).toBe(30); // 10 (unpaid) + 20 (paid)
+    expect(updatedSummary.sharedData.bill.participants[0].amountOwed).toBe(30);
+
+    // 5. Check the lastUpdatedAt timestamp is updated to the latest constituent's timestamp
+    expect(updatedSummary.lastUpdatedAt).toBe(2500);
   });
 });

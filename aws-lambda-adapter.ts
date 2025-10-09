@@ -14,7 +14,6 @@ function toHttpRequest(event: APIGatewayProxyEventV2): HttpRequest {
     try {
       // When the 'isBase64Encoded' flag is true, the body is a base64 string.
       // We must decode it back into a UTF-8 string before JSON parsing.
-      // FIX: Replace Node.js Buffer with browser-compatible equivalent to resolve type error.
       const bodyString = event.isBase64Encoded
         ? (() => {
             const binaryString = atob(event.body);

@@ -90,8 +90,8 @@ export const useImportedBills = () => {
       const billsToUpdate: ImportedBill[] = [];
       let skippedCount = 0;
 
-      // FIX: Explicitly type `billToProcess` because type inference was failing, causing it to be `unknown`.
-      billsToMerge.forEach((billToProcess: Omit<ImportedBill, 'status' | 'liveStatus'>) => {
+      // FIX: Replaced forEach with for...of loop to resolve TypeScript inference issues.
+      for (const billToProcess of billsToMerge) {
           const existingBill = existingBillMap.get(billToProcess.id);
           if (existingBill) {
               if ((billToProcess.lastUpdatedAt ?? 0) > (existingBill.lastUpdatedAt ?? 0)) {
@@ -102,7 +102,7 @@ export const useImportedBills = () => {
           } else {
               billsToAdd.push({ ...billToProcess, status: 'active', liveStatus: 'live' });
           }
-      });
+      }
 
       if (billsToAdd.length > 0 || billsToUpdate.length > 0) {
           await mergeImportedBillsDB(billsToAdd, billsToUpdate);
