@@ -1,6 +1,29 @@
 // tests/setup.ts
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
+import { TextEncoder, TextDecoder } from 'util';
+
+// Polyfill TextEncoder/TextDecoder for the JSDOM test environment which does not have them built-in.
+// This is necessary for any code that uses TextEncoder, like crypto functions or some libraries.
+vi.stubGlobal('TextEncoder', TextEncoder);
+vi.stubGlobal('TextDecoder', TextDecoder);
+
+// Mock the global `pako` object for compression/decompression in tests.
+// The test environment doesn't execute script tags, so this library isn't loaded otherwise.
+const pakoMock = {
+  deflate: (data: string) => new TextEncoder().encode(data),
+  inflate: (data: Uint8Array) => new TextDecoder().decode(data),
+};
+vi.stubGlobal('pako', pakoMock);
+
+// Mock the clipboard and share APIs for tests. JSDOM doesn't implement these.
+Object.assign(navigator, {
+  clipboard: {
+    writeText: vi.fn().mockResolvedValue(undefined),
+  },
+  share: vi.fn().mockResolvedValue(undefined),
+});
+
 
 // Mock IntersectionObserver for tests
 // JSDOM, the test environment for Vitest, doesn't implement this browser API.
