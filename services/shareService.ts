@@ -97,14 +97,12 @@ export const generateAggregateBill = async (
     availableSlots: number
 ): Promise<{ summaryBill: Bill, constituentShares: ConstituentShareInfo[], imagesDropped: number }> => {
     
-    const billsToUpdate: Bill[] = [];
     const constituentShares: ConstituentShareInfo[] = [];
     const billsToUpdateMap = new Map<string, Bill>();
 
     for (const bill of unpaidBills) {
         let updatedBill = { ...bill };
         let needsServerUpdate = false;
-        let needsLocalUpdate = false;
 
         if (!updatedBill.shareInfo || !updatedBill.shareInfo.shareId) {
             const signingKeyPair = await cryptoService.generateSigningKeyPair();
@@ -114,12 +112,10 @@ export const generateAggregateBill = async (
             const billEncryptionKeyJwk = await cryptoService.exportKey(billEncryptionKey);
             updatedBill.shareInfo = { shareId: '', encryptionKey: billEncryptionKeyJwk, signingPublicKey: signingPublicKeyJwk };
             needsServerUpdate = true;
-            needsLocalUpdate = true;
         } else {
-             try {
-                const res = await fetchWithRetry(await getApiUrl(`/share/${updatedBill.shareInfo.shareId}`), { method: 'GET', signal: AbortSignal.timeout(4000) });
-                if (res.status === 404) { needsServerUpdate = true; needsLocalUpdate = true; }
-             } catch (e) { console.warn(`Could not verify share for bill ${bill.id}, proceeding optimistically.`); }
+            // Even if a share exists, we must push the latest data to the server
+            // to ensure the summary reflects any local updates.
+            needsServerUpdate = true;
         }
 
         if (needsServerUpdate) {
@@ -127,14 +123,30 @@ export const generateAggregateBill = async (
             if (!keyRecord || !updatedBill.shareInfo) throw new Error(`Could not find signing key for bill ${updatedBill.id}`);
             const encryptionKey = await cryptoService.importEncryptionKey(updatedBill.shareInfo.encryptionKey);
             const encryptedData = await encryptAndSignPayload(updatedBill, settings, keyRecord.privateKey, updatedBill.shareInfo.signingPublicKey, encryptionKey);
+            
+            // Use POST with shareId for updates/recreations, or POST to base for new shares
             const urlPath = updatedBill.shareInfo.shareId ? `/share/${updatedBill.shareInfo.shareId}` : '/share';
-            const shareResponse = await fetchWithRetry(await getApiUrl(urlPath), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ encryptedData }) });
+            
+            const shareResponse = await fetchWithRetry(await getApiUrl(urlPath), { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ 
+                    encryptedData,
+                    updateToken: updatedBill.shareInfo.updateToken
+                }) 
+            });
+
             const shareResult = await shareResponse.json();
-            if (!shareResponse.ok) throw new Error(shareResult.error || "Failed to create share session for constituent bill.");
+            if (!shareResponse.ok) throw new Error(shareResult.error || "Failed to create/update share session for constituent bill.");
+            
+            // Update local bill with potentially new shareId or updateToken from server
             updatedBill.shareInfo.shareId = shareResult.shareId;
-        }
-        
-        if (needsLocalUpdate) {
+            if (shareResult.updateToken) {
+                updatedBill.shareInfo.updateToken = shareResult.updateToken;
+            }
+            if(shareResult.lastUpdatedAt) {
+                updatedBill.lastUpdatedAt = shareResult.lastUpdatedAt;
+            }
             billsToUpdateMap.set(updatedBill.id, updatedBill);
         }
 
@@ -214,7 +226,7 @@ export const generateOneTimeShareLink = async (
     unpaidBills: Bill[],
     participantName: string,
     settings: Settings,
-    updateMultipleBillsCallback: (billsToUpdate: Bill[]) => Promise<void>,
+    updateMultipleBillsCallback: (bills: Bill[]) => Promise<void>,
     allUserBills: Bill[],
     subscriptionStatus: SubscriptionStatus
 ): Promise<{ shareUrl: string; imagesDropped: number; }> => {
@@ -226,6 +238,7 @@ export const generateOneTimeShareLink = async (
         availableSlots = Math.max(0, FREE_TIER_IMAGE_SHARE_LIMIT - usedSlots);
     }
     
+    // FIX: Swapped the first two arguments to match the function definition.
     const { summaryBill, constituentShares, imagesDropped } = await generateAggregateBill(participantName, unpaidBills, settings, updateMultipleBillsCallback, availableSlots);
     const signingKeyPair = await cryptoService.generateSigningKeyPair();
     const signingPublicKeyJwk = await cryptoService.exportKey(signingKeyPair.publicKey);

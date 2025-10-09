@@ -277,9 +277,10 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   const getShareTextForParticipant = useCallback((participantName: string): string => {
     const participantData = participantsData.find(p => p.name === participantName && p.type === 'owed');
     if (!participantData) return "No outstanding bills found.";
+    const activeBills = bills.filter(b => b.status === 'active');
     const billsInfo = activeBills.filter(b => b.participants.some((p: Participant) => p.name === participantName && !p.paid && p.amountOwed > 0)).map(b => ({ description: b.description, amountOwed: b.participants.find((p: Participant) => p.name === participantName)!.amountOwed }));
     return generateShareText(participantName, participantData.amount, billsInfo, settings, subscriptionStatus);
-  }, [participantsData, activeBills, settings, subscriptionStatus]);
+  }, [participantsData, bills, settings, subscriptionStatus]);
 
   const handleShareGeneric = async (participant: ParticipantData) => {
     const shareText = getShareTextForParticipant(participant.name);
@@ -312,7 +313,7 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
   };
 
   const handleShareLink = useCallback(async (participantName: string, method: 'sms' | 'email' | 'generic') => {
-    const unpaidBills = bills.filter(b => b.status === 'active' && b.participants.some((p: Participant) => p.name === participantName && !p.paid && p.amountOwed > 0));
+    const unpaidBills = bills.filter(b => b.participants.some((p: Participant) => p.name === participantName && !p.paid && p.amountOwed > 0));
     if (unpaidBills.length === 0) {
         showNotification(`${participantName} has no outstanding bills to share.`, 'info');
         setShareSheetParticipant(null);
