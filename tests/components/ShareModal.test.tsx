@@ -89,11 +89,11 @@ describe('ShareModal', () => {
     const summary = screen.getByText('Share History');
     await userEvent.click(summary);
 
-    // Use findByRole which waits for the element and is more robust to text splitting
-    const aliceShare = await screen.findByRole('listitem', { name: /Shared with Alice via Text Message/i });
+    // Use findByRole which waits for the element and is more robust to text splitting and whitespace
+    const aliceShare = await screen.findByRole('listitem', { name: /Shared with\s+Alice\s+via Text Message/i });
     expect(aliceShare).toBeInTheDocument();
     
-    const bobShare = await screen.findByRole('listitem', { name: /Shared with Bob via Link Copy/i });
+    const bobShare = await screen.findByRole('listitem', { name: /Shared with\s+Bob\s+via Link Copy/i });
     expect(bobShare).toBeInTheDocument();
     
     // Also check the timestamps for completeness
