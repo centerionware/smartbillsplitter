@@ -91,57 +91,6 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
 
   const isAlreadyImported = sharedData ? importedBills.some(b => b.id === sharedData.bill.id) : false;
 
-  useEffect(() => {
-    // Only attach listeners when the bill is loaded and verified, but not yet imported.
-    const shouldWarn = status === 'verified' && !isAlreadyImported;
-    if (!shouldWarn) {
-        return; // No-op if we don't need to warn
-    }
-
-    const warningMessage = "If you leave now, this one-time share link will be used and you will not be able to view this bill again without a new link. Are you sure you want to continue?";
-    const originalHash = window.location.hash;
-
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-        event.preventDefault();
-        event.returnValue = warningMessage;
-        return warningMessage;
-    };
-
-    const handleHashChange = () => {
-        // If we are programmatically navigating back, do nothing.
-        if (navigationCancelled.current) {
-            navigationCancelled.current = false; // Reset for next time
-            return;
-        }
-
-        requestConfirmation(
-            'Leave without Importing?',
-            warningMessage,
-            () => {
-                // User confirmed they want to leave. Do nothing to allow the navigation.
-            },
-            {
-                confirmText: 'Leave',
-                cancelText: 'Stay',
-                confirmVariant: 'danger',
-                onCancel: () => {
-                    // User wants to stay. Revert the hash change.
-                    navigationCancelled.current = true;
-                    window.location.hash = originalHash;
-                }
-            }
-        );
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('hashchange', handleHashChange);
-
-    return () => {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-        window.removeEventListener('hashchange', handleHashChange);
-    };
-}, [status, isAlreadyImported, requestConfirmation]);
-
   // Main data fetching effect, runs only on initial load or hash change
   useEffect(() => {
     if (!hasAcceptedPrivacy) return;
@@ -375,6 +324,23 @@ export const ViewSharedBill: React.FC<ViewSharedBillProps> = ({ onImportComplete
                         myParticipantId={myParticipantId}
                         onClose={() => setIsSummaryModalOpen(false)}
                     />
+                )}
+                 {status === 'verified' && !isAlreadyImported && (
+                    <div className="p-4 bg-red-100 dark:bg-red-900/40 border-l-4 border-red-500 rounded-r-lg mb-6" role="alert">
+                        <div className="flex">
+                        <div className="flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div className="ml-3">
+                            <h3 className="text-lg font-bold text-red-800 dark:text-red-200">Important: One-Time Link</h3>
+                            <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                            This is a secure, single-use link. <strong>Navigating away or closing this page before importing will invalidate the link.</strong> You will need to request a new one from {creatorName} if you leave.
+                            </p>
+                        </div>
+                        </div>
+                    </div>
                 )}
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg">
                     <div className="flex flex-col md:flex-row justify-between md:items-start mb-2">
