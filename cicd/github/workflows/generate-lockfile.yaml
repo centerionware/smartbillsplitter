@@ -1,0 +1,53 @@
+name: Generate package-lock.json
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  generate-lockfile:
+    name: Generate and Commit Lockfile
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'package.json'
+
+      - name: Generate package-lock.json
+        run: npm install --package-lock-only
+
+      - name: Create commit with only lockfile and push
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          # Unstage all files from the main branch checkout to create a clean index
+          git rm -r --cached .
+          # Stage only the package-lock.json file
+          git add package-lock.json
+          # Check if there are any staged changes (i.e., if package-lock.json was new or modified)
+          if git diff --staged --quiet; then
+            echo "No changes to package-lock.json. Nothing to commit."
+            exit 0
+          fi
+          # Create a tree object from the now-clean index containing only the lockfile
+          TREE=$(git write-tree)
+          # Create a commit from that tree object, without any parent
+          COMMIT=$(git commit-tree "$TREE" -m "chore: generate package-lock.json from main [ci skip]")
+          # Force push this new commit to the package-lock branch
+          echo "Pushing new commit $COMMIT to package-lock branch..."
+          git push -f origin "$COMMIT":refs/heads/package-lock

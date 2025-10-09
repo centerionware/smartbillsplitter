@@ -1,0 +1,75 @@
+name: 3. Build Frontend
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_urls:
+        description: 'Comma-separated list of backend API base URLs'
+        required: true
+        default: 'https://backend.sharedbills.app'
+  workflow_call:
+    inputs:
+      api_urls:
+        description: 'Comma-separated list of backend API base URLs'
+        required: true
+        type: string
+    secrets:
+      VITE_AADS_ID:
+        required: false
+      VITE_AD_PROVIDER:
+        required: false
+
+jobs:
+  build:
+    name: Build Frontend Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (main branch)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Get lockfile from package-lock branch
+        run: |
+          git fetch origin package-lock --depth=1
+          git checkout origin/package-lock -- package-lock.json
+          if [ ! -f "package-lock.json" ]; then
+            echo "::error::package-lock.json not found on package-lock branch."
+            exit 1
+          fi
+
+      - name: Checkout screenshots branch
+        uses: actions/checkout@v4
+        with:
+          ref: screenshots
+          path: ./public/images
+
+      - name: Prepare image assets
+        run: |
+          cp ./public/images/.gitattributes ./public/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Create .env file for build
+        run: echo "VITE_API_BASE_URLS=${{ inputs.api_urls }}" > .env.production
+
+      - name: Build frontend application
+        run: npm run build:frontend
+        env:
+          # Expose secrets as environment variables specifically for this step
+          VITE_AADS_ID: ${{ secrets.VITE_AADS_ID }}
+          VITE_AD_PROVIDER: ${{ secrets.VITE_AD_PROVIDER || 'a-ads' }}
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist

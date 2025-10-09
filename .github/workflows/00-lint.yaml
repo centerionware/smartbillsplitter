@@ -1,0 +1,47 @@
+name: Lint Code
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_to_lint:
+        description: 'The branch to check out and lint'
+        required: true
+        type: string
+
+jobs:
+  lint:
+    name: Lint and Test Code
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout target branch code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_to_lint }}
+
+      - name: Get lockfile from package-lock branch
+        run: |
+          git fetch origin package-lock --depth=1
+          # Overwrite local package-lock.json with version from package-lock branch
+          git checkout origin/package-lock -- package-lock.json
+          if [ ! -f "package-lock.json" ]; then
+            echo "::error::package-lock.json not found on package-lock branch. The 'Generate package-lock.json' workflow might have failed or not run yet."
+            exit 1
+          fi
+
+      - name: Setup Node.js (with cache)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+      
+      - name: Run tests
+        run: npm test
