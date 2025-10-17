@@ -1,0 +1,23 @@
+name: 10. Simple Orchestrator (Lambda + Frontend)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy_backend:
+    name: Deploy Backend Lambda
+    # The calling job needs permissions to pass to the reusable workflow
+    permissions:
+      id-token: write # For AWS OIDC
+      contents: read
+    uses: ./.github/workflows/10-deploy-backend-lambda.yaml
+    secrets: inherit
+
+  deploy_frontend:
+    name: Deploy Frontend
+    needs: deploy_backend
+    # The calling job needs permissions to pass to the reusable workflow
+    permissions:
+      contents: write # For gh-pages deployment
+    uses: ./.github/workflows/10-frontend-deploy.yaml
+    secrets: inherit
