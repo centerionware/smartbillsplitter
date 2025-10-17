@@ -49,7 +49,7 @@ export const DisclaimerContent: React.FC = () => (
             <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                 <h4 className="font-semibold text-slate-700 dark:text-slate-200">Google Gemini API</h4>
                 <p className="text-sm mt-1">
-                The "Scan with AI" feature sends your receipt image to our server, which securely forwards it to the <strong>Google Gemini API</strong> for analysis. The extracted text is sent back to your device and is not stored by us. Your use of this feature is subject to Google's Privacy Policy.
+                The "Scan with AI" feature sends your receipt image to our server, which securely forwards it to the <strong>Google Gemini API</strong> for analysis. Because this feature relies on Google's powerful AI, <strong>it is the only feature in the app that requires an active internet connection to function.</strong> The extracted text is sent back to your device and is not stored by us. Your use of this feature is subject to Google's Privacy Policy.
                 </p>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">

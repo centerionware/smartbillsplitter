@@ -336,6 +336,8 @@ const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ onItemsScanned, onImage
           {isForTemplate
             ? "Use an image to quickly fill out the template fields below. The image itself will not be saved."
             : "Let AI extract the items and prices for you."}
+          <br/>
+          <strong className="text-slate-600 dark:text-slate-300">Note: AI scanning uses Google Gemini and requires an internet connection.</strong>
         </p>
         
         {!previewUrl && !isProcessingImage && (

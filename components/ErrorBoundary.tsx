@@ -78,6 +78,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         </div>
       );
     }
-    return this.props.children;
+    // FIX: Explicitly cast 'this' to its base Component type to resolve a compiler error where 'this.props' was not being found.
+    return (this as React.Component<Props, State>).props.children;
   }
 }

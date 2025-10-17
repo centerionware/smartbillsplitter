@@ -89,8 +89,8 @@ const BudgetView: React.FC<BudgetViewProps> = ({ budgetData, date, setDate, onSe
         }
     };
     
-    // FIX: Explicitly typed the sortedCategories array to resolve type inference issues where Object.values was returning `unknown[]`.
-    const sortedCategories: BudgetData['spendingByCategory'][string][] = Object.values(spendingByCategory).sort((a, b) => b.spent - a.spent);
+    // FIX: Cast Object.values to the correct type to resolve type inference issues where it was returning `unknown[]`. This correctly types the parameters for the sort function.
+    const sortedCategories = (Object.values(spendingByCategory) as BudgetData['spendingByCategory'][string][]).sort((a, b) => b.spent - a.spent);
 
     const getDateLabel = () => {
         if (date === 'last30days') return "Last 30 Days";
