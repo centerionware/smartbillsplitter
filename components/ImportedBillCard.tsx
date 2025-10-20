@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import type { ImportedBill, DashboardLayoutMode } from '../types';
 
 interface ImportedBillCardProps {
@@ -41,6 +41,23 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onAr
   const amountOwed = myParticipant?.amountOwed || 0;
   const isPaid = bill.localStatus.myPortionPaid;
   const isSummary = bill.id.startsWith('summary-');
+
+  const displayDate = useMemo(() => {
+    if (isSummary) {
+      const dates = (bill.sharedData.bill.items || [])
+        .map(item => item.originalBillData?.date)
+        .filter((date): date is string => !!date)
+        .map(dateStr => new Date(dateStr).getTime());
+
+      if (dates.length > 0) {
+        const mostRecentTimestamp = Math.max(...dates);
+        return new Date(mostRecentTimestamp).toLocaleDateString();
+      }
+      // Fallback for summary without items/dates
+      return new Date(bill.sharedData.bill.date).toLocaleDateString();
+    }
+    return new Date(bill.sharedData.bill.date).toLocaleDateString();
+  }, [bill, isSummary]);
 
   useEffect(() => {
     onMenuToggled(isMenuOpen);
@@ -101,7 +118,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onAr
                 <LiveIndicator status={bill.liveStatus} />
                 <div className="flex-grow overflow-hidden">
                     <p className="font-bold text-slate-800 dark:text-slate-100 truncate">{bill.sharedData.bill.description}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">From {bill.creatorName}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">From {bill.creatorName} &bull; {displayDate}</p>
                 </div>
             </div>
              <div className="flex-shrink-0 w-24 text-right">
@@ -142,7 +159,7 @@ const ImportedBillCard: React.FC<ImportedBillCardProps> = ({ bill, onClick, onAr
                  {renderMenu()}
             </div>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">From {bill.creatorName}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">From {bill.creatorName} &bull; {displayDate}</p>
         <div className="mt-4 flex justify-between items-end">
           <div>
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Your Portion</p>
