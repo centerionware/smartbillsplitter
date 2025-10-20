@@ -1,0 +1,18 @@
+{
+  "name": "SharedBills",
+  "short_name": "SharedBills",
+  "description": "Effortlessly split bills and track shared expenses with friends. Scan receipts with AI, manage recurring bills, and settle up easily.",
+  "start_url": "/app.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f5f9",
+  "theme_color": "#14b8a6",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
